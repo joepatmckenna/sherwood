@@ -1,0 +1,13 @@
+[Unit]
+Description=sherwood
+After=network.target
+
+[Service]
+User=root
+Group=www-data
+WorkingDirectory=/root/sherwood
+ExecStart=/root/sherwood/venv/bin/python sherwood/main.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
