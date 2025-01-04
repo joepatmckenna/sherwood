@@ -56,6 +56,10 @@ async def authorized_user_info(
 def create_app(*args, **kwargs):
     app = FastAPI(*args, **kwargs)
 
+    @app.get("/")
+    async def root():
+        return {}
+
     @app.post("/sign_up")
     async def sign_up(
         request: SignUpRequest,

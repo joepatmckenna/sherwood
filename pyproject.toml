@@ -13,12 +13,14 @@ dependencies = [
     "gunicorn",
     "httpx",
     "passlib",
+    "psycopg2-binary",    
     "pydantic[email]",
     "pytest",
     "pytest-mock",
     "python-jose",
-    "yfinance",
     "sqlalchemy",
+    "uvicorn",
+    "yfinance",
 ]
 
 [tool.pytest.ini_options]
