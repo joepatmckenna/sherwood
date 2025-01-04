@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sherwood"
+version = "0.0.0"
+description = "sherwood"
+license = { file = "LICENSE" }
+dependencies = [
+    "bcrypt",
+    "fastapi",
+    "httpx",
+    "passlib",
+    "pydantic[email]",
+    "pytest",
+    "pytest-mock",
+    "python-jose",
+    "yfinance",
+    "sqlalchemy",
+]
+
+[tool.pytest.ini_options]
+addopts = "-vv --disable-warnings"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.mypy]
+ignore_missing_imports = true
+strict = true
