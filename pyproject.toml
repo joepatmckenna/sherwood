@@ -10,6 +10,7 @@ license = { file = "LICENSE" }
 dependencies = [
     "bcrypt",
     "fastapi",
+    "gunicorn",
     "httpx",
     "passlib",
     "pydantic[email]",

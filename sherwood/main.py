@@ -1,4 +1,7 @@
 from fastapi import status, Depends, FastAPI, Header, HTTPException
+import gunicorn.app.base
+import logging
+import os
 from pydantic import BaseModel, EmailStr
 from sherwood import errors
 from sherwood.auth import (
@@ -11,6 +14,9 @@ from sherwood.db import get_db
 from sherwood.models import create_user, to_dict, User
 from sqlalchemy.orm import Session
 from typing import Annotated
+
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class SignUpRequest(BaseModel):
@@ -100,3 +106,28 @@ def create_app(*args, **kwargs):
 
 
 app = create_app(title="sherwood", version="0.0.0")
+
+
+class App(gunicorn.app.base.BaseApplication):
+    def load_config(self):
+        opts = vars(self.cfg.parser().parse_args())
+        for key, val in opts.items():
+            if val is None:
+                continue
+            key = key.lower()
+            if key in {"args", "worker_class"}:
+                continue
+            self.cfg.set(key, val)
+        self.cfg.set(
+            "worker_class",
+            "uvicorn.workers.UvicornWorker",
+        )
+        if not opts.get("workers"):
+            self.cfg.set("workers", os.cpu_count())
+
+    def load(self):
+        return app
+
+
+if __name__ == "__main__":
+    App().run()
