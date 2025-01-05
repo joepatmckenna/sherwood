@@ -4,7 +4,7 @@ import os
 import pytest
 import secrets
 from sherwood.auth import JWT_SECRET_KEY_ENV_VAR_NAME
-from sherwood.db import get_db
+from sherwood.db import get_db, DB_PWD_ENV_VAR_NAME
 from sherwood.main import create_app
 from sherwood.market_data_provider import MarketDataProvider
 from sherwood.models import BaseModel
@@ -15,6 +15,7 @@ import sqlalchemy.orm
 @pytest.fixture(scope="session", autouse=True)
 def set_environment_variables():
     os.environ[JWT_SECRET_KEY_ENV_VAR_NAME] = secrets.token_hex(32)
+    os.environ[DB_PWD_ENV_VAR_NAME] = "password"
 
 
 @pytest.fixture(autouse=True)

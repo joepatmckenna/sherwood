@@ -10,6 +10,14 @@ class SherwoodError(Exception):
 
 
 @dataclass
+class InternalServerError(SherwoodError):
+    message: str
+
+    def __repr__(self):
+        return self.message
+
+
+@dataclass
 class InvalidPasswordError(SherwoodError):
     reasons: list[str]
 
@@ -40,10 +48,11 @@ class DuplicateUserError(SherwoodError):
 
 
 async def error_handler(req: Request, exc: SherwoodError):
-    return JSONResponse(status_code=exc.status_code, content={"message": str(exc)})
+    return JSONResponse(status_code=exc.status_code, content={"message": repr(exc)})
 
 
 errors = (
+    InternalServerError,
     MissingUserError,
     DuplicateUserError,
     InvalidPasswordError,

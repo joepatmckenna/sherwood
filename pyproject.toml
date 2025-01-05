@@ -17,6 +17,7 @@ dependencies = [
     "pydantic[email]",
     "pytest",
     "pytest-mock",
+    "python-dotenv",
     "python-jose",
     "sqlalchemy",
     "uvicorn",

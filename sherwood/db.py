@@ -1,9 +1,12 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:password@localhost/db"
+DB_PWD_ENV_VAR_NAME = "DB_PWD"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(
+    f"postgresql://postgres:{os.getenv(DB_PWD_ENV_VAR_NAME)}@localhost/db"
+)
 
 Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

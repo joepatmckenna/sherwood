@@ -43,6 +43,10 @@ def validate_password(
 
 
 def generate_jwt_for_user(user, hours: float = 4) -> str:
+    secret_key = os.getenv(JWT_SECRET_KEY_ENV_VAR_NAME)
+    if secret_key is None:
+        raise
+
     issued_at = datetime.datetime.now(datetime.timezone.utc)
     expiration = issued_at + datetime.timedelta(hours=hours)
     try:
@@ -55,7 +59,7 @@ def generate_jwt_for_user(user, hours: float = 4) -> str:
                 "iat": timegm(issued_at.utctimetuple()),
                 "jti": str(uuid4()),
             },
-            key=os.getenv(JWT_SECRET_KEY_ENV_VAR_NAME),
+            key=secret_key,
             algorithm=_JWT_ALGORITHM,
         )
     except jose.jwt.JWTError as e:

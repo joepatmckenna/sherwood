@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
 from fastapi import status, Depends, FastAPI, Header, HTTPException
 import gunicorn.app.base
 import logging
@@ -12,7 +13,14 @@ from sherwood.auth import (
     validate_password,
 )
 from sherwood.db import engine, get_db
-from sherwood.models import create_user, to_dict, BaseModel as Base, User
+from sherwood.models import (
+    create_user,
+    to_dict,
+    BaseModel as Base,
+    Ownership,
+    Portfolio,
+    User,
+)
 from sqlalchemy.orm import Session
 from typing import Annotated
 
@@ -26,7 +34,7 @@ class SignUpRequest(BaseModel):
 
 
 class SignUpResponse(BaseModel):
-    jwt: str
+    jwt: str | None = None
 
 
 class SignInRequest(BaseModel):
@@ -66,20 +74,31 @@ def create_app(*args, **kwargs):
         request: SignUpRequest,
         db: Annotated[Session, Depends(get_db)],
     ) -> SignUpResponse:
+        logging.info(f"Got sign up request: {request}")
         user = db.query(User).filter_by(email=request.email).first()
         if user is not None:
+            logging.error(f"Email {request.email} already signed up.")
             raise errors.DuplicateUserError(status.HTTP_409_CONFLICT, request.email)
         is_valid, reasons = validate_password(request.password)
         if not is_valid:
+            logging.error(
+                f"Requested password {request.password} invalid because: {reasons}"
+            )
             raise errors.InvalidPasswordError(status.HTTP_400_BAD_REQUEST, reasons)
         try:
             user = create_user(db, request.email, request.password)
-            return SignUpResponse(jwt=generate_jwt_for_user(user))
-        except:
-            raise HTTPException(
+        except Exception as exc:
+            logging.error(f"Error creating user, request={request}, error={exc}")
+            raise errors.InternalServerError(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create user.",
+                message="Internal server error.",
             )
+        response = SignUpResponse()
+        try:
+            response.jwt = generate_jwt_for_user(user)
+        except Exception as exc:
+            logging.error(f"Error generating JWT for user {user}, error={exc}")
+        return response
 
     @app.post("/sign_in")
     async def sign_in(
@@ -128,10 +147,13 @@ class App(gunicorn.app.base.BaseApplication):
             self.cfg.set("workers", os.cpu_count())
 
     def load(self):
+        load_dotenv()
+
         @asynccontextmanager
         async def lifespan(_):
             Base.metadata.create_all(engine)
             yield
+            engine.dispose()
 
         return create_app(title="sherwood", version="0.0.0", lifespan=lifespan)
 
