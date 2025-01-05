@@ -17,31 +17,29 @@ python3 -m venv venv
 
 git clone https://github.com/joepatmckenna/sherwood.git
 
-./venv/bin/python -m pip install sherwood
+venv/bin/python -m pip install ./sherwood
 
 sudo systemctl start postgresql
 sudo systemctl enable postgresql
 sudo -i -u postgres psql <<EOF
-CREATE DATABASE db;
-CREATE USER sherwood WITH PASSWORD 'password';
-GRANT ALL PRIVILEGES ON DATABASE db TO sherwood;
-ALTER SCHEMA public OWNER TO sherwood;
+ALTER USER postgres WITH PASSWORD 'password';
 EOF
 
-# ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO sherwood;
-# ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO sherwood;
-
-
-cp sherwood.service /etc/systemd/system/sherwood.service
+sudo cp sherwood/sherwood.service /etc/systemd/system/sherwood.service
 sudo systemctl daemon-reload
 sudo systemctl enable sherwood
 sudo systemctl start sherwood
 
-cp sherwood.nginx /etc/nginx/sites-available/sherwood
-# sudo rm /etc/nginx/sites-enabled/sherwood
+sudo journalctl -u sherwood -f
+
+
+sudo cp sherwood/sherwood.nginx /etc/nginx/sites-available/sherwood
 sudo ln -s /etc/nginx/sites-available/sherwood /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
+
+
+# sudo rm /etc/nginx/sites-enabled/sherwood
 
 sudo certbot --nginx -d writewell.tech -d www.writewell.tech
 sudo certbot renew --dry-run
@@ -58,7 +56,10 @@ sudo systemctl status postgresql
 sudo systemctl status sherwood
 sudo systemctl status nginx
 
-sudo journalctl -u sherwood -f
+
+# ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO sherwood;
+# ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO sherwood;
+
 # sudo tail -f /var/log/nginx/access.log /var/log/nginx/error.log
 # sudo tail -f /var/log/postgresql/postgresql-16-main.log
 
@@ -72,3 +73,7 @@ sudo journalctl -u sherwood -f
 # curl -X POST https://www.writewell.tech/sign_up \
 #      -H "Content-Type: application/json" \
 #      -d '{"email": "user@web.com", "password": "Abcd@1234"}'
+
+
+
+sudo nano /etc/postgresql/16/main/pg_hba.conf
