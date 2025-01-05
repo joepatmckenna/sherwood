@@ -1,6 +1,7 @@
 from calendar import timegm
 import datetime
 import jose.jwt
+import logging
 import os
 from passlib.context import CryptContext
 import re
@@ -10,7 +11,7 @@ JWT_SECRET_KEY_ENV_VAR_NAME = "SHERWOOD_JWT_KEY"
 _JWT_ISSUER = "sherwood"
 _JWT_ALGORITHM = "HS256"
 
-password_context = CryptContext(schemes=["bcrypt", "argon2"], deprecated="auto")
+password_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
 def validate_password(
@@ -45,7 +46,9 @@ def validate_password(
 def generate_jwt_for_user(user, hours: float = 4) -> str:
     secret_key = os.getenv(JWT_SECRET_KEY_ENV_VAR_NAME)
     if secret_key is None:
-        raise
+        raise RuntimeError(
+            f"Missing environment variable {JWT_SECRET_KEY_ENV_VAR_NAME}"
+        )
 
     issued_at = datetime.datetime.now(datetime.timezone.utc)
     expiration = issued_at + datetime.timedelta(hours=hours)
@@ -63,21 +66,31 @@ def generate_jwt_for_user(user, hours: float = 4) -> str:
             algorithm=_JWT_ALGORITHM,
         )
     except jose.jwt.JWTError as e:
-        print(f"General token error: {e}")
+        logging.error(f"General token error: {e}")
+        raise
 
 
 def decode_jwt_for_user(jwt: str, email: str) -> dict[str, str]:
+    secret_key = os.getenv(JWT_SECRET_KEY_ENV_VAR_NAME)
+    if secret_key is None:
+        raise RuntimeError(
+            f"Missing environment variable {JWT_SECRET_KEY_ENV_VAR_NAME}"
+        )
+
     try:
         return jose.jwt.decode(
             jwt,
-            key=os.getenv(JWT_SECRET_KEY_ENV_VAR_NAME),
+            key=secret_key,
             algorithms=[_JWT_ALGORITHM],
             audience=email,
             issuer=_JWT_ISSUER,
         )
     except jose.jwt.ExpiredSignatureError:
-        print("Token has expired.")
+        logging.error("Token has expired.")
+        raise
     except jose.jwt.JWTClaimsError as e:
-        print(f"Invalid claims: {e}")
+        logging.error(f"Invalid claims: {e}")
+        raise
     except jose.jwt.JWTError as e:
-        print(f"General token error: {e}")
+        logging.error(f"General token error: {e}")
+        raise
