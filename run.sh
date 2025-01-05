@@ -25,6 +25,9 @@ sudo -i -u postgres psql <<EOF
 CREATE DATABASE sherwood_db;
 CREATE USER sherwood WITH PASSWORD 'password';
 GRANT ALL PRIVILEGES ON DATABASE sherwood_db TO sherwood;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO sherwood;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO sherwood;
+ALTER SCHEMA public OWNER TO sherwood;
 EOF
 
 cp sherwood.service /etc/systemd/system/sherwood.service
@@ -45,13 +48,15 @@ sudo ufw allow 'Nginx Full'
 
 # python sherwood/main.py --bind="127.0.0.1:8000" --reload &
 
-# sudo systemctl restart postgresql
-# sudo systemctl restart sherwood
-# sudo systemctl status postgresql
-# sudo systemctl status sherwood
+sudo systemctl restart postgresql
+sudo systemctl restart sherwood
+sudo systemctl restart nginx
 
+sudo systemctl status postgresql
+sudo systemctl status sherwood
+sudo systemctl status nginx
 
-# sudo journalctl -u sherwood -f
+sudo journalctl -u sherwood -f
 # sudo tail -f /var/log/nginx/access.log /var/log/nginx/error.log
 # sudo tail -f /var/log/postgresql/postgresql-16-main.log
 
