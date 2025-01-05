@@ -11,8 +11,8 @@ from sherwood.auth import (
     password_context,
     validate_password,
 )
-from sherwood.db import engine, get_db, BaseModel as Base
-from sherwood.models import create_user, to_dict, User
+from sherwood.db import engine, get_db
+from sherwood.models import create_user, to_dict, BaseModel as Base, User
 from sqlalchemy.orm import Session
 from typing import Annotated
 
