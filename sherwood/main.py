@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import status, Depends, FastAPI, Header, HTTPException
 import gunicorn.app.base
 import logging
@@ -10,7 +11,7 @@ from sherwood.auth import (
     password_context,
     validate_password,
 )
-from sherwood.db import get_db
+from sherwood.db import engine, get_db
 from sherwood.models import create_user, to_dict, User
 from sqlalchemy.orm import Session
 from typing import Annotated
@@ -109,7 +110,7 @@ def create_app(*args, **kwargs):
     return app
 
 
-app = create_app(title="sherwood", version="0.0.0")
+# app = create_app(title="sherwood", version="0.0.0")
 
 
 class App(gunicorn.app.base.BaseApplication):
@@ -130,7 +131,12 @@ class App(gunicorn.app.base.BaseApplication):
             self.cfg.set("workers", os.cpu_count())
 
     def load(self):
-        return app
+        @asynccontextmanager
+        async def lifespan(_):
+            BaseModel.metadata.create_all(engine)
+            yield
+
+        return create_app(title="sherwood", version="0.0.0", lifespan=lifespan)
 
 
 if __name__ == "__main__":
