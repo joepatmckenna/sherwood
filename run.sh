@@ -1,5 +1,7 @@
 #!/bin/bash
-sudo apt update && sudo apt upgrade -y
+sudo apt update
+
+sudo apt upgrade -y
 
 sudo apt install -y \
   certbot \
@@ -11,24 +13,24 @@ sudo apt install -y \
   python3-pip \
   python3-venv
 
-git clone https://github.com/joepatmckenna/sherwood.git
-cd sherwood
-
 python3 -m venv venv
-source venv/bin/activate
 
-python -m pip install .
+git clone https://github.com/joepatmckenna/sherwood.git
+
+./venv/bin/python -m pip install sherwood
 
 sudo systemctl start postgresql
 sudo systemctl enable postgresql
 sudo -i -u postgres psql <<EOF
-CREATE DATABASE sherwood_db;
+CREATE DATABASE db;
 CREATE USER sherwood WITH PASSWORD 'password';
-GRANT ALL PRIVILEGES ON DATABASE sherwood_db TO sherwood;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO sherwood;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO sherwood;
+GRANT ALL PRIVILEGES ON DATABASE db TO sherwood;
 ALTER SCHEMA public OWNER TO sherwood;
 EOF
+
+# ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO sherwood;
+# ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO sherwood;
+
 
 cp sherwood.service /etc/systemd/system/sherwood.service
 sudo systemctl daemon-reload
