@@ -11,7 +11,7 @@ from sherwood.auth import (
     password_context,
     validate_password,
 )
-from sherwood.db import engine, get_db
+from sherwood.db import engine, get_db, BaseModel as Base
 from sherwood.models import create_user, to_dict, User
 from sqlalchemy.orm import Session
 from typing import Annotated
@@ -110,9 +110,6 @@ def create_app(*args, **kwargs):
     return app
 
 
-# app = create_app(title="sherwood", version="0.0.0")
-
-
 class App(gunicorn.app.base.BaseApplication):
     def load_config(self):
         opts = vars(self.cfg.parser().parse_args())
@@ -133,7 +130,7 @@ class App(gunicorn.app.base.BaseApplication):
     def load(self):
         @asynccontextmanager
         async def lifespan(_):
-            BaseModel.metadata.create_all(engine)
+            Base.metadata.create_all(engine)
             yield
 
         return create_app(title="sherwood", version="0.0.0", lifespan=lifespan)

@@ -19,33 +19,37 @@ source venv/bin/activate
 
 python -m pip install .
 
-# python sherwood/main.py --bind="127.0.0.1:8000" --reload &
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+sudo -i -u postgres psql <<EOF
+CREATE DATABASE sherwood_db;
+CREATE USER sherwood WITH PASSWORD 'password';
+GRANT ALL PRIVILEGES ON DATABASE sherwood_db TO sherwood;
+EOF
+
 cp sherwood.service /etc/systemd/system/sherwood.service
 sudo systemctl daemon-reload
 sudo systemctl enable sherwood
 sudo systemctl start sherwood
-sudo systemctl status sherwood
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-sudo -i -u postgres
-psql
-CREATE DATABASE sherwood_db;
-CREATE USER sherwood WITH PASSWORD 'password';
-GRANT ALL PRIVILEGES ON DATABASE sherwood_db TO sherwood;
-\q
-# sudo systemctl status postgresql
-# sudo systemctl restart postgresql
 
 cp sherwood.nginx /etc/nginx/sites-available/sherwood
+# sudo rm /etc/nginx/sites-enabled/sherwood
 sudo ln -s /etc/nginx/sites-available/sherwood /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
-# sudo systemctl restart sherwood.service
 
 sudo certbot --nginx -d writewell.tech -d www.writewell.tech
 sudo certbot renew --dry-run
 
-# sudo ufw allow 'Nginx Full'
+sudo ufw allow 'Nginx Full'
+
+# python sherwood/main.py --bind="127.0.0.1:8000" --reload &
+
+# sudo systemctl restart postgresql
+# sudo systemctl restart sherwood
+# sudo systemctl status postgresql
+# sudo systemctl status sherwood
+
 
 # sudo journalctl -u sherwood -f
 # sudo tail -f /var/log/nginx/access.log /var/log/nginx/error.log
@@ -55,7 +59,9 @@ sudo certbot renew --dry-run
 # cat /etc/postgresql/16/main/postgresql.conf
 
 # curl https://writewell.tech
+
 # curl https://www.writewell.tech
+
 # curl -X POST https://www.writewell.tech/sign_up \
 #      -H "Content-Type: application/json" \
 #      -d '{"email": "user@web.com", "password": "Abcd@1234"}'
