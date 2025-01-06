@@ -148,7 +148,13 @@ class App(gunicorn.app.base.BaseApplication):
 
     def load(self):
         load_dotenv(".env")
-        engine = create_engine(os.environ[POSTGRESQL_DATABASE_URL_ENV_VAR_NAME])
+
+        postgresql_database_url = os.environ.get(POSTGRESQL_DATABASE_URL_ENV_VAR_NAME)
+        if not postgresql_database_url:
+            raise RuntimeError(
+                f"Environment variable '{POSTGRESQL_DATABASE_URL_ENV_VAR_NAME}' is not set."
+            )
+        engine = create_engine(postgresql_database_url)
         Session.configure(bind=engine)
 
         @asynccontextmanager

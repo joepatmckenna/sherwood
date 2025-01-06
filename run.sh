@@ -44,7 +44,6 @@ sudo systemctl restart nginx
 sudo certbot --nginx -d writewell.tech -d www.writewell.tech
 sudo certbot renew --dry-run
 
-
 ##################################################################
 ##################################################################
 ##################################################################
@@ -71,9 +70,6 @@ curl -X POST https://www.writewell.tech/sign_in \
 
 # python sherwood/sherwood/main.py --bind="127.0.0.1:8000" --reload &
 
-# sudo systemctl restart postgresql
-# sudo systemctl restart sherwood
-# sudo systemctl restart nginx
 
 # sudo systemctl status postgresql
 # sudo systemctl status sherwood
@@ -89,8 +85,16 @@ curl -X POST https://www.writewell.tech/sign_in \
 # cat /etc/postgresql/16/main/postgresql.conf
 
 # sudo systemctl restart sherwood
-# sudo journalctl -u sherwood -f
 
 # sudo journalctl -u postgresql
 
 # sudo rm /etc/nginx/sites-enabled/sherwood
+
+
+
+# sudo systemctl restart postgresql
+# sudo systemctl restart sherwood
+# sudo systemctl restart nginx
+
+
+# sudo journalctl -u sherwood -f

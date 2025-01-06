@@ -5,8 +5,9 @@ After=network.target
 [Service]
 User=root
 Group=www-data
-WorkingDirectory=/root
-ExecStart=/root/venv/bin/python sherwood/sherwood/main.py
+WorkingDirectory=/root/sherwood
+EnvironmentFile=/root/sherwood/.env
+ExecStart=/root/venv/bin/python sherwood/main.py --bind="127.0.0.1:8000"
 Restart=always
 
 [Install]
