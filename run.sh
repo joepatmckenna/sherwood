@@ -13,12 +13,6 @@ sudo apt install -y \
   python3-pip \
   python3-venv
 
-python3 -m venv venv
-
-git clone https://github.com/joepatmckenna/sherwood.git
-
-venv/bin/python -m pip install ./sherwood
-
 sudo systemctl start postgresql
 sudo systemctl enable postgresql
 sudo -i -u postgres psql <<EOF
@@ -31,10 +25,17 @@ EOF
 # in
 # /etc/postgresql/16/main/pg_hba.conf
 
+python3 -m venv venv
+
+git clone https://github.com/joepatmckenna/sherwood.git
+
+venv/bin/python -m pip install ./sherwood
+
 sudo cp sherwood/sherwood.service /etc/systemd/system/sherwood.service
 sudo systemctl daemon-reload
 sudo systemctl enable sherwood
 sudo systemctl start sherwood
+# sudo journalctl -u sherwood -f
 
 sudo cp sherwood/sherwood.nginx /etc/nginx/sites-available/sherwood
 sudo ln -s /etc/nginx/sites-available/sherwood /etc/nginx/sites-enabled/
@@ -53,12 +54,17 @@ curl https://writewell.tech
 curl https://www.writewell.tech
 
 curl -X POST https://www.writewell.tech/sign_up \
-     -H "Content-Type: application/json" \
-     -d '{"email": "user18@web.com", "password": "Abcd@1234"}'
+-H "Content-Type: application/json" \
+-d '{"email": "user1218@web.com", "password": "Abcd@1234"}'
+
+curl https://www.writewell.tech/user \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzaGVyd29vZCIsInN1YiI6IjkiLCJhdWQiOiJ1c2VyMTIxOEB3ZWIuY29tIiwiZXhwIjoxNzM2MTQ5MTM2LCJpYXQiOjE3MzYxMzQ3MzYsImp0aSI6ImY2OWE5MDQ3LWYyOTMtNDM1Ny1iZmIxLTE2NmI1N2E2YTdjNCJ9.-1IW2KQG2c0vbkziv4fMvC7VZ12laJW5-pczTPPOBtI" \
+-H "User: user1218@web.com"
 
 curl -X POST https://www.writewell.tech/sign_in \
-     -H "Content-Type: application/json" \
-     -d '{"email": "user111@web.com", "password": "Abcd@1234"}'
+-H "Content-Type: application/json" \
+-d '{"email": "user1218@web.com", "password": "Abcd@1234"}'
 
 ##################################################################
 ##################################################################
@@ -97,4 +103,4 @@ curl -X POST https://www.writewell.tech/sign_in \
 # sudo systemctl restart nginx
 
 
-# sudo journalctl -u sherwood -f
+

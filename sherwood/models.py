@@ -37,7 +37,7 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
 
 
 class User(BaseModel):
-    __tablename__ = "user"
+    __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(
         init=False,
@@ -71,10 +71,10 @@ class User(BaseModel):
 
 
 class Portfolio(BaseModel):
-    __tablename__ = "portfolio"
+    __tablename__ = "portfolios"
 
     id: Mapped[int] = mapped_column(
-        ForeignKey("user.id"),
+        ForeignKey("users.id"),
         init=False,
         primary_key=True,
         compare=True,
@@ -112,10 +112,10 @@ class Portfolio(BaseModel):
 
 
 class Holding(BaseModel):
-    __tablename__ = "holding"
+    __tablename__ = "holdings"
 
     portfolio_id: Mapped[int] = mapped_column(
-        ForeignKey("portfolio.id"),
+        ForeignKey("portfolios.id"),
         primary_key=True,
         compare=True,
     )
@@ -146,13 +146,13 @@ class Ownership(BaseModel):
     __tablename__ = "ownership"
 
     portfolio_id: Mapped[int] = mapped_column(
-        ForeignKey("portfolio.id"),
+        ForeignKey("portfolios.id"),
         primary_key=True,
         compare=True,
     )
 
     owner_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id"),
+        ForeignKey("users.id"),
         primary_key=True,
         compare=True,
     )

@@ -12,19 +12,13 @@ from sherwood.auth import (
     password_context,
     validate_password,
 )
-from sherwood.db import (
-    get_db,
-    Session,
-    POSTGRESQL_DATABASE_URL_ENV_VAR_NAME,
-)
+from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_URL_ENV_VAR_NAME
 from sherwood.models import create_user, to_dict, BaseModel as Base, User
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session as SqlAlchemyOrmSession
 from typing import Annotated
 
-
 logging.basicConfig(level=logging.DEBUG)
-
 
 Database = Annotated[SqlAlchemyOrmSession, Depends(get_db)]
 

@@ -10,6 +10,7 @@ from uuid import uuid4
 JWT_SECRET_KEY_ENV_VAR_NAME = "JWT_SECRET_KEY"
 _JWT_ISSUER = "sherwood"
 _JWT_ALGORITHM = "HS256"
+_JWT_DURATION_HOURS = 4
 
 password_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
@@ -50,7 +51,7 @@ def validate_password(
     return is_valid, reasons
 
 
-def generate_jwt_for_user(user, hours: float = 4) -> str:
+def generate_jwt_for_user(user, hours: float = _JWT_DURATION_HOURS) -> str:
     _validate_env()
     issued_at = datetime.datetime.now(datetime.timezone.utc)
     expiration = issued_at + datetime.timedelta(hours=hours)
