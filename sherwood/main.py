@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from fastapi import status, Depends, FastAPI, Header, HTTPException
+from fastapi import status, Depends, FastAPI, Header
 import gunicorn.app.base
 import logging
 import os
@@ -12,20 +12,21 @@ from sherwood.auth import (
     password_context,
     validate_password,
 )
-from sherwood.db import engine, get_db
-from sherwood.models import (
-    create_user,
-    to_dict,
-    BaseModel as Base,
-    Ownership,
-    Portfolio,
-    User,
+from sherwood.db import (
+    get_db,
+    Session,
+    POSTGRESQL_DATABASE_URL_ENV_VAR_NAME,
 )
-from sqlalchemy.orm import Session
+from sherwood.models import create_user, to_dict, BaseModel as Base, User
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session as SqlAlchemyOrmSession
 from typing import Annotated
 
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+Database = Annotated[SqlAlchemyOrmSession, Depends(get_db)]
 
 
 class SignUpRequest(BaseModel):
@@ -46,8 +47,8 @@ class SignInResponse(BaseModel):
     jwt: str
 
 
-async def authorized_user_info(
-    db: Annotated[Session, Depends(get_db)],
+async def authorized_user(
+    db: Database,
     user: Annotated[str | None, Header()] = None,
     authorization: Annotated[str | None, Header()] = None,
 ) -> dict | None:
@@ -57,7 +58,9 @@ async def authorized_user_info(
         decode_jwt_for_user(jwt, user)
         user = db.query(User).filter_by(email=user).first()
         assert user is not None
-        return {"jwt": jwt, "user": to_dict(user)}
+        user_dict = to_dict(user)
+        user_dict["jwt"] = jwt
+        return user_dict
     except:
         pass
 
@@ -70,10 +73,7 @@ def create_app(*args, **kwargs):
         return {}
 
     @app.post("/sign_up")
-    async def sign_up(
-        request: SignUpRequest,
-        db: Annotated[Session, Depends(get_db)],
-    ) -> SignUpResponse:
+    async def sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
         logging.info(f"Got sign up request: {request}")
         user = db.query(User).filter_by(email=request.email).first()
         if user is not None:
@@ -103,8 +103,8 @@ def create_app(*args, **kwargs):
     @app.post("/sign_in")
     async def sign_in(
         request: SignInRequest,
-        db: Annotated[Session, Depends(get_db)],
-        # user_info: Annotated[dict | None, Depends(authorized_user_info)] = None,
+        db: Database,
+        # user_info: Annotated[dict | None, Depends(authorized_user)] = None,
     ) -> SignInResponse:
         # if user_info is not None and ((jwt := user_info.get("jwt")) is not None):
         #     return SignInResponse(jwt=jwt)
@@ -120,9 +120,9 @@ def create_app(*args, **kwargs):
 
     @app.get("/user")
     async def get_authorized_user(
-        user_info: Annotated[dict | None, Depends(authorized_user_info)] = None,
+        user: Annotated[dict | None, Depends(authorized_user)] = None,
     ):
-        return user_info.get("user")
+        return user or {}
 
     for error in errors.errors:
         app.add_exception_handler(error, errors.error_handler)
@@ -147,13 +147,15 @@ class App(gunicorn.app.base.BaseApplication):
             self.cfg.set("workers", os.cpu_count())
 
     def load(self):
-        load_dotenv()
+        load_dotenv(".env")
+        engine = create_engine(os.environ[POSTGRESQL_DATABASE_URL_ENV_VAR_NAME])
+        Session.configure(bind=engine)
 
         @asynccontextmanager
         async def lifespan(_):
             Base.metadata.create_all(engine)
             yield
-            engine.dispose()
+            engine().dispose()
 
         return create_app(title="sherwood", version="0.0.0", lifespan=lifespan)
 

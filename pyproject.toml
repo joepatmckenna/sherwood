@@ -8,6 +8,7 @@ version = "0.0.0"
 description = "sherwood"
 license = { file = "LICENSE" }
 dependencies = [
+    "argon2_cffi",
     "bcrypt",
     "fastapi",
     "gunicorn",

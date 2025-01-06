@@ -1,14 +1,8 @@
-import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
-DB_PWD_ENV_VAR_NAME = "DB_PWD"
+POSTGRESQL_DATABASE_URL_ENV_VAR_NAME = "POSTGRESQL_DATABASE_URL"
 
-engine = create_engine(
-    f"postgresql://postgres:{os.getenv(DB_PWD_ENV_VAR_NAME)}@localhost/db"
-)
-
-Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Session = sessionmaker(autocommit=False, autoflush=False)
 
 
 def get_db():

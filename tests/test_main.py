@@ -51,18 +51,6 @@ def test_sign_in_incorrect_password(client, valid_email, valid_password):
 
 
 def test_get_authorized_user(client, valid_email, valid_password):
-    expected = {
-        "id": 1,
-        "email": "user@web.com",
-        "portfolio": {
-            "id": 1,
-            "cash": 0.0,
-            "holdings": [],
-            "ownership": [
-                {"portfolio_id": 1, "owner_id": 1, "cost": 0.0, "percent": 1.0}
-            ],
-        },
-    }
 
     sign_up_response = client.post(
         "/sign_up", json={"email": valid_email, "password": valid_password}
@@ -77,4 +65,16 @@ def test_get_authorized_user(client, valid_email, valid_password):
         },
     )
     assert get_authorized_user_response.status_code == 200
-    assert get_authorized_user_response.json() == expected
+    assert get_authorized_user_response.json() == {
+        "id": 1,
+        "email": "user@web.com",
+        "portfolio": {
+            "id": 1,
+            "cash": 0.0,
+            "holdings": [],
+            "ownership": [
+                {"portfolio_id": 1, "owner_id": 1, "cost": 0.0, "percent": 1.0}
+            ],
+        },
+        "jwt": sign_up_response.json()["jwt"],
+    }
