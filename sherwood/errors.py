@@ -36,7 +36,7 @@ class MissingUserError(SherwoodError):
     email: EmailStr
 
     def __repr__(self):
-        return f"User with email {self.email} not found."
+        return f"User with email {self.email} missing."
 
 
 @dataclass
@@ -45,6 +45,31 @@ class DuplicateUserError(SherwoodError):
 
     def __repr__(self):
         return f"User with email {self.email} already exists."
+
+
+@dataclass
+class MissingPortfolioError(SherwoodError):
+    portfolio_id: str
+
+    def __repr__(self):
+        return f"Portfolio with ID {self.portfolio_id} missing."
+
+
+@dataclass
+class DuplicatePortfolioError(SherwoodError):
+    portfolio_id: str
+
+    def __repr__(self):
+        return f"Multiple portfolios with ID {self.portfolio_id}."
+
+
+@dataclass
+class InsufficientCashError(SherwoodError):
+    needed: float
+    actual: float
+
+    def __repr__(self):
+        return f"Insufficient cash, needed: {self.needed}, actual: {self.actual}."
 
 
 async def error_handler(req: Request, exc: SherwoodError):

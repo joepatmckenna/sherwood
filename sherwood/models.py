@@ -59,6 +59,10 @@ class User(BaseModel):
         compare=False,
     )
 
+    is_verified: Mapped[bool] = mapped_column(
+        nullable=False, init=False, repr=True, default=False
+    )
+
     portfolio: Mapped["Portfolio"] = relationship(
         "Portfolio",
         uselist=False,

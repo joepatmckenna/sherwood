@@ -16,12 +16,11 @@ def test_buy_portfolio_holding(db, valid_email, valid_password):
         ],
     )
     expected.portfolio.id = 1
-
     user = create_user(db, valid_email, valid_password)
     user.portfolio.cash = 1000
-    buy_portfolio_holding(db, user.portfolio.id, "AAA", 100)
+    buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
     buy_portfolio_holding(db, user.portfolio.id, "BBB", 200)
-
+    buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
     assert expected == db.get(User, 1)
 
 

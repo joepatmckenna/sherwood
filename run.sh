@@ -35,7 +35,6 @@ sudo cp sherwood/sherwood.service /etc/systemd/system/sherwood.service
 sudo systemctl daemon-reload
 sudo systemctl enable sherwood
 sudo systemctl start sherwood
-# sudo journalctl -u sherwood -f
 
 sudo cp sherwood/sherwood.nginx /etc/nginx/sites-available/sherwood
 sudo ln -s /etc/nginx/sites-available/sherwood /etc/nginx/sites-enabled/
@@ -57,58 +56,28 @@ sudo systemctl restart sherwood && sudo journalctl -u sherwood -f
 ##################################################################
 ##################################################################
 
-curl https://writewell.tech
+curl -s -o /dev/null -w "%{http_code}" https://writewell.tech
+curl -s -o /dev/null -w "%{http_code}" https://www.writewell.tech
 
-curl https://www.writewell.tech
+EMAIL='jimbob2@web.com'
+PASSWORD='Abcd@1234'
 
-curl -X POST https://www.writewell.tech/sign_up \
+curl -s -o /dev/null -w "%{http_code}" \
+-X POST https://www.writewell.tech/sign-up \
 -H "Content-Type: application/json" \
--d '{"email": "user0000@web.com", "password": "Abcd@1234"}'
+-d "{\"email\": \"${EMAIL}\", \"password\": \"${PASSWORD}\"}"
+
+token=$(curl -X POST https://www.writewell.tech/sign-in \
+-H "Content-Type: application/json" \
+-d "{\"email\": \"${EMAIL}\", \"password\": \"${PASSWORD}\"}")
+
+token_type=$(echo $token | jq -r .token_type)
+access_token=$(echo $token | jq -r .access_token)
 
 curl https://www.writewell.tech/user \
 -H "Content-Type: application/json" \
--H "X-Sherwood-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzaGVyd29vZCIsInN1YiI6IjkiLCJhdWQiOiJ1c2VyMTIxOEB3ZWIuY29tIiwiZXhwIjoxNzM2MTQ5MTM2LCJpYXQiOjE3MzYxMzQ3MzYsImp0aSI6ImY2OWE5MDQ3LWYyOTMtNDM1Ny1iZmIxLTE2NmI1N2E2YTdjNCJ9.-1IW2KQG2c0vbkziv4fMvC7VZ12laJW5-pczTPPOBtI" \
--H "User: user1218@web.com"
-
-curl -X POST https://www.writewell.tech/sign_in \
--H "Content-Type: application/json" \
--d '{"email": "user1218@web.com", "password": "Abcd@1234"}'
+-H "X-Sherwood-Authorization: ${token_type} ${access_token}" 
 
 ##################################################################
 ##################################################################
 ##################################################################
-
-# sudo nano /etc/postgresql/16/main/pg_hba.conf
-
-# sudo ufw allow 'Nginx Full'
-
-# python sherwood/sherwood/main.py --bind="127.0.0.1:8000" --reload &
-
-
-# sudo systemctl status postgresql
-# sudo systemctl status sherwood
-# sudo systemctl status nginx
-
-# ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO sherwood;
-# ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO sherwood;
-
-# sudo tail -f /var/log/nginx/access.log /var/log/nginx/error.log
-# sudo tail -f /var/log/postgresql/postgresql-16-main.log
-
-# cat /etc/postgresql/16/main/pg_hba.conf
-# cat /etc/postgresql/16/main/postgresql.conf
-
-# sudo systemctl restart sherwood
-
-# sudo journalctl -u postgresql
-
-# sudo rm /etc/nginx/sites-enabled/sherwood
-
-
-
-# sudo systemctl restart postgresql
-# sudo systemctl restart sherwood
-# sudo systemctl restart nginx
-
-
-

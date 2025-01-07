@@ -77,7 +77,7 @@ def create_app(*args, **kwargs):
     async def root():
         return {}
 
-    @app.post("/sign_up")
+    @app.post("/sign-up")
     async def sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
         logging.info(f"Got sign up request: {request}")
 
@@ -104,7 +104,7 @@ def create_app(*args, **kwargs):
 
         return {}
 
-    @app.post("/sign_in")
+    @app.post("/sign-in")
     async def sign_in(request: SignInRequest, db: Database) -> SignInResponse:
         user = db.query(User).filter_by(email=request.email).first()
         if user is None:
