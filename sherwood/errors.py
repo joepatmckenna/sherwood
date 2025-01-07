@@ -48,7 +48,10 @@ class DuplicateUserError(SherwoodError):
 
 
 async def error_handler(req: Request, exc: SherwoodError):
-    return JSONResponse(status_code=exc.status_code, content={"message": repr(exc)})
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"status_code": exc.status_code, "message": repr(exc)}},
+    )
 
 
 errors = (

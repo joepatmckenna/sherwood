@@ -43,8 +43,7 @@ class SignInResponse(BaseModel):
 
 
 async def authorized_user(
-    db: Database,
-    x_sherwood_authorization: Annotated[str | None, Header()] = None,
+    db: Database, x_sherwood_authorization: Annotated[str | None, Header()] = None
 ) -> dict | None:
     token_type, _, access_token = x_sherwood_authorization.partition(" ")
     if token_type.strip().lower() != "bearer":
@@ -68,6 +67,9 @@ async def authorized_user(
     return {**to_dict(user), **{"access_token": access_token}}
 
 
+MaybeAuthorizedUser = Annotated[dict | None, Depends(authorized_user)]
+
+
 def create_app(*args, **kwargs):
     app = FastAPI(*args, **kwargs)
 
@@ -78,51 +80,64 @@ def create_app(*args, **kwargs):
     @app.post("/sign_up")
     async def sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
         logging.info(f"Got sign up request: {request}")
+
         user = db.query(User).filter_by(email=request.email).first()
         if user is not None:
             logging.error(f"Email {request.email} already signed up.")
             raise errors.DuplicateUserError(status.HTTP_409_CONFLICT, request.email)
+
         is_valid, reasons = validate_password(request.password)
         if not is_valid:
             logging.error(
                 f"Requested password {request.password} invalid because: {reasons}"
             )
             raise errors.InvalidPasswordError(status.HTTP_400_BAD_REQUEST, reasons)
+
         try:
             user = create_user(db, request.email, request.password)
         except Exception as exc:
             logging.error(f"Error creating user, request={request}, error={exc}")
             raise errors.InternalServerError(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message="Internal server error.",
+                message="Internal server error. Failed to create user.",
             )
+
         return {}
 
     @app.post("/sign_in")
-    async def sign_in(
-        request: SignInRequest,
-        db: Database,
-        # user_info: Annotated[dict | None, Depends(authorized_user)] = None,
-    ) -> SignInResponse:
-        # if user_info is not None and ((jwt := user_info.get("jwt")) is not None):
-        #     return SignInResponse(jwt=jwt)
+    async def sign_in(request: SignInRequest, db: Database) -> SignInResponse:
         user = db.query(User).filter_by(email=request.email).first()
         if user is None:
             raise errors.MissingUserError(status.HTTP_404_NOT_FOUND, request.email)
+
         if not password_context.verify(request.password, user.password):
             raise errors.IncorrectPasswordError(status.HTTP_401_UNAUTHORIZED)
+
         if password_context.needs_update(user.password):
             user.password = password_context.hash(request.password)
-            db.commit()
-        return SignInResponse(
-            access_token=generate_access_token(user),
-            token_type="Bearer",
-        )
+            try:
+                db.commit()
+            except Exception as exc:
+                db.rollback()
+                logging.error(
+                    f"Failed to updated password for user: {user}, error: {exc}."
+                )
+
+        try:
+            access_token = generate_access_token(user)
+        except Exception as exc:
+            logging.error(
+                f"Failed to generate access token for user: {user}, error: {exc}"
+            )
+            raise errors.InternalServerError(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="Internal server error. Failed to generate access token.",
+            )
+
+        return SignInResponse(token_type="Bearer", access_token=access_token)
 
     @app.get("/user")
-    async def get_authorized_user(
-        user: Annotated[dict | None, Depends(authorized_user)] = None,
-    ):
+    async def get_authorized_user(user: MaybeAuthorizedUser = None):
         return user or {}
 
     for error in errors.errors:
@@ -145,7 +160,7 @@ class App(gunicorn.app.base.BaseApplication):
             "uvicorn.workers.UvicornWorker",
         )
         if not opts.get("workers"):
-            self.cfg.set("workers", os.cpu_count())
+            self.cfg.set("workers", 2 * os.cpu_count() + 1)
 
     def load(self):
         load_dotenv(".env")
@@ -155,6 +170,7 @@ class App(gunicorn.app.base.BaseApplication):
             raise RuntimeError(
                 f"Environment variable '{POSTGRESQL_DATABASE_URL_ENV_VAR_NAME}' is not set."
             )
+
         engine = create_engine(postgresql_database_url)
         Session.configure(bind=engine)
 
