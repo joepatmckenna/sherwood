@@ -7,8 +7,8 @@ import os
 from pydantic import BaseModel, EmailStr
 from sherwood import errors
 from sherwood.auth import (
-    decode_jwt_for_user,
-    generate_jwt_for_user,
+    decode_access_token,
+    generate_access_token,
     password_context,
     validate_password,
 )
@@ -29,7 +29,7 @@ class SignUpRequest(BaseModel):
 
 
 class SignUpResponse(BaseModel):
-    jwt: str | None = None
+    pass
 
 
 class SignInRequest(BaseModel):
@@ -38,25 +38,34 @@ class SignInRequest(BaseModel):
 
 
 class SignInResponse(BaseModel):
-    jwt: str
+    token_type: str
+    access_token: str
 
 
 async def authorized_user(
     db: Database,
-    user: Annotated[str | None, Header()] = None,
-    authorization: Annotated[str | None, Header()] = None,
+    x_sherwood_authorization: Annotated[str | None, Header()] = None,
 ) -> dict | None:
+    token_type, _, access_token = x_sherwood_authorization.partition(" ")
+    if token_type.strip().lower() != "bearer":
+        logging.error(
+            f"Authorization with token type other than bearer detected, token type: {token_type}."
+        )
+        return
+
     try:
-        token_type, _, jwt = authorization.partition(" ")
-        assert token_type.strip().upper() == "BEARER"
-        decode_jwt_for_user(jwt, user)
-        user = db.query(User).filter_by(email=user).first()
-        assert user is not None
-        user_dict = to_dict(user)
-        user_dict["jwt"] = jwt
-        return user_dict
-    except:
-        pass
+        payload = decode_access_token(access_token)
+    except Exception as exc:
+        logging.error(f"Failed to decode access token: {exc}")
+        return
+
+    user = db.get(User, payload["sub"])
+    if user is None:
+        logging.error(
+            f"Decoded access token contains ID {payload['sub']} that doesn't match a user"
+        )
+
+    return {**to_dict(user), **{"access_token": access_token}}
 
 
 def create_app(*args, **kwargs):
@@ -87,12 +96,7 @@ def create_app(*args, **kwargs):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 message="Internal server error.",
             )
-        response = SignUpResponse()
-        try:
-            response.jwt = generate_jwt_for_user(user)
-        except Exception as exc:
-            logging.error(f"Error generating JWT for user {user}, error={exc}")
-        return response
+        return {}
 
     @app.post("/sign_in")
     async def sign_in(
@@ -110,7 +114,10 @@ def create_app(*args, **kwargs):
         if password_context.needs_update(user.password):
             user.password = password_context.hash(request.password)
             db.commit()
-        return SignInResponse(jwt=generate_jwt_for_user(user))
+        return SignInResponse(
+            access_token=generate_access_token(user),
+            token_type="Bearer",
+        )
 
     @app.get("/user")
     async def get_authorized_user(

@@ -182,23 +182,17 @@ def parse_password(mapper, connection, target):
     target.password = password_context.hash(target.password)
 
 
-def _maybe_commit(db):
-    try:
-        db.commit()
-    except Exception as exc:
-        logging.error("Error creating user: %s", exc)
-        db.rollback()
-        raise
-
-
 def create_user(db: Session, email: str, password: str) -> User:
     user = User(email, password)
     user.portfolio = Portfolio()
     db.add(user)
-    _maybe_commit(db)
-    user.portfolio.ownership.append(Ownership(user.id, user.id, 0, 1))
-    _maybe_commit(db)
-    return user
+    try:
+        db.commit()
+        return user
+    except Exception as exc:
+        logging.error("Error creating user: %s", exc)
+        db.rollback()
+        raise
 
 
 def to_dict(obj: Any) -> dict[str, Any]:

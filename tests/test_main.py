@@ -51,30 +51,26 @@ def test_sign_in_incorrect_password(client, valid_email, valid_password):
 
 
 def test_get_authorized_user(client, valid_email, valid_password):
-
-    sign_up_response = client.post(
-        "/sign_up", json={"email": valid_email, "password": valid_password}
-    )
+    json = {"email": valid_email, "password": valid_password}
+    sign_up_response = client.post("/sign_up", json=json)
     assert sign_up_response.status_code == 200
+    sign_in_response = client.post("/sign_in", json=json)
+    assert sign_in_response.status_code == 200
+
+    sign_in_response = sign_in_response.json()
+    token_type = sign_in_response["token_type"]
+    access_token = sign_in_response["access_token"]
 
     get_authorized_user_response = client.get(
         "/user",
         headers={
-            "User": valid_email,
-            "Authorization": f"Bearer {sign_up_response.json()["jwt"]}",
+            "X-Sherwood-Authorization": f"{token_type} {access_token}",
         },
     )
     assert get_authorized_user_response.status_code == 200
     assert get_authorized_user_response.json() == {
         "id": 1,
         "email": "user@web.com",
-        "portfolio": {
-            "id": 1,
-            "cash": 0.0,
-            "holdings": [],
-            "ownership": [
-                {"portfolio_id": 1, "owner_id": 1, "cost": 0.0, "percent": 1.0}
-            ],
-        },
-        "jwt": sign_up_response.json()["jwt"],
+        "portfolio": {"id": 1, "cash": 0.0, "holdings": [], "ownership": []},
+        "access_token": access_token,
     }

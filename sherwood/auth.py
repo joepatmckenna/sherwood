@@ -15,13 +15,6 @@ _JWT_DURATION_HOURS = 4
 password_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
 
-def _validate_env():
-    if os.environ.get(JWT_SECRET_KEY_ENV_VAR_NAME) is None:
-        raise RuntimeError(
-            f"Missing environment variable {JWT_SECRET_KEY_ENV_VAR_NAME}"
-        )
-
-
 def validate_password(
     password: str, min_length: int = 8, max_length: int = 32
 ) -> tuple[bool, list[str]]:
@@ -51,7 +44,14 @@ def validate_password(
     return is_valid, reasons
 
 
-def generate_jwt_for_user(user, hours: float = _JWT_DURATION_HOURS) -> str:
+def _validate_env():
+    if os.environ.get(JWT_SECRET_KEY_ENV_VAR_NAME) is None:
+        raise RuntimeError(
+            f"Missing environment variable {JWT_SECRET_KEY_ENV_VAR_NAME}"
+        )
+
+
+def generate_access_token(user, hours: float = _JWT_DURATION_HOURS) -> str:
     _validate_env()
     issued_at = datetime.datetime.now(datetime.timezone.utc)
     expiration = issued_at + datetime.timedelta(hours=hours)
@@ -60,7 +60,6 @@ def generate_jwt_for_user(user, hours: float = _JWT_DURATION_HOURS) -> str:
             claims={
                 "iss": _JWT_ISSUER,
                 "sub": str(user.id),
-                "aud": user.email,
                 "exp": timegm(expiration.utctimetuple()),
                 "iat": timegm(issued_at.utctimetuple()),
                 "jti": str(uuid4()),
@@ -73,14 +72,13 @@ def generate_jwt_for_user(user, hours: float = _JWT_DURATION_HOURS) -> str:
         raise
 
 
-def decode_jwt_for_user(jwt: str, email: str) -> dict[str, str]:
+def decode_access_token(access_token: str) -> dict[str, str]:
     _validate_env()
     try:
         return jose.jwt.decode(
-            jwt,
+            access_token,
             key=os.environ[JWT_SECRET_KEY_ENV_VAR_NAME],
             algorithms=[_JWT_ALGORITHM],
-            audience=email,
             issuer=_JWT_ISSUER,
         )
     except jose.jwt.ExpiredSignatureError:
