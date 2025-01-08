@@ -60,11 +60,22 @@ def _get_locked_portfolio(db: Session, portfolio_id: int):
         raise errors.DuplicatePortfolioError(portfolio_id)
 
 
+def __get_locked_portfolio(db: Session, portfolio_id: int):
+    try:
+        return (
+            db.query(Portfolio).filter(Portfolio.id == portfolio_id).with_for_update()
+        ).one()
+    except NoResultFound:
+        raise errors.MissingPortfolioError(portfolio_id)
+    except MultipleResultsFound:
+        raise errors.DuplicatePortfolioError(portfolio_id)
+
+
 def deposit_cash_into_portfolio(
     db: Session, portfolio_id: int, dollars: float
 ) -> float:
     with db.begin_nested():
-        portfolio = _get_locked_portfolio(db, portfolio_id)
+        portfolio = __get_locked_portfolio(db, portfolio_id)
         starting_balance = portfolio.cash
         portfolio.cash += dollars
         ending_balance = portfolio.cash
@@ -75,7 +86,7 @@ def withdraw_cash_from_portfolio(
     db: Session, portfolio_id: int, dollars: float
 ) -> float:
     with db.begin_nested():
-        portfolio = _get_locked_portfolio(db, portfolio_id)
+        portfolio = __get_locked_portfolio(db, portfolio_id)
         starting_balance = portfolio.cash
         if dollars > starting_balance:
             raise errors.InsufficientCashError(dollars, starting_balance)

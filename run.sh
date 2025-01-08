@@ -63,11 +63,6 @@ curl -s -o /dev/null -w "%{http_code}" https://www.writewell.tech
 EMAIL='heytherebear@web.com'
 PASSWORD='Abcd@1234'
 
-curl \
--X POST https://www.writewell.tech/sign-up \
--H "Content-Type: application/json" \
--d "{\"email\": \"${EMAIL}\", \"password\": \"${PASSWORD}\"}"
-
 curl -s -o /dev/null -w "%{http_code}" \
 -X POST https://www.writewell.tech/sign-up \
 -H "Content-Type: application/json" \
@@ -83,6 +78,11 @@ access_token=$(echo $token | jq -r .access_token)
 curl https://www.writewell.tech/user \
 -H "Content-Type: application/json" \
 -H "X-Sherwood-Authorization: ${token_type} ${access_token}" 
+
+curl https://www.writewell.tech/deposit \
+-H "Content-Type: application/json" \
+-H "X-Sherwood-Authorization: ${token_type} ${access_token}" 
+-d "{\"dollars\": 100}"
 
 ##################################################################
 ##################################################################

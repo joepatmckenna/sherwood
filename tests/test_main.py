@@ -195,10 +195,10 @@ def test_buy_portfolio_holding_success(client, valid_email, valid_password):
     user = get_user_response.json()
     assert user["portfolio"]["cash"] == 50
     assert user["portfolio"]["holdings"] == [
-        {"portfolio_id": 1, "symbol": "AAA", "cost": 50.0, "units": 50.0}
+        {"portfolio_id": 1, "symbol": "AAA", "cost": 50, "units": 50}
     ]
     assert user["portfolio"]["ownership"] == [
-        {"portfolio_id": 1, "owner_id": 1, "cost": 50.0, "percent": 1.0}
+        {"portfolio_id": 1, "owner_id": 1, "cost": 50, "percent": 1}
     ]
 
 
