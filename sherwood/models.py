@@ -1,3 +1,4 @@
+from dataclasses import fields
 import datetime
 import logging
 from sherwood import errors, utils
@@ -44,11 +45,21 @@ class User(BaseModel):
         primary_key=True,
         autoincrement=True,
         compare=True,
+        repr=True,
     )
 
     email: Mapped[str] = mapped_column(
         nullable=False,
         index=True,
+        unique=True,
+        compare=True,
+        repr=True,
+    )
+
+    display_name: Mapped[str] = mapped_column(
+        init=False,
+        repr=True,
+        nullable=True,
         unique=True,
         compare=True,
     )
@@ -60,7 +71,10 @@ class User(BaseModel):
     )
 
     is_verified: Mapped[bool] = mapped_column(
-        nullable=False, init=False, repr=True, default=False
+        nullable=False,
+        init=False,
+        repr=True,
+        default=False,
     )
 
     portfolio: Mapped["Portfolio"] = relationship(
@@ -69,7 +83,7 @@ class User(BaseModel):
         back_populates="user",
         cascade="all, delete-orphan",
         init=False,
-        repr=False,
+        repr=True,
         compare=True,
     )
 
@@ -82,11 +96,13 @@ class Portfolio(BaseModel):
         init=False,
         primary_key=True,
         compare=True,
+        repr=True,
     )
 
     cash: Mapped[float] = mapped_column(
         default=0,
         compare=True,
+        repr=True,
     )
 
     holdings: Mapped[list["Holding"]] = relationship(
@@ -95,6 +111,7 @@ class Portfolio(BaseModel):
         cascade="all, delete-orphan",
         default_factory=list,
         compare=True,
+        repr=True,
     )
 
     ownership: Mapped[list["Ownership"]] = relationship(
@@ -103,6 +120,7 @@ class Portfolio(BaseModel):
         cascade="all, delete-orphan",
         default_factory=list,
         compare=True,
+        repr=True,
     )
 
     user: Mapped["User"] = relationship(
@@ -122,19 +140,23 @@ class Holding(BaseModel):
         ForeignKey("portfolios.id"),
         primary_key=True,
         compare=True,
+        repr=True,
     )
 
     symbol: Mapped[str] = mapped_column(
         primary_key=True,
         compare=True,
+        repr=True,
     )
 
     cost: Mapped[float] = mapped_column(
         compare=True,
+        repr=True,
     )
 
     units: Mapped[float] = mapped_column(
         compare=True,
+        repr=True,
     )
 
     portfolio: Mapped["Portfolio"] = relationship(
@@ -153,20 +175,24 @@ class Ownership(BaseModel):
         ForeignKey("portfolios.id"),
         primary_key=True,
         compare=True,
+        repr=True,
     )
 
     owner_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
         primary_key=True,
         compare=True,
+        repr=True,
     )
 
     cost: Mapped[float] = mapped_column(
         compare=True,
+        repr=True,
     )
 
     percent: Mapped[float] = mapped_column(
         compare=True,
+        repr=True,
     )
 
     portfolio: Mapped["Portfolio"] = relationship(
@@ -199,32 +225,11 @@ def create_user(db: Session, email: str, password: str) -> User:
         raise
 
 
-def to_dict(obj: Any) -> dict[str, Any]:
-    if isinstance(obj, User):
-        return {
-            "id": obj.id,
-            "email": obj.email,
-            "portfolio": to_dict(obj.portfolio),
-        }
-    if isinstance(obj, Portfolio):
-        return {
-            "id": obj.id,
-            "cash": obj.cash,
-            "holdings": [to_dict(h) for h in obj.holdings],
-            "ownership": [to_dict(o) for o in obj.ownership],
-        }
-    if isinstance(obj, Holding):
-        return {
-            "portfolio_id": obj.portfolio_id,
-            "symbol": obj.symbol,
-            "cost": obj.cost,
-            "units": obj.units,
-        }
-    if isinstance(obj, Ownership):
-        return {
-            "portfolio_id": obj.portfolio_id,
-            "owner_id": obj.owner_id,
-            "cost": obj.cost,
-            "percent": obj.percent,
+def to_dict(obj) -> dict[str, Any]:
+    if isinstance(obj, (User, Portfolio, Holding, Ownership)):
+        obj = {
+            field.name: to_dict(getattr(obj, field.name))
+            for field in fields(obj)
+            if field.repr
         }
     return obj

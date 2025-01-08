@@ -2,7 +2,10 @@ from fastapi import status
 import logging
 from sherwood import errors
 from sherwood.market_data_provider import MarketDataProvider
-from sherwood.models import Holding, Ownership, Portfolio
+from sherwood.models import create_user, Holding, Ownership, Portfolio, User
+from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import NoResultFound, MultipleResultsFound, SQLAlchemyError
+from sherwood.auth import generate_access_token, password_context
 
 market_data_provider = MarketDataProvider()
 
@@ -11,8 +14,34 @@ def convert_dollars_to_units(symbol: str, dollars: float) -> float:
     return dollars / market_data_provider.get_price(symbol)
 
 
-from sqlalchemy.orm import joinedload
-from sqlalchemy.exc import NoResultFound, MultipleResultsFound, SQLAlchemyError
+def sign_up_user(db, email, password) -> None:
+    user = db.query(User).filter_by(email=email).first()
+    if user is not None:
+        raise errors.DuplicateUserError(email=email)
+    try:
+        user = create_user(db, email, password)
+    except Exception as exc:
+        raise errors.InternalServerError(detail="Failed to create user.") from exc
+
+
+def sign_in_user(db, email, password) -> str:
+    try:
+        user = db.query(User).filter_by(email=email).one_or_none()
+    except MultipleResultsFound:
+        raise errors.DuplicateUserError(email=email)
+    if user is None:
+        raise errors.MissingUserError(email=email)
+    if not password_context.verify(password, user.password):
+        raise errors.IncorrectPasswordError()
+    if password_context.needs_update(user.password):
+        user.password = password_context.hash(user.password)
+    try:
+        access_token = generate_access_token(user)
+    except Exception as exc:
+        msg = "Failed to generate access token."
+        logging.error(f"{msg} User: {user}. Error: {exc}")
+        raise errors.InternalServerError(msg)
+    return access_token
 
 
 def _get_locked_portfolio(db, portfolio_id):
@@ -27,52 +56,9 @@ def _get_locked_portfolio(db, portfolio_id):
             .with_for_update()
         ).one()
     except NoResultFound:
-        raise errors.MissingPortfolioError(
-            status_code=status.HTTP_404_NOT_FOUND, portfolio_id=portfolio_id
-        )
+        raise errors.MissingPortfolioError(portfolio_id)
     except MultipleResultsFound:
-        raise errors.DuplicatePortfolioError(
-            status_code=status.HTTP_409_CONFLICT, portfolio_id=portfolio_id
-        )
-
-
-def _buy_portfolio_holding(db, portfolio_id, symbol, dollars):
-    portfolio = _get_locked_portfolio(db, portfolio_id)
-
-    if dollars > portfolio.cash:
-        raise errors.InsufficientCashError(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            needed=dollars,
-            actual=portfolio.cash,
-        )
-
-    holding = db.get(Holding, (portfolio_id, symbol))
-    if holding is None:
-        portfolio.holdings.append(Holding(portfolio_id, symbol, 0, 0))
-        holding = portfolio.holdings[-1]
-
-    ownership = db.get(Ownership, (portfolio_id, portfolio_id))
-    if ownership is None:
-        portfolio.ownership.append(Ownership(portfolio_id, portfolio_id, 0, 0))
-        ownership = portfolio.ownership[-1]
-
-    portfolio_value = sum(
-        holding.units * market_data_provider.get_price(holding.symbol)
-        for holding in portfolio.holdings
-    )
-
-    portfolio.cash -= dollars
-    holding.units += convert_dollars_to_units(symbol, dollars)
-    holding.cost += dollars
-    ownership.cost += dollars
-
-    if portfolio_value > 0:
-        percent = dollars / portfolio_value
-        ownership.percent += percent
-        for ownership in portfolio.ownership:
-            ownership.percent /= 1 + percent
-    else:
-        ownership.percent = 1
+        raise errors.DuplicatePortfolioError(portfolio_id)
 
 
 def buy_portfolio_holding(db, portfolio_id, symbol, dollars):
@@ -84,22 +70,39 @@ def buy_portfolio_holding(db, portfolio_id, symbol, dollars):
     all Ownership(portfolio_id==portfolio_id)
 
     """
-    # if not dollars > 0:
-    #     raise ValueError("Dollars not positive")
     with db.begin_nested():
-        try:
-            _buy_portfolio_holding(db, portfolio_id, symbol, dollars)
-        except (
-            errors.MissingPortfolioError,
-            errors.DuplicatePortfolioError,
-            errors.InsufficientCashError,
-        ):
-            raise
-        except Exception as exc:
-            raise errors.InternalServerError(
-                status.HTTP_500_INTERNAL_SERVER_ERROR,
-                f"Failed to buy holding for portfolio with ID {portfolio_id}, error: {exc}",
-            ) from exc
+        portfolio = _get_locked_portfolio(db, portfolio_id)
+
+        if dollars > portfolio.cash:
+            raise errors.InsufficientCashError(needed=dollars, actual=portfolio.cash)
+
+        holding = db.get(Holding, (portfolio_id, symbol))
+        if holding is None:
+            portfolio.holdings.append(Holding(portfolio_id, symbol, 0, 0))
+            holding = portfolio.holdings[-1]
+
+        ownership = db.get(Ownership, (portfolio_id, portfolio_id))
+        if ownership is None:
+            portfolio.ownership.append(Ownership(portfolio_id, portfolio_id, 0, 0))
+            ownership = portfolio.ownership[-1]
+
+        portfolio_value = sum(
+            holding.units * market_data_provider.get_price(holding.symbol)
+            for holding in portfolio.holdings
+        )
+
+        portfolio.cash -= dollars
+        holding.units += convert_dollars_to_units(symbol, dollars)
+        holding.cost += dollars
+        ownership.cost += dollars
+
+        if portfolio_value > 0:
+            percent = dollars / portfolio_value
+            ownership.percent += percent
+            for ownership in portfolio.ownership:
+                ownership.percent /= 1 + percent
+        else:
+            ownership.percent = 1
 
 
 def sell_portfolio_holding(db, portfolio_id, symbol, dollars):

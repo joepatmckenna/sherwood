@@ -1,3 +1,37 @@
+def test_get_user(client, valid_email, valid_password):
+    json = {"email": valid_email, "password": valid_password}
+    sign_up_response = client.post("/sign-up", json=json)
+    assert sign_up_response.status_code == 200
+    sign_in_response = client.post("/sign-in", json=json)
+    assert sign_in_response.status_code == 200
+
+    sign_in_response = sign_in_response.json()
+    token_type = sign_in_response["token_type"]
+    access_token = sign_in_response["access_token"]
+
+    get_user_response = client.get(
+        "/user", headers={"X-Sherwood-Authorization": f"{token_type} {access_token}"}
+    )
+    assert get_user_response.status_code == 200
+    assert get_user_response.json() == {
+        "id": 1,
+        "email": valid_email,
+        "display_name": None,
+        "is_verified": False,
+        "portfolio": {
+            "id": 1,
+            "cash": 0.0,
+            "holdings": [],
+            "ownership": [],
+        },
+    }
+
+
+def test_get_missing_authorization_header(client):
+    get_user_response = client.get("/user")
+    assert get_user_response.status_code == 401
+
+
 def test_sign_up_success(client, valid_email, valid_password):
     response = client.post(
         "/sign-up", json={"email": valid_email, "password": valid_password}
@@ -14,7 +48,7 @@ def test_sign_up_invalid_email(client, valid_password):
 
 def test_sign_up_invalid_password(client, valid_email):
     response = client.post("/sign-up", json={"email": valid_email, "password": "weak"})
-    assert response.status_code == 400
+    assert response.status_code == 422
 
 
 def test_sign_in_success(client, valid_email, valid_password):
@@ -50,7 +84,7 @@ def test_sign_in_incorrect_password(client, valid_email, valid_password):
     assert sign_in_response.status_code == 401
 
 
-def test_get_authorized_user(client, valid_email, valid_password):
+def test_buy_insufficient_cash(client, valid_email, valid_password):
     json = {"email": valid_email, "password": valid_password}
     sign_up_response = client.post("/sign-up", json=json)
     assert sign_up_response.status_code == 200
@@ -61,16 +95,9 @@ def test_get_authorized_user(client, valid_email, valid_password):
     token_type = sign_in_response["token_type"]
     access_token = sign_in_response["access_token"]
 
-    get_authorized_user_response = client.get(
-        "/user",
-        headers={
-            "X-Sherwood-Authorization": f"{token_type} {access_token}",
-        },
+    buy_response = client.post(
+        "/buy",
+        headers={"X-Sherwood-Authorization": f"{token_type} {access_token}"},
+        json={"symbol": "AAA", "dollars": 1},
     )
-    assert get_authorized_user_response.status_code == 200
-    assert get_authorized_user_response.json() == {
-        "id": 1,
-        "email": "user@web.com",
-        "portfolio": {"id": 1, "cash": 0.0, "holdings": [], "ownership": []},
-        "access_token": access_token,
-    }
+    assert buy_response.status_code == 400

@@ -1,40 +1,86 @@
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from fastapi import status, Depends, FastAPI, Header
+from fastapi import Depends, FastAPI, Header
 import gunicorn.app.base
 import logging
 import os
-from pydantic import BaseModel, EmailStr
+from pydantic import field_validator, BaseModel, EmailStr
 from sherwood import errors
-from sherwood.auth import (
-    decode_access_token,
-    generate_access_token,
-    password_context,
-    validate_password,
-)
+from sherwood.auth import decode_access_token, validate_password
+from sherwood.broker import buy_portfolio_holding, sign_in_user, sign_up_user
 from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_URL_ENV_VAR_NAME
-from sherwood.models import create_user, to_dict, BaseModel as Base, User
+from sherwood.models import to_dict, BaseModel as Base, User
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session as SqlAlchemyOrmSession
 from typing import Annotated
 
 logging.basicConfig(level=logging.DEBUG)
 
-Database = Annotated[SqlAlchemyOrmSession, Depends(get_db)]
+
+# reuable request validators
 
 
-class SignUpRequest(BaseModel):
+class _ModelWithEmail(BaseModel):
     email: EmailStr
+
+
+class EmailValidatorMixin:
+    @field_validator("email")
+    def validate_email(cls, email):
+        try:
+            _ModelWithEmail(email=email)
+            return email
+        except ValueError as exc:
+            raise errors.RequestValueError(
+                f"Invalid email: {email}. Error: {exc.errors()[0]['msg']}",
+            ) from exc
+
+
+class PasswordValidatorMixin:
+    @field_validator("password")
+    def validate_password_format(cls, password):
+        is_valid, reasons = validate_password(password)
+        if not is_valid:
+            raise errors.InvalidPasswordError(reasons)
+        return password
+
+
+class DollarsArePositiveValidatorMixin:
+    @field_validator("dollars")
+    def validate_dollars_are_positive(cls, dollars):
+        if dollars <= 0:
+            raise errors.RequestValueError("Dollars must be positive.")
+        return dollars
+
+
+# requests
+
+
+class SignUpRequest(BaseModel, EmailValidatorMixin, PasswordValidatorMixin):
+    email: str
     password: str
+
+
+class SignInRequest(BaseModel, EmailValidatorMixin):
+    email: str
+    password: str
+
+
+class BuyRequest(BaseModel, DollarsArePositiveValidatorMixin):
+    symbol: str
+    dollars: float
+
+
+class SellRequest(BaseModel, DollarsArePositiveValidatorMixin):
+    symbol: str
+    dollars: float
+
+
+# responses
 
 
 class SignUpResponse(BaseModel):
     pass
-
-
-class SignInRequest(BaseModel):
-    email: EmailStr
-    password: str
 
 
 class SignInResponse(BaseModel):
@@ -42,105 +88,125 @@ class SignInResponse(BaseModel):
     access_token: str
 
 
+class BuyResponse(BaseModel):
+    pass
+
+
+class SellResponse(BaseModel):
+    pass
+
+
+# route dependencies
+
+Database = Annotated[SqlAlchemyOrmSession, Depends(get_db)]
+
+
 async def authorized_user(
     db: Database, x_sherwood_authorization: Annotated[str | None, Header()] = None
-) -> dict | None:
+) -> User:
+    if x_sherwood_authorization is None:
+        raise errors.InvalidAccessToken(
+            detail="Missing X-Sherwood-Authorization header."
+        )
+
     token_type, _, access_token = x_sherwood_authorization.partition(" ")
     if token_type.strip().lower() != "bearer":
-        logging.error(
-            f"Authorization with token type other than bearer detected, token type: {token_type}."
-        )
-        return
+        raise errors.InvalidAccessToken(detail=f"Token type '{token_type}' != 'Bearer'")
 
     try:
         payload = decode_access_token(access_token)
     except Exception as exc:
-        logging.error(f"Failed to decode access token: {exc}")
-        return
+        logging.error(f"Failed to decode access token, error: {exc}")
+        raise errors.InvalidAccessToken(detail="Failed to decode access token") from exc
 
-    user = db.get(User, payload["sub"])
+    user_id = payload["sub"]
+    user = db.get(User, user_id)
     if user is None:
-        logging.error(
-            f"Decoded access token contains ID {payload['sub']} that doesn't match a user"
-        )
+        logging.error(f"Access token for missing user, ID: {user_id}")
+        raise errors.MissingUserError(user_id=user_id)
 
-    return {**to_dict(user), **{"access_token": access_token}}
+    return user
 
 
-MaybeAuthorizedUser = Annotated[dict | None, Depends(authorized_user)]
+AuthorizedUser = Annotated[User, Depends(authorized_user)]
+
+# app
 
 
 def create_app(*args, **kwargs):
     app = FastAPI(*args, **kwargs)
 
     @app.get("/")
-    async def root():
+    async def get_root():
         return {}
-
-    @app.post("/sign-up")
-    async def sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
-        logging.info(f"Got sign up request: {request}")
-
-        user = db.query(User).filter_by(email=request.email).first()
-        if user is not None:
-            logging.error(f"Email {request.email} already signed up.")
-            raise errors.DuplicateUserError(status.HTTP_409_CONFLICT, request.email)
-
-        is_valid, reasons = validate_password(request.password)
-        if not is_valid:
-            logging.error(
-                f"Requested password {request.password} invalid because: {reasons}"
-            )
-            raise errors.InvalidPasswordError(status.HTTP_400_BAD_REQUEST, reasons)
-
-        try:
-            user = create_user(db, request.email, request.password)
-        except Exception as exc:
-            logging.error(f"Error creating user, request={request}, error={exc}")
-            raise errors.InternalServerError(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message="Internal server error. Failed to create user.",
-            )
-
-        return {}
-
-    @app.post("/sign-in")
-    async def sign_in(request: SignInRequest, db: Database) -> SignInResponse:
-        user = db.query(User).filter_by(email=request.email).first()
-        if user is None:
-            raise errors.MissingUserError(status.HTTP_404_NOT_FOUND, request.email)
-
-        if not password_context.verify(request.password, user.password):
-            raise errors.IncorrectPasswordError(status.HTTP_401_UNAUTHORIZED)
-
-        if password_context.needs_update(user.password):
-            user.password = password_context.hash(request.password)
-            try:
-                db.commit()
-            except Exception as exc:
-                db.rollback()
-                logging.error(
-                    f"Failed to updated password for user: {user}, error: {exc}."
-                )
-
-        try:
-            access_token = generate_access_token(user)
-        except Exception as exc:
-            logging.error(
-                f"Failed to generate access token for user: {user}, error: {exc}"
-            )
-            raise errors.InternalServerError(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message="Internal server error. Failed to generate access token.",
-            )
-
-        return SignInResponse(token_type="Bearer", access_token=access_token)
 
     @app.get("/user")
-    async def get_authorized_user(user: MaybeAuthorizedUser = None):
-        return user or {}
+    async def get_user(user: AuthorizedUser):
+        try:
+            return to_dict(user)
+        except (
+            errors.InvalidAccessToken,
+            errors.MissingUserError,
+        ):
+            raise
+        except Exception as exc:
+            msg = "Failed to detect user from X-Sherwood-Authorization header."
+            logging.error(f"{msg}. Error: {exc}.")
+            raise errors.InternalServerError(msg)
 
-    for error in errors.errors:
+    @app.post("/sign-up")
+    async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
+        try:
+            sign_up_user(db, request.email, request.password)
+            return SignUpResponse()
+        except (
+            errors.DuplicateUserError,
+            errors.InternalServerError,
+        ):
+            raise
+        except Exception as exc:
+            msg = "Failed to sign up user."
+            logging.error(f"{msg} Request: {request}. Error: {exc}.")
+            raise errors.InternalServerError(msg)
+
+    @app.post("/sign-in")
+    async def post_sign_in(request: SignInRequest, db: Database) -> SignInResponse:
+        try:
+            access_token = sign_in_user(db, request.email, request.password)
+            return SignInResponse(token_type="Bearer", access_token=access_token)
+        except (
+            errors.DuplicateUserError,
+            errors.IncorrectPasswordError,
+            errors.InternalServerError,
+            errors.MissingUserError,
+        ):
+            raise
+        except Exception as exc:
+            msg = "Failed to sign in user."
+            logging.error(f"{msg} Request: {request}. Error: {exc}.")
+            raise errors.InternalServerError(msg)
+
+    @app.post("/buy")
+    async def post_buy(
+        request: BuyRequest, db: Database, user: AuthorizedUser
+    ) -> BuyResponse:
+        try:
+            buy_portfolio_holding(
+                db, user.portfolio.id, request.symbol, request.dollars
+            )
+            return BuyResponse()
+        except (
+            errors.DuplicatePortfolioError,
+            errors.InsufficientCashError,
+            errors.MissingPortfolioError,
+        ):
+            raise
+        except Exception as exc:
+            msg = "Failed to buy holding."
+            logging.error(f"{msg} Request: {request}. Error: {exc}.")
+            raise errors.InternalServerError(msg) from exc
+
+    for error in errors.SherwoodError.__subclasses__():
         app.add_exception_handler(error, errors.error_handler)
     return app
 
@@ -178,7 +244,7 @@ class App(gunicorn.app.base.BaseApplication):
         async def lifespan(_):
             Base.metadata.create_all(engine)
             yield
-            engine().dispose()
+            engine.dispose()
 
         return create_app(title="sherwood", version="0.0.0", lifespan=lifespan)
 

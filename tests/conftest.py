@@ -10,10 +10,12 @@ from sherwood.models import BaseModel
 from sqlalchemy import create_engine
 
 load_dotenv(".env.dev")
+
 engine = create_engine(
     os.environ[POSTGRESQL_DATABASE_URL_ENV_VAR_NAME],
     connect_args={"check_same_thread": False},
 )
+
 Session.configure(bind=engine)
 
 

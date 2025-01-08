@@ -3,7 +3,7 @@
 # TODO
 - email verfication (smtplib, sendgrid)
 - broker_events table
-- buy endpoint
+- deposit endpoint
 - sell endpoint
 - sell library fn
 - sell_all library fn?
