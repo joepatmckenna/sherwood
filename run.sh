@@ -50,7 +50,8 @@ sudo certbot renew --dry-run
 
 git -C /root/sherwood pull
 /root/venv/bin/python -m pip install /root/sherwood
-sudo systemctl restart sherwood && sudo journalctl -u sherwood -f
+sudo systemctl restart sherwood
+sudo journalctl -u sherwood -f
 
 ##################################################################
 ##################################################################
@@ -59,8 +60,13 @@ sudo systemctl restart sherwood && sudo journalctl -u sherwood -f
 curl -s -o /dev/null -w "%{http_code}" https://writewell.tech
 curl -s -o /dev/null -w "%{http_code}" https://www.writewell.tech
 
-EMAIL='jimbob2@web.com'
+EMAIL='heytherebear@web.com'
 PASSWORD='Abcd@1234'
+
+curl \
+-X POST https://www.writewell.tech/sign-up \
+-H "Content-Type: application/json" \
+-d "{\"email\": \"${EMAIL}\", \"password\": \"${PASSWORD}\"}"
 
 curl -s -o /dev/null -w "%{http_code}" \
 -X POST https://www.writewell.tech/sign-up \

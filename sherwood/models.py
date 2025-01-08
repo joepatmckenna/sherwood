@@ -1,6 +1,5 @@
 from dataclasses import fields
 import datetime
-import logging
 from sherwood import errors, utils
 from sherwood.auth import password_context, validate_password
 from sqlalchemy import ForeignKey
@@ -213,19 +212,14 @@ def parse_password(mapper, connection, target):
 
 
 def create_user(db: Session, email: str, password: str) -> User:
-    user = User(email, password)
-    user.portfolio = Portfolio()
-    db.add(user)
-    try:
-        db.commit()
+    with db.begin_nested():
+        user = User(email, password)
+        user.portfolio = Portfolio()
+        db.add(user)
         return user
-    except Exception as exc:
-        logging.error("Error creating user: %s", exc)
-        db.rollback()
-        raise
 
 
-def to_dict(obj) -> dict[str, Any]:
+def to_dict(obj: Any) -> dict[str, Any]:
     if isinstance(obj, (User, Portfolio, Holding, Ownership)):
         obj = {
             field.name: to_dict(getattr(obj, field.name))

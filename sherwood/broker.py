@@ -3,7 +3,7 @@ import logging
 from sherwood import errors
 from sherwood.market_data_provider import MarketDataProvider
 from sherwood.models import create_user, Holding, Ownership, Portfolio, User
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, Session
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound, SQLAlchemyError
 from sherwood.auth import generate_access_token, password_context
 
@@ -14,7 +14,7 @@ def convert_dollars_to_units(symbol: str, dollars: float) -> float:
     return dollars / market_data_provider.get_price(symbol)
 
 
-def sign_up_user(db, email, password) -> None:
+def sign_up_user(db: Session, email: str, password: str) -> None:
     user = db.query(User).filter_by(email=email).first()
     if user is not None:
         raise errors.DuplicateUserError(email=email)
@@ -24,7 +24,7 @@ def sign_up_user(db, email, password) -> None:
         raise errors.InternalServerError(detail="Failed to create user.") from exc
 
 
-def sign_in_user(db, email, password) -> str:
+def sign_in_user(db: Session, email: str, password: str) -> str:
     try:
         user = db.query(User).filter_by(email=email).one_or_none()
     except MultipleResultsFound:
@@ -44,7 +44,7 @@ def sign_in_user(db, email, password) -> str:
     return access_token
 
 
-def _get_locked_portfolio(db, portfolio_id):
+def _get_locked_portfolio(db: Session, portfolio_id: int):
     try:
         return (
             db.query(Portfolio)
@@ -61,15 +61,8 @@ def _get_locked_portfolio(db, portfolio_id):
         raise errors.DuplicatePortfolioError(portfolio_id)
 
 
-def buy_portfolio_holding(db, portfolio_id, symbol, dollars):
-    """Buys holding in owner's portfolio.
-
-    Need to lock:
-    Portfolio(id==portfolio_id)
-    all Holding(portfolio_id==portfolio_id)
-    all Ownership(portfolio_id==portfolio_id)
-
-    """
+def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float):
+    """Buys holding in owner's portfolio."""
     with db.begin_nested():
         portfolio = _get_locked_portfolio(db, portfolio_id)
 
@@ -105,52 +98,54 @@ def buy_portfolio_holding(db, portfolio_id, symbol, dollars):
             ownership.percent = 1
 
 
-def sell_portfolio_holding(db, portfolio_id, symbol, dollars):
-    if not dollars > 0:
-        raise Exception()
+def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars: float):
+    """Buys holding in owner's portfolio."""
+    with db.begin_nested():
+        portfolio = _get_locked_portfolio(db, portfolio_id)
 
-    holding = db.get(Holding, (portfolio_id, symbol))
-    if holding is None:
-        raise Exception()  # TODO HoldingNotOwned
+        units = convert_dollars_to_units(symbol, dollars)
 
-    ownership = db.get(Ownership, (portfolio_id, portfolio_id))
-    if ownership is None:
-        raise Exception()
+        holding = db.get(Holding, (portfolio_id, symbol))
+        if holding is None:
+            raise errors.InsufficientHoldingsError(symbol, needed=units, actual=0)
 
-    portfolio = db.get(Portfolio, portfolio_id)
-    holding_value_by_symbol = {
-        holding.symbol: holding.units * market_data_provider.get_price(holding.symbol)
-        for holding in portfolio.holdings
-    }
+        ownership = db.get(Ownership, (portfolio_id, portfolio_id))
+        if ownership is None:
+            raise Exception()
 
-    if dollars > holding_value_by_symbol[symbol] * ownership.percent:
-        raise Exception()
+        holding_by_symbol = {h.symbol: h for h in portfolio.holdings}
+        holding_value_by_symbol = {
+            s: h.units * market_data_provider.get_price(h.symbol)
+            for s, h in holding_by_symbol.items()
+        }
 
-    portfolio.cash += dollars
+        if dollars > holding_value_by_symbol[symbol] * ownership.percent:
+            raise errors.InsufficientHoldingsError(
+                symbol,
+                needed=units,
+                actual=holding_by_symbol[symbol].units * ownership.percent,
+            )
 
-    holding.units -= convert_dollars_to_units(symbol, dollars)
-    holding.cost -= dollars
+        holding.units -= units
+        portfolio.cash += dollars
+        holding.cost -= dollars
 
-    portfolio_value = sum(holding_value_by_symbol.values())
-
-    if 0 < dollars < portfolio_value:
-        percent = dollars / portfolio_value
-        ownership.percent -= percent
-        ownership.cost -= dollars
-        for ownership in portfolio.ownership:
-            ownership.percent /= 1 - percent
-
-    try:
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        logging.error(f"Error updating ownerships: {exc}")
-        raise
+        portfolio_value = sum(holding_value_by_symbol.values())
+        if 0 < dollars < portfolio_value:
+            percent = dollars / portfolio_value
+            ownership.percent -= percent
+            ownership.cost -= dollars
+            for ownership in portfolio.ownership:
+                ownership.percent /= 1 - percent
 
 
-def invest_in_portfolio(db, portfolio_id, investor_id, dollars):
+def invest_in_portfolio(
+    db: Session, portfolio_id: int, investor_id: int, dollars: float
+):
     pass
 
 
-def divest_from_portfolio(db, portfolio_id, investor_id, dollars):
+def divest_from_portfolio(
+    db: Session, portfolio_id: int, investor_id: int, dollars: float
+):
     pass
