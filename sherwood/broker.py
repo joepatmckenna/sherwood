@@ -43,7 +43,7 @@ def sign_in_user(db: Session, email: str, password: str) -> str:
     return access_token
 
 
-def _get_locked_portfolio(db: Session, portfolio_id: int):
+def _lock_portfolio_holdings_and_ownership(db: Session, portfolio_id: int):
     try:
         return (
             db.query(Portfolio)
@@ -60,7 +60,7 @@ def _get_locked_portfolio(db: Session, portfolio_id: int):
         raise errors.DuplicatePortfolioError(portfolio_id)
 
 
-def __get_locked_portfolio(db: Session, portfolio_id: int):
+def _lock_portfolio(db: Session, portfolio_id: int):
     try:
         return (
             db.query(Portfolio).filter(Portfolio.id == portfolio_id).with_for_update()
@@ -75,7 +75,7 @@ def deposit_cash_into_portfolio(
     db: Session, portfolio_id: int, dollars: float
 ) -> float:
     with db.begin_nested():
-        portfolio = __get_locked_portfolio(db, portfolio_id)
+        portfolio = _lock_portfolio(db, portfolio_id)
         starting_balance = portfolio.cash
         portfolio.cash += dollars
         ending_balance = portfolio.cash
@@ -86,7 +86,7 @@ def withdraw_cash_from_portfolio(
     db: Session, portfolio_id: int, dollars: float
 ) -> float:
     with db.begin_nested():
-        portfolio = __get_locked_portfolio(db, portfolio_id)
+        portfolio = _lock_portfolio(db, portfolio_id)
         starting_balance = portfolio.cash
         if dollars > starting_balance:
             raise errors.InsufficientCashError(dollars, starting_balance)
@@ -98,7 +98,7 @@ def withdraw_cash_from_portfolio(
 def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float):
     """Buys holding in owner's portfolio."""
     with db.begin_nested():
-        portfolio = _get_locked_portfolio(db, portfolio_id)
+        portfolio = _lock_portfolio_holdings_and_ownership(db, portfolio_id)
 
         if dollars > portfolio.cash:
             raise errors.InsufficientCashError(needed=dollars, actual=portfolio.cash)
@@ -135,7 +135,7 @@ def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float
 def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars: float):
     """Sells holding in owner's portfolio."""
     with db.begin_nested():
-        portfolio = _get_locked_portfolio(db, portfolio_id)
+        portfolio = _lock_portfolio_holdings_and_ownership(db, portfolio_id)
 
         units = convert_dollars_to_units(symbol, dollars)
 

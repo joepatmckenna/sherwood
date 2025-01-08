@@ -79,10 +79,10 @@ curl https://www.writewell.tech/user \
 -H "Content-Type: application/json" \
 -H "X-Sherwood-Authorization: ${token_type} ${access_token}" 
 
-curl https://www.writewell.tech/deposit \
+curl -X POST https://www.writewell.tech/deposit \
 -H "Content-Type: application/json" \
--H "X-Sherwood-Authorization: ${token_type} ${access_token}" 
--d "{\"dollars\": 100}"
+-H "X-Sherwood-Authorization: ${token_type} ${access_token}" \
+-d "{\"dollars\": "100"}"
 
 ##################################################################
 ##################################################################
