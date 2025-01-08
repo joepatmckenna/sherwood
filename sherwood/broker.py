@@ -1,10 +1,9 @@
-from fastapi import status
 import logging
 from sherwood import errors
 from sherwood.market_data_provider import MarketDataProvider
 from sherwood.models import create_user, Holding, Ownership, Portfolio, User
 from sqlalchemy.orm import joinedload, Session
-from sqlalchemy.exc import NoResultFound, MultipleResultsFound, SQLAlchemyError
+from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 from sherwood.auth import generate_access_token, password_context
 
 market_data_provider = MarketDataProvider()
@@ -99,7 +98,7 @@ def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float
 
 
 def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars: float):
-    """Buys holding in owner's portfolio."""
+    """Sells holding in owner's portfolio."""
     with db.begin_nested():
         portfolio = _get_locked_portfolio(db, portfolio_id)
 
@@ -111,7 +110,7 @@ def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars:
 
         ownership = db.get(Ownership, (portfolio_id, portfolio_id))
         if ownership is None:
-            raise Exception()
+            raise errors.InternalServerError("Portfolio missing owner's ownership.")
 
         holding_by_symbol = {h.symbol: h for h in portfolio.holdings}
         holding_value_by_symbol = {
