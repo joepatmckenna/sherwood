@@ -7,8 +7,15 @@ import os
 from pydantic import field_validator, BaseModel, EmailStr
 from sherwood import errors
 from sherwood.auth import decode_access_token, validate_password
-from sherwood.broker import buy_portfolio_holding, sign_in_user, sign_up_user
+from sherwood.broker import (
+    sign_up_user,
+    sign_in_user,
+    deposit_cash_into_portfolio,
+    withdraw_cash_from_portfolio,
+    buy_portfolio_holding,
+)
 from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_URL_ENV_VAR_NAME
+from sherwood.errors import error_handler
 from sherwood.models import to_dict, BaseModel as Base, User
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session as SqlAlchemyOrmSession
@@ -66,6 +73,14 @@ class SignInRequest(BaseModel, EmailValidatorMixin):
     password: str
 
 
+class DepositRequest(BaseModel, DollarsArePositiveValidatorMixin):
+    dollars: float
+
+
+class WithdrawRequest(BaseModel, DollarsArePositiveValidatorMixin):
+    dollars: float
+
+
 class BuyRequest(BaseModel, DollarsArePositiveValidatorMixin):
     symbol: str
     dollars: float
@@ -86,6 +101,16 @@ class SignUpResponse(BaseModel):
 class SignInResponse(BaseModel):
     token_type: str
     access_token: str
+
+
+class DepositResponse(BaseModel):
+    starting_balance: float
+    ending_balance: float
+
+
+class WithdrawResponse(BaseModel):
+    starting_balance: float
+    ending_balance: float
 
 
 class BuyResponse(BaseModel):
@@ -186,6 +211,51 @@ def create_app(*args, **kwargs):
             logging.error(f"{msg} Request: {request}. Error: {exc}.")
             raise errors.InternalServerError(msg)
 
+    @app.post("/deposit")
+    async def post_deposit(
+        request: DepositRequest, db: Database, user: AuthorizedUser
+    ) -> BuyResponse:
+        try:
+            starting_balance, ending_balance = deposit_cash_into_portfolio(
+                db, user.portfolio.id, request.dollars
+            )
+            return DepositResponse(
+                starting_balance=starting_balance,
+                ending_balance=ending_balance,
+            )
+        except (
+            errors.DuplicatePortfolioError,
+            errors.MissingPortfolioError,
+        ):
+            raise
+        except Exception as exc:
+            raise errors.InternalServerError(
+                f"Failed to deposit cash. Request: {request}. Error: {exc}."
+            ) from exc
+
+    @app.post("/withdraw")
+    async def post_withdraw(
+        request: WithdrawRequest, db: Database, user: AuthorizedUser
+    ) -> BuyResponse:
+        try:
+            starting_balance, ending_balance = withdraw_cash_from_portfolio(
+                db, user.portfolio.id, request.dollars
+            )
+            return WithdrawResponse(
+                starting_balance=starting_balance,
+                ending_balance=ending_balance,
+            )
+        except (
+            errors.DuplicatePortfolioError,
+            errors.InsufficientCashError,
+            errors.MissingPortfolioError,
+        ):
+            raise
+        except Exception as exc:
+            raise errors.InternalServerError(
+                f"Failed to deposit cash. Request: {request}. Error: {exc}."
+            ) from exc
+
     @app.post("/buy")
     async def post_buy(
         request: BuyRequest, db: Database, user: AuthorizedUser
@@ -207,7 +277,7 @@ def create_app(*args, **kwargs):
             raise errors.InternalServerError(msg) from exc
 
     for error in errors.SherwoodError.__subclasses__():
-        app.add_exception_handler(error, errors.error_handler)
+        app.add_exception_handler(error, error_handler)
     return app
 
 

@@ -1,13 +1,18 @@
+from calendar import timegm
 from contextlib import asynccontextmanager
+import datetime
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
+import jose.jwt
 import os
 import pytest
+from sherwood.auth import _JWT_ALGORITHM, _JWT_ISSUER, JWT_SECRET_KEY_ENV_VAR_NAME
 from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_URL_ENV_VAR_NAME
 from sherwood.main import create_app
 from sherwood.market_data_provider import MarketDataProvider
 from sherwood.models import BaseModel
 from sqlalchemy import create_engine
+
 
 load_dotenv(".env.dev")
 
@@ -57,3 +62,19 @@ def valid_email(scope="session"):
 @pytest.fixture
 def valid_password(scope="session"):
     return "Abcd@1234"
+
+
+@pytest.fixture(scope="session")
+def fake_access_token():
+    issued_at = datetime.datetime.now(datetime.timezone.utc)
+    expiration = issued_at + datetime.timedelta(hours=1)
+    return jose.jwt.encode(
+        claims={
+            "iss": _JWT_ISSUER,
+            "sub": "0",
+            "exp": timegm(expiration.utctimetuple()),
+            "iat": timegm(issued_at.utctimetuple()),
+        },
+        key=os.environ[JWT_SECRET_KEY_ENV_VAR_NAME],
+        algorithm=_JWT_ALGORITHM,
+    )

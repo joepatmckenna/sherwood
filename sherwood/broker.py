@@ -1,10 +1,10 @@
 import logging
 from sherwood import errors
+from sherwood.auth import generate_access_token, password_context
 from sherwood.market_data_provider import MarketDataProvider
 from sherwood.models import create_user, Holding, Ownership, Portfolio, User
 from sqlalchemy.orm import joinedload, Session
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
-from sherwood.auth import generate_access_token, password_context
 
 market_data_provider = MarketDataProvider()
 
@@ -58,6 +58,30 @@ def _get_locked_portfolio(db: Session, portfolio_id: int):
         raise errors.MissingPortfolioError(portfolio_id)
     except MultipleResultsFound:
         raise errors.DuplicatePortfolioError(portfolio_id)
+
+
+def deposit_cash_into_portfolio(
+    db: Session, portfolio_id: int, dollars: float
+) -> float:
+    with db.begin_nested():
+        portfolio = _get_locked_portfolio(db, portfolio_id)
+        starting_balance = portfolio.cash
+        portfolio.cash += dollars
+        ending_balance = portfolio.cash
+        return starting_balance, ending_balance
+
+
+def withdraw_cash_from_portfolio(
+    db: Session, portfolio_id: int, dollars: float
+) -> float:
+    with db.begin_nested():
+        portfolio = _get_locked_portfolio(db, portfolio_id)
+        starting_balance = portfolio.cash
+        if dollars > starting_balance:
+            raise errors.InsufficientCashError(dollars, starting_balance)
+        portfolio.cash -= dollars
+        ending_balance = portfolio.cash
+        return starting_balance, ending_balance
 
 
 def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float):

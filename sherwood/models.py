@@ -1,5 +1,7 @@
+from collections.abc import Iterable
 from dataclasses import fields
 import datetime
+from six import string_types
 from sherwood import errors, utils
 from sherwood.auth import password_context, validate_password
 from sqlalchemy import ForeignKey
@@ -220,6 +222,8 @@ def create_user(db: Session, email: str, password: str) -> User:
 
 
 def to_dict(obj: Any) -> dict[str, Any]:
+    if isinstance(obj, Iterable) and not isinstance(obj, string_types):
+        obj = [to_dict(x) for x in obj]
     if isinstance(obj, (User, Portfolio, Holding, Ownership)):
         obj = {
             field.name: to_dict(getattr(obj, field.name))
