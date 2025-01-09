@@ -14,6 +14,8 @@ from sherwood.broker import (
     withdraw_cash_from_portfolio,
     buy_portfolio_holding,
     sell_portfolio_holding,
+    invest_in_portfolio,
+    divest_from_portfolio,
 )
 from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_URL_ENV_VAR_NAME
 from sherwood.errors import error_handler
@@ -92,6 +94,16 @@ class SellRequest(BaseModel, DollarsArePositiveValidatorMixin):
     dollars: float
 
 
+class InvestRequest(BaseModel, DollarsArePositiveValidatorMixin):
+    portfolio_id: str
+    dollars: float
+
+
+class DivestRequest(BaseModel, DollarsArePositiveValidatorMixin):
+    portfolio_id: str
+    dollars: float
+
+
 # responses
 
 
@@ -119,6 +131,14 @@ class BuyResponse(BaseModel):
 
 
 class SellResponse(BaseModel):
+    pass
+
+
+class InvestResponse(BaseModel):
+    pass
+
+
+class DivestResponse(BaseModel):
     pass
 
 
@@ -300,6 +320,34 @@ def create_app(*args, **kwargs):
         except Exception as exc:
             raise errors.InternalServerError(
                 f"Failed to sell holding. Request: {request}. Error: {exc}."
+            ) from exc
+
+    @app.post("/invest")
+    async def post_invest(
+        request: InvestRequest, db: Database, user: AuthorizedUser
+    ) -> InvestResponse:
+        try:
+            invest_in_portfolio(db, request.portfolio_id, user.id, request.dollars)
+            return InvestResponse()
+        except (errors.InternalServerError,):
+            raise
+        except Exception as exc:
+            raise errors.InternalServerError(
+                f"Failed to invest in portfolio. Request: {request}. Error: {exc}."
+            ) from exc
+
+    @app.post("/divest")
+    async def post_divest(
+        request: DivestRequest, db: Database, user: AuthorizedUser
+    ) -> DivestResponse:
+        try:
+            divest_from_portfolio(db, request.portfolio_id, user.id, request.dollars)
+            return DivestResponse()
+        except (errors.InternalServerError,):
+            raise
+        except Exception as exc:
+            raise errors.InternalServerError(
+                f"Failed to divest from portfolio. Request: {request}. Error: {exc}."
             ) from exc
 
     for error in errors.SherwoodError.__subclasses__():
