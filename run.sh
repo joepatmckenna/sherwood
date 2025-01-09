@@ -96,6 +96,8 @@ integration_test() {
   integration_test_case POST /withdraw '{"dollars": 1}'
   integration_test_case POST /buy '{"symbol": "TSLA", "dollars": 500}'
   integration_test_case POST /sell '{"symbol": "TSLA", "dollars": 100}'
+  # integration_test_case POST /invest '{"portfolio_id": ..., "dollars": ...}'
+  # integration_test_case POST /divest '{"portfolio_id": ..., "dollars": ...}'  
 }
 
 ############ LOGS ################
