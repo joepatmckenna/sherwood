@@ -13,6 +13,7 @@ from sherwood.broker import (
     deposit_cash_into_portfolio,
     withdraw_cash_from_portfolio,
     buy_portfolio_holding,
+    sell_portfolio_holding,
 )
 from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_URL_ENV_VAR_NAME
 from sherwood.errors import error_handler
@@ -141,8 +142,9 @@ async def authorized_user(
     try:
         payload = decode_access_token(access_token)
     except Exception as exc:
-        logging.error(f"Failed to decode access token, error: {exc}")
-        raise errors.InvalidAccessToken(detail="Failed to decode access token") from exc
+        raise errors.InvalidAccessToken(
+            detail=f"Failed to decode access token, error: {exc}"
+        ) from exc
 
     user_id = payload["sub"]
     user = db.get(User, user_id)
@@ -176,9 +178,9 @@ def create_app(*args, **kwargs):
         ):
             raise
         except Exception as exc:
-            msg = "Failed to sign up user."
-            logging.error(f"{msg} Request: {request}. Error: {exc}.")
-            raise errors.InternalServerError(msg)
+            raise errors.InternalServerError(
+                f"Failed to sign up user. Request: {request}. Error: {exc}."
+            )
 
     @app.post("/sign-in")
     async def post_sign_in(request: SignInRequest, db: Database) -> SignInResponse:
@@ -193,9 +195,9 @@ def create_app(*args, **kwargs):
         ):
             raise
         except Exception as exc:
-            msg = "Failed to sign in user."
-            logging.error(f"{msg} Request: {request}. Error: {exc}.")
-            raise errors.InternalServerError(msg)
+            raise errors.InternalServerError(
+                f"Failed to sign in user. Request: {request}. Error: {exc}."
+            )
 
     @app.get("/user")
     async def get_user(user: AuthorizedUser):
@@ -207,9 +209,9 @@ def create_app(*args, **kwargs):
         ):
             raise
         except Exception as exc:
-            msg = "Failed to detect user from X-Sherwood-Authorization header."
-            logging.error(f"{msg}. Error: {exc}.")
-            raise errors.InternalServerError(msg)
+            raise errors.InternalServerError(
+                f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."
+            )
 
     @app.post("/deposit")
     async def post_deposit(
@@ -271,12 +273,34 @@ def create_app(*args, **kwargs):
             errors.DuplicatePortfolioError,
             errors.InsufficientCashError,
             errors.MissingPortfolioError,
+            errors.InternalServerError,
         ):
             raise
         except Exception as exc:
-            msg = "Failed to buy holding."
-            logging.error(f"{msg} Request: {request}. Error: {exc}.")
-            raise errors.InternalServerError(msg) from exc
+            raise errors.InternalServerError(
+                f"Failed to buy holding. Request: {request}. Error: {exc}."
+            ) from exc
+
+    @app.post("/sell")
+    async def post_sell(
+        request: SellRequest, db: Database, user: AuthorizedUser
+    ) -> BuyResponse:
+        try:
+            sell_portfolio_holding(
+                db, user.portfolio.id, request.symbol, request.dollars
+            )
+            return SellResponse()
+        except (
+            errors.DuplicatePortfolioError,
+            errors.InsufficientHoldingsError,
+            errors.MissingPortfolioError,
+            errors.InternalServerError,
+        ):
+            raise
+        except Exception as exc:
+            raise errors.InternalServerError(
+                f"Failed to sell holding. Request: {request}. Error: {exc}."
+            ) from exc
 
     for error in errors.SherwoodError.__subclasses__():
         app.add_exception_handler(error, error_handler)

@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 SHERWOOD_REPO='https://github.com/joepatmckenna/sherwood.git'
 SHERWOOD_DIR='/root/sherwood'
 VENV_DIR='/root/venv'
@@ -52,8 +51,6 @@ EOF
 }
 
 
-
-
 integration_test_case() {
   method="${1}"
   route="${2}"
@@ -85,18 +82,20 @@ integration_test_case() {
 
 integration_test() {
   DOMAIN='https://writewell.tech'
-  EMAIL=''
+  EMAIL="integration-test-$((RANDOM * RANDOM * RANDOM * RANDOM))@web.com"
   PASSWORD='Abcd@1234'
   ACCESS_TOKEN=''
 
-  EMAIL="integration-test-$((RANDOM * RANDOM * RANDOM * RANDOM))@web.com"
+  echo "${EMAIL}"
+
   integration_test_case GET /
-  integration_test_case POST /sign-up "{\"email\": \"${EMAIL}\", \"password\": \"${PASSWORD}\"}"
-  integration_test_case POST /sign-in "{\"email\": \"${EMAIL}\", \"password\": \"${PASSWORD}\"}"
+  integration_test_case POST /sign-up '{"email": "'"${EMAIL}"'", "password": "'"${PASSWORD}"'"}'
+  integration_test_case POST /sign-in '{"email": "'"${EMAIL}"'", "password": "'"${PASSWORD}"'"}'
   integration_test_case GET /user
-  integration_test_case POST /deposit "{\"dollars\": 1001}"
-  integration_test_case POST /withdraw "{\"dollars\": 1}"
-  integration_test_case POST /buy "{\"symbol\": \"TSLA\", \"dollars\": 500}"
+  integration_test_case POST /deposit '{"dollars": 1001}'
+  integration_test_case POST /withdraw '{"dollars": 1}'
+  integration_test_case POST /buy '{"symbol": "TSLA", "dollars": 500}'
+  integration_test_case POST /sell '{"symbol": "TSLA", "dollars": 100}'
 }
 
 integration_test

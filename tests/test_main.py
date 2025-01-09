@@ -219,3 +219,63 @@ def test_buy_portfolio_holding_insufficient_cash(client, valid_email, valid_pass
         json={"symbol": "AAA", "dollars": 1},
     )
     assert buy_response.status_code == 400
+
+
+def test_sell_portfolio_holding_success(client, valid_email, valid_password):
+    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
+    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
+    assert sign_up_response.status_code == 200
+    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
+    assert sign_in_response.status_code == 200
+    sign_in_response = sign_in_response.json()
+    headers = {
+        "X-Sherwood-Authorization": (
+            sign_in_response["token_type"] + " " + sign_in_response["access_token"]
+        )
+    }
+    deposit_response = client.post("/deposit", headers=headers, json={"dollars": 100})
+    assert deposit_response.status_code == 200
+    buy_response = client.post(
+        "/buy", headers=headers, json={"symbol": "AAA", "dollars": 50}
+    )
+    assert buy_response.status_code == 200
+    sell_response = client.post(
+        "/sell", headers=headers, json={"symbol": "AAA", "dollars": 25}
+    )
+    assert sell_response.status_code == 200
+    get_user_response = client.get("/user", headers=headers)
+    assert get_user_response.status_code == 200
+    user = get_user_response.json()
+    assert user["portfolio"]["cash"] == 75
+    assert user["portfolio"]["holdings"] == [
+        {"portfolio_id": 1, "symbol": "AAA", "cost": 25, "units": 25}
+    ]
+    assert user["portfolio"]["ownership"] == [
+        {"portfolio_id": 1, "owner_id": 1, "cost": 25, "percent": 1}
+    ]
+
+
+def test_sell_portfolio_holding_insufficient_holdings(
+    client, valid_email, valid_password
+):
+    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
+    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
+    assert sign_up_response.status_code == 200
+    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
+    assert sign_in_response.status_code == 200
+    sign_in_response = sign_in_response.json()
+    headers = {
+        "X-Sherwood-Authorization": (
+            sign_in_response["token_type"] + " " + sign_in_response["access_token"]
+        )
+    }
+    deposit_response = client.post("/deposit", headers=headers, json={"dollars": 100})
+    assert deposit_response.status_code == 200
+    buy_response = client.post(
+        "/buy", headers=headers, json={"symbol": "AAA", "dollars": 50}
+    )
+    assert buy_response.status_code == 200
+    sell_response = client.post(
+        "/sell", headers=headers, json={"symbol": "AAA", "dollars": 100}
+    )
+    assert sell_response.status_code == 400
