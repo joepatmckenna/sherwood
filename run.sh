@@ -6,7 +6,7 @@ SHERWOOD_DIR='/root/sherwood'
 VENV_DIR='/root/venv'
 PYTHON="${VENV_DIR}"/bin/python 
 
-main() {
+launch() {
   sudo apt update && sudo apt upgrade -y
   sudo apt install -y \
     certbot \
@@ -18,12 +18,6 @@ main() {
     python3-pip \
     python3-venv
 
-  # postgresql
-  # change
-  # local postgres peer
-  # local postgres sha-..
-  # in
-  # /etc/postgresql/16/main/pg_hba.conf
   sudo systemctl start postgresql
   sudo systemctl enable postgresql
   sudo -i -u postgres psql <<EOF
@@ -56,6 +50,9 @@ EOF
   sudo certbot --nginx -d writewell.tech -d www.writewell.tech
   sudo certbot renew --dry-run  
 }
+
+
+
 
 integration_test_case() {
   method="${1}"
@@ -104,7 +101,15 @@ integration_test() {
 
 integration_test
 
+########## LOGS ################
+
 # sudo journalctl -u sherwood
+
+
+########## POSTGRES ##############
+
+# /etc/postgresql/16/main/pg_hba.conf
+# - changed 'local postgres peer' line to 'local postgres sha-..' to enable pw auth
 
 
 

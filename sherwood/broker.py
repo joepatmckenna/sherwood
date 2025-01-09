@@ -44,20 +44,33 @@ def sign_in_user(db: Session, email: str, password: str) -> str:
 
 
 def _lock_portfolio_holdings_and_ownership(db: Session, portfolio_id: int):
-    try:
-        return (
-            db.query(Portfolio)
-            .options(
-                joinedload(Portfolio.holdings),
-                joinedload(Portfolio.ownership),
+    with db.begin_nested():
+        try:
+            portfolio = (
+                db.query(Portfolio)
+                .filter(Portfolio.id == portfolio_id)
+                .with_for_update()
+                .one()
             )
-            .filter(Portfolio.id == portfolio_id)
+        except NoResultFound:
+            raise errors.MissingPortfolioError(portfolio_id)
+        except MultipleResultsFound:
+            raise errors.DuplicatePortfolioError(portfolio_id)
+        holdings = (
+            db.query(Holding)
+            .filter(Holding.portfolio_id == portfolio_id)
             .with_for_update()
-        ).one()
-    except NoResultFound:
-        raise errors.MissingPortfolioError(portfolio_id)
-    except MultipleResultsFound:
-        raise errors.DuplicatePortfolioError(portfolio_id)
+            .all()
+        )
+        ownership = (
+            db.query(Ownership)
+            .filter(Ownership.portfolio_id == portfolio_id)
+            .with_for_update()
+            .all()
+        )
+        portfolio.holdings = holdings
+        portfolio.ownership = ownership
+        return portfolio
 
 
 def _lock_portfolio(db: Session, portfolio_id: int):
