@@ -96,6 +96,10 @@ integration_test() {
   integration_test_case GET /
   integration_test_case POST /sign-up "{\"email\": \"${EMAIL}\", \"password\": \"${PASSWORD}\"}"
   integration_test_case POST /sign-in "{\"email\": \"${EMAIL}\", \"password\": \"${PASSWORD}\"}"
+  integration_test_case GET /user
+  integration_test_case POST /deposit "{\"dollars\": 1001}"
+  integration_test_case POST /withdraw "{\"dollars\": 1}"
+  integration_test_case POST /buy "{\"symbol\": \"TSLA\", \"dollars\": 500}"
 }
 
 integration_test

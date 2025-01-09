@@ -165,20 +165,6 @@ def create_app(*args, **kwargs):
     async def get_root():
         return {}
 
-    @app.get("/user")
-    async def get_user(user: AuthorizedUser):
-        try:
-            return to_dict(user)
-        except (
-            errors.InvalidAccessToken,
-            errors.MissingUserError,
-        ):
-            raise
-        except Exception as exc:
-            msg = "Failed to detect user from X-Sherwood-Authorization header."
-            logging.error(f"{msg}. Error: {exc}.")
-            raise errors.InternalServerError(msg)
-
     @app.post("/sign-up")
     async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
         try:
@@ -211,14 +197,28 @@ def create_app(*args, **kwargs):
             logging.error(f"{msg} Request: {request}. Error: {exc}.")
             raise errors.InternalServerError(msg)
 
+    @app.get("/user")
+    async def get_user(user: AuthorizedUser):
+        try:
+            return to_dict(user)
+        except (
+            errors.InvalidAccessToken,
+            errors.MissingUserError,
+        ):
+            raise
+        except Exception as exc:
+            msg = "Failed to detect user from X-Sherwood-Authorization header."
+            logging.error(f"{msg}. Error: {exc}.")
+            raise errors.InternalServerError(msg)
+
     @app.post("/deposit")
     async def post_deposit(
         request: DepositRequest, db: Database, user: AuthorizedUser
     ) -> BuyResponse:
         try:
-            starting_balance, ending_balance = deposit_cash_into_portfolio(
-                db, user.portfolio.id, request.dollars
-            )
+            starting_balance = user.portfolio.cash
+            deposit_cash_into_portfolio(db, user.portfolio.id, request.dollars)
+            ending_balance = user.portfolio.cash
             return DepositResponse(
                 starting_balance=starting_balance,
                 ending_balance=ending_balance,
@@ -226,6 +226,7 @@ def create_app(*args, **kwargs):
         except (
             errors.DuplicatePortfolioError,
             errors.MissingPortfolioError,
+            errors.InternalServerError,
         ):
             raise
         except Exception as exc:
@@ -238,9 +239,9 @@ def create_app(*args, **kwargs):
         request: WithdrawRequest, db: Database, user: AuthorizedUser
     ) -> BuyResponse:
         try:
-            starting_balance, ending_balance = withdraw_cash_from_portfolio(
-                db, user.portfolio.id, request.dollars
-            )
+            starting_balance = user.portfolio.cash
+            withdraw_cash_from_portfolio(db, user.portfolio.id, request.dollars)
+            ending_balance = user.portfolio.cash
             return WithdrawResponse(
                 starting_balance=starting_balance,
                 ending_balance=ending_balance,
@@ -249,6 +250,7 @@ def create_app(*args, **kwargs):
             errors.DuplicatePortfolioError,
             errors.InsufficientCashError,
             errors.MissingPortfolioError,
+            errors.InternalServerError,
         ):
             raise
         except Exception as exc:
