@@ -98,57 +98,11 @@ integration_test() {
   integration_test_case POST /sell '{"symbol": "TSLA", "dollars": 100}'
 }
 
-integration_test
-
-########## LOGS ################
+############ LOGS ################
 
 # sudo journalctl -u sherwood
-
 
 ########## POSTGRES ##############
 
 # /etc/postgresql/16/main/pg_hba.conf
 # - changed 'local postgres peer' line to 'local postgres sha-..' to enable pw auth
-
-
-
-# # status_code=$("${cmd[@]}")
-# # res=$(cat "$tmp_res")
-# # rm "$tmp_res"
-
-# # if [ "${status_code}" -ne 200 ]; then
-# #   echo "${res}"
-# # fi
-
-
-#   echo "${status_code}" "${res}"
-
-
-#   res=$(curl -s \
-#     -w "%{http_code} https://writewell.tech\n" \
-#     https://writewell.tech)
-#   curl -s -o /dev/null \
-#     -w "%{http_code} https://www.writewell.tech\n" \
-#     https://www.writewell.tech
-#   curl -s -o /dev/null \
-#     -w "%{http_code} https://writewell.tech/sign-up" \
-#     -X POST https://writewell.tech/sign-up \
-#     -H "Content-Type: application/json" \
-#     -d "{\"email\": \"${EMAIL}\", \"password\": \"${PASSWORD}\"}"
-
-#   token=$(curl -X POST https://www.writewell.tech/sign-in \
-#   -H "Content-Type: application/json" \
-#   -d "{\"email\": \"${EMAIL}\", \"password\": \"${PASSWORD}\"}")
-
-#   token_type=$(echo $token | jq -r .token_type)
-#   access_token=$(echo $token | jq -r .access_token)
-
-#   curl https://www.writewell.tech/user \
-#   -H "Content-Type: application/json" \
-#   -H "X-Sherwood-Authorization: ${token_type} ${access_token}" 
-
-#   curl -X POST https://www.writewell.tech/deposit \
-#   -H "Content-Type: application/json" \
-#   -H "X-Sherwood-Authorization: ${token_type} ${access_token}" \
-#   -d "{\"dollars\": "100"}"
-

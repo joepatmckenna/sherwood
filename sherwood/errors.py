@@ -1,12 +1,11 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from fastapi import status, Request, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import EmailStr
 
 
 @dataclass
 class SherwoodError(HTTPException):
-    def __init__(self, status_code, detail, headers):
+    def __init__(self, status_code: int, detail, headers=None) -> None:
         super().__init__(
             status_code=status_code,
             detail=detail,
@@ -15,7 +14,7 @@ class SherwoodError(HTTPException):
 
 
 class InternalServerError(SherwoodError):
-    def __init__(self, detail, headers=None):
+    def __init__(self, detail: str, headers=None) -> None:
         super().__init__(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=detail,
@@ -24,7 +23,7 @@ class InternalServerError(SherwoodError):
 
 
 class InvalidPasswordError(SherwoodError):
-    def __init__(self, reasons, headers=None):
+    def __init__(self, reasons: list[str], headers=None) -> None:
         super().__init__(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=" ".join(reasons),
@@ -33,7 +32,7 @@ class InvalidPasswordError(SherwoodError):
 
 
 class IncorrectPasswordError(SherwoodError):
-    def __init__(self, headers=None):
+    def __init__(self, headers=None) -> None:
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Login credentials don't match our records.",
@@ -42,7 +41,7 @@ class IncorrectPasswordError(SherwoodError):
 
 
 class InvalidAccessToken(SherwoodError):
-    def __init__(self, detail):
+    def __init__(self, detail: str) -> None:
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid access token: {detail}",
@@ -52,11 +51,8 @@ class InvalidAccessToken(SherwoodError):
 
 class MissingUserError(SherwoodError):
     def __init__(
-        self,
-        user_id: str | None = None,
-        email: str | None = None,
-        headers=None,
-    ):
+        self, user_id: str | None = None, email: str | None = None, headers=None
+    ) -> None:
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Missing user"
@@ -69,11 +65,8 @@ class MissingUserError(SherwoodError):
 
 class DuplicateUserError(SherwoodError):
     def __init__(
-        self,
-        user_id: str | None = None,
-        email: str | None = None,
-        headers=None,
-    ):
+        self, user_id: str | None = None, email: str | None = None, headers=None
+    ) -> None:
         super().__init__(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"User already exists"
@@ -85,7 +78,7 @@ class DuplicateUserError(SherwoodError):
 
 
 class MissingPortfolioError(SherwoodError):
-    def __init__(self, portfolio_id: str, headers=None):
+    def __init__(self, portfolio_id: str, headers=None) -> None:
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Portfolio with ID {portfolio_id} missing.",
@@ -94,14 +87,14 @@ class MissingPortfolioError(SherwoodError):
 
 
 class DuplicatePortfolioError(SherwoodError):
-    def __init__(self, portfolio_id: str):
+    def __init__(self, portfolio_id: str) -> None:
         super().__init__(
             f"Multiple portfolios with ID {portfolio_id}.",
         )
 
 
 class InsufficientCashError(SherwoodError):
-    def __init__(self, needed: float, actual: float, headers=None):
+    def __init__(self, needed: float, actual: float, headers=None) -> None:
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Insufficient cash, needed: {needed}, actual: {actual}.",
@@ -110,7 +103,7 @@ class InsufficientCashError(SherwoodError):
 
 
 class InsufficientHoldingsError(SherwoodError):
-    def __init__(self, symbol, needed, actual, headers=None):
+    def __init__(self, symbol: str, needed: float, actual: float, headers=None) -> None:
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Insufficient holdings of symbol {symbol}, needed: {needed}, actual: {actual}",
@@ -119,7 +112,7 @@ class InsufficientHoldingsError(SherwoodError):
 
 
 class RequestValueError(SherwoodError):
-    def __init__(self, detail=str, headers=None):
+    def __init__(self, detail: str, headers=None) -> None:
         super().__init__(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=detail,
@@ -127,7 +120,19 @@ class RequestValueError(SherwoodError):
         )
 
 
-async def error_handler(req: Request, exc: SherwoodError):
+class MarketDataProviderError(SherwoodError):
+    def __init__(self, symbol: str, exceptions: list[Exception], headers=None) -> None:
+        detail = f"Failed to get current price for symbol: {symbol}."
+        for i, exc in enumerate(exceptions):
+            detail += f" Error {i}: {exc}."
+        super().__init__(
+            status_code=status.HTTP_418_IM_A_TEAPOT,
+            detail=detail,
+            headers=headers,
+        )
+
+
+async def error_handler(req: Request, exc: SherwoodError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
         content={
