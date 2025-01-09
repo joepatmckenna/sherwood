@@ -214,11 +214,15 @@ def parse_password(mapper, connection, target):
 
 
 def create_user(db: Session, email: str, password: str) -> User:
-    with db.begin_nested():
-        user = User(email, password)
-        user.portfolio = Portfolio()
-        db.add(user)
+    user = User(email, password)
+    user.portfolio = Portfolio()
+    db.add(user)
+    try:
+        db.commit()
         return user
+    except Exception as exc:
+        db.rollback()
+        raise errors.InternalServerError(detail="Failed to create user.") from exc
 
 
 def to_dict(obj: Any) -> dict[str, Any]:
