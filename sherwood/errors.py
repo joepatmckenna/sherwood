@@ -1,9 +1,7 @@
-from dataclasses import dataclass
 from fastapi import status, Request, HTTPException
 from fastapi.responses import JSONResponse
 
 
-@dataclass
 class SherwoodError(HTTPException):
     def __init__(self, status_code: int, detail, headers=None) -> None:
         super().__init__(
@@ -17,6 +15,15 @@ class InternalServerError(SherwoodError):
     def __init__(self, detail: str, headers=None) -> None:
         super().__init__(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=detail,
+            headers=headers,
+        )
+
+
+class RequestValueError(SherwoodError):
+    def __init__(self, detail: str, headers=None) -> None:
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=detail,
             headers=headers,
         )
@@ -87,9 +94,11 @@ class MissingPortfolioError(SherwoodError):
 
 
 class DuplicatePortfolioError(SherwoodError):
-    def __init__(self, portfolio_id: str) -> None:
+    def __init__(self, portfolio_id: str, headers=None) -> None:
         super().__init__(
-            f"Multiple portfolios with ID {portfolio_id}.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Multiple portfolios with ID {portfolio_id}.",
+            headers=headers,
         )
 
 
@@ -111,15 +120,6 @@ class InsufficientHoldingsError(SherwoodError):
         )
 
 
-class RequestValueError(SherwoodError):
-    def __init__(self, detail: str, headers=None) -> None:
-        super().__init__(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=detail,
-            headers=headers,
-        )
-
-
 class MarketDataProviderError(SherwoodError):
     def __init__(self, symbol: str, exceptions: list[Exception], headers=None) -> None:
         detail = f"Failed to get current price for symbol: {symbol}."
@@ -132,14 +132,9 @@ class MarketDataProviderError(SherwoodError):
         )
 
 
-async def error_handler(req: Request, exc: SherwoodError) -> JSONResponse:
+async def error_handler(_: Request, exc: SherwoodError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "error": {
-                "status_code": exc.status_code,
-                "detail": exc.detail,
-            },
-        },
+        content={"error": {"status_code": exc.status_code, "detail": exc.detail}},
         headers=exc.headers,
     )
