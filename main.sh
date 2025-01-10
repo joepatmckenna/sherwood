@@ -18,7 +18,6 @@ LOGS
 
 : <<'POSTGRES_CMDS'
 sudo psql -U postgres -d db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-sudo psql -U postgres -d db -c "DELETE FROM users WHERE email LIKE 'integration-test-%';"
 sudo psql -U postgres -d db -c "SELECT * from users;"
 POSTGRES_CMDS
 
@@ -166,10 +165,7 @@ integration_test() {
       echo
   done
 
-#   sudo -i -u postgres psql <<EOF
-# ALTER USER postgres WITH PASSWORD 'password';
-# EOF
-
+  sudo psql -U postgres -d db -c "DELETE FROM users WHERE email LIKE 'integration-test-%';"
 }
 
 
