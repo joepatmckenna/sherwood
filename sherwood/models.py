@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from dataclasses import fields
 import datetime
-from sherwood import errors, utils
+from sherwood import errors
 from sherwood.auth import password_context, validate_password
 from six import string_types
 from sqlalchemy import ForeignKey
@@ -25,7 +25,7 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
     created_at: Mapped[datetime.datetime] = mapped_column(
         init=False,
         repr=False,
-        default_factory=utils.get_current_time,
+        default_factory=get_current_time,
         nullable=False,
         compare=False,
     )
@@ -33,9 +33,9 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
     last_updated_at: Mapped[datetime.datetime] = mapped_column(
         init=False,
         repr=False,
-        default_factory=utils.get_current_time,
+        default_factory=get_current_time,
         nullable=False,
-        onupdate=utils.get_current_time,
+        onupdate=get_current_time,
         compare=False,
     )
 

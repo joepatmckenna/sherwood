@@ -1,5 +1,6 @@
 from calendar import timegm
 import datetime
+from enum import Enum
 import jose.jwt
 import logging
 import os
@@ -14,33 +15,44 @@ _JWT_DURATION_HOURS = 4
 
 password_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
+_MIN_PASSWORD_LENGTH = 8
+_MAX_PASSWORD_LENGTH = 32
 
-def validate_password(
-    password: str, min_length: int = 8, max_length: int = 32
-) -> tuple[bool, list[str]]:
+
+class ReasonPasswordInvalid(Enum):
+    TOO_SHORT = f"Password must be at least {_MIN_PASSWORD_LENGTH} characters long."
+    TOO_LONG = f"Password must not be longer than {_MAX_PASSWORD_LENGTH} characters."
+    CONTAINS_SPACE = "Password must not contain spaces."
+    MISSING_LOWERCASE = "Password must contain at least one lowercase letter."
+    MISSING_UPPERCASE = "Password must contain at least one uppercase letter."
+    MISSING_DIGIT = "Password must contain at least one digit."
+    MISSING_SPECIAL = "Password must contain at least one special character."
+
+
+def validate_password(password: str) -> tuple[bool, list[str]]:
     is_valid = True
     reasons = list()
-    if len(password) < min_length:
+    if len(password) < _MIN_PASSWORD_LENGTH:
         is_valid = False
-        reasons.append(f"Password must be at least {min_length} characters long.")
-    if len(password) > max_length:
+        reasons.append(ReasonPasswordInvalid.TOO_SHORT.value)
+    if len(password) > _MAX_PASSWORD_LENGTH:
         is_valid = False
-        reasons.append(f"Password must not be longer than {max_length} characters.")
-    if not re.search(r"[a-z]", password):
-        is_valid = False
-        reasons.append("Password must contain at least one lowercase letter.")
-    if not re.search(r"[A-Z]", password):
-        is_valid = False
-        reasons.append("Password must contain at least one uppercase letter.")
-    if not re.search(r"[0-9]", password):
-        is_valid = False
-        reasons.append("Password must contain at least one digit.")
+        reasons.append(ReasonPasswordInvalid.TOO_LONG.value)
     if re.search(r"\s", password):
         is_valid = False
-        reasons.append("Password must not contain spaces.")
+        reasons.append(ReasonPasswordInvalid.CONTAINS_SPACE.value)
+    if not re.search(r"[a-z]", password):
+        is_valid = False
+        reasons.append(ReasonPasswordInvalid.MISSING_LOWERCASE.value)
+    if not re.search(r"[A-Z]", password):
+        is_valid = False
+        reasons.append(ReasonPasswordInvalid.MISSING_UPPERCASE.value)
+    if not re.search(r"[0-9]", password):
+        is_valid = False
+        reasons.append(ReasonPasswordInvalid.MISSING_DIGIT.value)
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
         is_valid = False
-        reasons.append("Password must contain at least one special character.")
+        reasons.append(ReasonPasswordInvalid.MISSING_SPECIAL.value)
     return is_valid, reasons
 
 
