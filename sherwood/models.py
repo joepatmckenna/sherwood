@@ -54,7 +54,6 @@ class User(BaseModel):
         index=True,
         unique=True,
         compare=True,
-        nullable=False,
         repr=True,
     )
 
@@ -94,7 +93,7 @@ class Portfolio(BaseModel):
     __tablename__ = "portfolios"
 
     id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id"),
         init=False,
         primary_key=True,
         compare=True,
@@ -139,7 +138,7 @@ class Holding(BaseModel):
     __tablename__ = "holdings"
 
     portfolio_id: Mapped[int] = mapped_column(
-        ForeignKey("portfolios.id", ondelete="CASCADE"),
+        ForeignKey("portfolios.id"),
         primary_key=True,
         compare=True,
         repr=True,
@@ -174,14 +173,14 @@ class Ownership(BaseModel):
     __tablename__ = "ownership"
 
     portfolio_id: Mapped[int] = mapped_column(
-        ForeignKey("portfolios.id", ondelete="CASCADE"),
+        ForeignKey("portfolios.id"),
         primary_key=True,
         compare=True,
         repr=True,
     )
 
     owner_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id"),
         primary_key=True,
         compare=True,
         repr=True,
