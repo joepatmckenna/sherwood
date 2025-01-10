@@ -54,6 +54,7 @@ class User(BaseModel):
         index=True,
         unique=True,
         compare=True,
+        nullable=False,
         repr=True,
     )
 
@@ -93,7 +94,7 @@ class Portfolio(BaseModel):
     __tablename__ = "portfolios"
 
     id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         init=False,
         primary_key=True,
         compare=True,
