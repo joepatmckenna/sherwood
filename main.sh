@@ -16,6 +16,12 @@ LOGS
 
 ########################################
 
+: <<'POSTGRES_CMDS'
+sudo psql -U postgres -d db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+sudo psql -U postgres -d db -c "DELETE FROM users WHERE email LIKE 'integration-test-%';"
+sudo psql -U postgres -d db -c "SELECT * from users;"
+POSTGRES_CMDS
+
 : <<'POSTGRES_MODS'
 /etc/postgresql/16/main/pg_hba.conf
 - local   all             postgres                                peer
@@ -30,6 +36,17 @@ POSTGRES_MODS
 
 SHERWOOD_REPO='https://github.com/joepatmckenna/sherwood.git'
 SHERWOOD_DIR='/root/sherwood'
+
+boot() {
+  if [[ -d "${SHERWOOD_DIR}" ]]; then
+    git -C "${SHERWOOD_DIR}" pull
+  else
+    git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"
+  fi
+  source /root/sherwood/main.sh
+  launch
+}
+
 VENV_DIR='/root/venv'
 PYTHON="${VENV_DIR}"/bin/python 
 
@@ -50,6 +67,8 @@ launch() {
   sudo -i -u postgres psql <<EOF
 ALTER USER postgres WITH PASSWORD 'password';
 EOF
+
+  python3 -m venv "${VENV_DIR}"
 
   # sherwood
   if [[ -d "${SHERWOOD_DIR}" ]]; then
@@ -153,7 +172,4 @@ integration_test() {
 
 }
 
-
-
-# sudo -i -u postgres psql -U postgres -d db -c "DELETE FROM users WHERE email LIKE 'integration-test-%';"
 
