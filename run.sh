@@ -107,6 +107,9 @@ integration_test() {
 ########## POSTGRES ##############
 
 # /etc/postgresql/16/main/pg_hba.conf
-# - changed 'local postgres peer' line to 'local postgres sha-..' to enable pw auth
-# - add local map ip for postgres
-# - set listen_address='*'
+# - local   all             postgres                                peer
+# + local   all             postgres                                scram-sha-256
+# + host    all             all            <LOCAL_IP_ADDR>/32       scram-sha-256
+# /etc/postgresql/16/main/postgresql.conf
+# + listen_addresses = '*'`
+# + port = 5432

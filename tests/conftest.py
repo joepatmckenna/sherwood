@@ -58,6 +58,11 @@ def valid_email(scope="session"):
 
 
 @pytest.fixture
+def valid_emails(scope="session"):
+    return [f"user{i}@web.com" for i in range(10)]
+
+
+@pytest.fixture
 def valid_password(scope="session"):
     return "Abcd@1234"
 

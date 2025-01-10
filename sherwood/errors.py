@@ -112,10 +112,19 @@ class InsufficientCashError(SherwoodError):
 
 
 class InsufficientHoldingsError(SherwoodError):
-    def __init__(self, symbol: str, needed: float, actual: float, headers=None) -> None:
+    def __init__(
+        self,
+        symbol: str | None = None,
+        needed: float | None = None,
+        actual: float | None = None,
+        headers=None,
+    ) -> None:
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Insufficient holdings of symbol {symbol}, needed: {needed}, actual: {actual}",
+            detail="Insufficient holdings."
+            + ("" if symbol is None else f" Symbol: {symbol}.")
+            + ("" if needed is None else f" Needed: {needed}.")
+            + ("" if actual is None else f" Actual: {actual}."),
             headers=headers,
         )
 

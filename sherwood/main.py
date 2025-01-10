@@ -95,12 +95,12 @@ class SellRequest(BaseModel, DollarsArePositiveValidatorMixin):
 
 
 class InvestRequest(BaseModel, DollarsArePositiveValidatorMixin):
-    portfolio_id: str
+    investee_portfolio_id: int
     dollars: float
 
 
 class DivestRequest(BaseModel, DollarsArePositiveValidatorMixin):
-    portfolio_id: str
+    investee_portfolio_id: int
     dollars: float
 
 
@@ -327,9 +327,19 @@ def create_app(*args, **kwargs):
         request: InvestRequest, db: Database, user: AuthorizedUser
     ) -> InvestResponse:
         try:
-            invest_in_portfolio(db, request.portfolio_id, user.id, request.dollars)
+            invest_in_portfolio(
+                db,
+                request.investee_portfolio_id,
+                user.portfolio.id,
+                request.dollars,
+            )
             return InvestResponse()
-        except (errors.InternalServerError,):
+        except (
+            errors.InternalServerError,
+            errors.RequestValueError,
+            errors.InsufficientCashError,
+            errors.InsufficientHoldingsError,
+        ):
             raise
         except Exception as exc:
             raise errors.InternalServerError(
@@ -341,7 +351,12 @@ def create_app(*args, **kwargs):
         request: DivestRequest, db: Database, user: AuthorizedUser
     ) -> DivestResponse:
         try:
-            divest_from_portfolio(db, request.portfolio_id, user.id, request.dollars)
+            divest_from_portfolio(
+                db,
+                request.investee_portfolio_id,
+                user.portfolio.id,
+                request.dollars,
+            )
             return DivestResponse()
         except (errors.InternalServerError,):
             raise
