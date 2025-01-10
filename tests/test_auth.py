@@ -21,6 +21,12 @@ def test_encode_and_decode_jwt_for_user(db, valid_email, valid_password):
     ("password", "expected_is_valid", "expected_reasons"),
     [
         pytest.param(
+            "A@a1A@a1",
+            True,
+            [],
+            id="valid",
+        ),
+        pytest.param(
             "A@a1",
             False,
             [ReasonPasswordInvalid.TOO_SHORT.value],
