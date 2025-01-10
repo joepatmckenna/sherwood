@@ -133,11 +133,11 @@ def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars:
     holding.units -= units
     portfolio.cash += dollars
     holding.cost -= dollars
+    ownership.cost -= dollars
     portfolio_value = sum(holding_value_by_symbol.values())
     if 0 < dollars < portfolio_value:
         percent = dollars / portfolio_value
         ownership.percent -= percent
-        ownership.cost -= dollars
         for ownership in portfolio.ownership:
             ownership.percent /= 1 - percent
     _try_db_commit(db, "Failed to sell holding.")

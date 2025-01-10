@@ -2,6 +2,26 @@ from sherwood.broker import buy_portfolio_holding, sell_portfolio_holding
 from sherwood.models import create_user, Holding, Ownership, Portfolio, User
 
 
+# TODO
+def test_sign_up_user():
+    pass
+
+
+# TODO
+def test_sign_in_user():
+    pass
+
+
+# TODO
+def test_deposit_cash_into_portfolio():
+    pass
+
+
+# TODO
+def test_withdraw_cash_from_portfolio():
+    pass
+
+
 def test_buy_portfolio_holding(db, valid_email, valid_password):
     expected = User(email=valid_email, password=valid_password)
     expected.id = 1
@@ -47,3 +67,13 @@ def test_sell_portfolio_holding(db, valid_email, valid_password):
     sell_portfolio_holding(db, user.portfolio.id, "BBB", 20)
 
     assert expected == db.get(User, 1)
+
+
+# TODO
+def test_invest_in_portfolio():
+    pass
+
+
+# TODO
+def test_divest_from_portfolio():
+    pass

@@ -1,9 +1,9 @@
 from collections.abc import Iterable
 from dataclasses import fields
 import datetime
-from six import string_types
 from sherwood import errors, utils
 from sherwood.auth import password_context, validate_password
+from six import string_types
 from sqlalchemy import ForeignKey
 from sqlalchemy.event import listens_for
 from sqlalchemy.orm import (
@@ -15,6 +15,8 @@ from sqlalchemy.orm import (
     Session,
 )
 from typing import Any
+
+get_current_time = lambda: datetime.datetime.now(datetime.timezone.utc)
 
 
 class BaseModel(DeclarativeBase, MappedAsDataclass):
@@ -207,9 +209,9 @@ class Ownership(BaseModel):
 
 @listens_for(User, "before_insert")
 def parse_password(mapper, connection, target):
-    password_is_valid, message = validate_password(target.password)
+    password_is_valid, reasons = validate_password(target.password)
     if not password_is_valid:
-        raise errors.InvalidPasswordError(message)
+        raise errors.InvalidPasswordError(reasons)
     target.password = password_context.hash(target.password)
 
 
