@@ -9,10 +9,6 @@ from sqlalchemy.exc import MultipleResultsFound
 market_data_provider = MarketDataProvider()
 
 
-def convert_dollars_to_units(symbol: str, dollars: float) -> float:
-    return dollars / market_data_provider.get_price(symbol)
-
-
 def sign_up_user(db: Session, email: str, password: str) -> None:
     user = db.query(User).filter_by(email=email).first()
     if user is not None:
@@ -56,16 +52,18 @@ def _lock_portfolios(db: Session, portfolio_ids: list[int]) -> dict[int, Portfol
     return portfolio_by_id
 
 
-def deposit_cash_into_portfolio(db: Session, portfolio_id: int, dollars: float):
-    portfolio = _lock_portfolios(db, [portfolio_id])[portfolio_id]
-    portfolio.cash += dollars
+def _try_db_commit(db, error_message: str):
     try:
         db.commit()
     except Exception as exc:
         db.rollback()
-        raise errors.InternalServerError(
-            f"Failed to deposit cash. Error: {exc}"
-        ) from exc
+        raise errors.InternalServerError(f"{error_message} Error: {exc}") from exc
+
+
+def deposit_cash_into_portfolio(db: Session, portfolio_id: int, dollars: float):
+    portfolio = _lock_portfolios(db, [portfolio_id])[portfolio_id]
+    portfolio.cash += dollars
+    _try_db_commit(db, "Failed to deposit cash.")
 
 
 def withdraw_cash_from_portfolio(db: Session, portfolio_id: int, dollars: float):
@@ -73,42 +71,34 @@ def withdraw_cash_from_portfolio(db: Session, portfolio_id: int, dollars: float)
     if dollars > portfolio.cash:
         raise errors.InsufficientCashError(dollars, portfolio.cash)
     portfolio.cash -= dollars
-    try:
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        raise errors.InternalServerError(
-            f"Failed to withdraw cash. Error: {exc}"
-        ) from exc
+    _try_db_commit(db, "Failed to withdraw cash.")
+
+
+def _convert_dollars_to_units(symbol: str, dollars: float) -> float:
+    return dollars / market_data_provider.get_price(symbol)
 
 
 def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float):
     """Buys holding in owner's portfolio."""
     portfolio = _lock_portfolios(db, [portfolio_id])[portfolio_id]
-
     if dollars > portfolio.cash:
         raise errors.InsufficientCashError(needed=dollars, actual=portfolio.cash)
-
     holding = db.get(Holding, (portfolio_id, symbol))
     if holding is None:
         portfolio.holdings.append(Holding(portfolio_id, symbol, 0, 0))
         holding = portfolio.holdings[-1]
-
     ownership = db.get(Ownership, (portfolio_id, portfolio_id))
     if ownership is None:
         portfolio.ownership.append(Ownership(portfolio_id, portfolio_id, 0, 0))
         ownership = portfolio.ownership[-1]
-
     portfolio_value = sum(
         holding.units * market_data_provider.get_price(holding.symbol)
         for holding in portfolio.holdings
     )
-
     portfolio.cash -= dollars
-    holding.units += convert_dollars_to_units(symbol, dollars)
+    holding.units += _convert_dollars_to_units(symbol, dollars)
     holding.cost += dollars
     ownership.cost += dollars
-
     if portfolio_value > 0:
         percent = dollars / portfolio_value
         ownership.percent += percent
@@ -116,47 +106,33 @@ def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float
             ownership.percent /= 1 + percent
     else:
         ownership.percent = 1
-
-    try:
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        raise errors.InternalServerError(
-            f"Failed to buy holding. Error: {exc}"
-        ) from exc
+    _try_db_commit(db, "Failed to buy holding.")
 
 
 def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars: float):
     """Sells holding in owner's portfolio."""
     portfolio = _lock_portfolios(db, [portfolio_id])[portfolio_id]
-
-    units = convert_dollars_to_units(symbol, dollars)
-
+    units = _convert_dollars_to_units(symbol, dollars)
     holding = db.get(Holding, (portfolio_id, symbol))
     if holding is None:
         raise errors.InsufficientHoldingsError(symbol, needed=units, actual=0)
-
     ownership = db.get(Ownership, (portfolio_id, portfolio_id))
     if ownership is None:
         raise errors.InternalServerError("Portfolio missing owner's ownership.")
-
     holding_by_symbol = {h.symbol: h for h in portfolio.holdings}
     holding_value_by_symbol = {
         s: h.units * market_data_provider.get_price(h.symbol)
         for s, h in holding_by_symbol.items()
     }
-
     if dollars > holding_value_by_symbol[symbol] * ownership.percent:
         raise errors.InsufficientHoldingsError(
             symbol,
             needed=units,
             actual=holding_by_symbol[symbol].units * ownership.percent,
         )
-
     holding.units -= units
     portfolio.cash += dollars
     holding.cost -= dollars
-
     portfolio_value = sum(holding_value_by_symbol.values())
     if 0 < dollars < portfolio_value:
         percent = dollars / portfolio_value
@@ -164,13 +140,7 @@ def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars:
         ownership.cost -= dollars
         for ownership in portfolio.ownership:
             ownership.percent /= 1 - percent
-    try:
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        raise errors.InternalServerError(
-            f"Failed to sell holding. Error: {exc}"
-        ) from exc
+    _try_db_commit(db, "Failed to sell holding.")
 
 
 def invest_in_portfolio(
@@ -225,14 +195,7 @@ def invest_in_portfolio(
     investee_portfolio.ownership = list(
         investee_portfolio_ownership_by_owner_id.values()
     )
-
-    try:
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        raise errors.InternalServerError(
-            f"Failed to invest in portfolio. Error: {exc}"
-        ) from exc
+    _try_db_commit(db, "Failed to invest in portfolio.")
 
 
 def divest_from_portfolio(
