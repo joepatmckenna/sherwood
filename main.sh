@@ -153,3 +153,7 @@ integration_test() {
 
 }
 
+
+
+# sudo -i -u postgres psql -U postgres -d db -c "DELETE FROM users WHERE email LIKE 'integration-test-%';"
+
