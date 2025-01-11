@@ -1,5 +1,18 @@
 #!/bin/bash
 
+
+: <<'USAGE'
+if [[ -d "${SHERWOOD_DIR}" ]]; then
+  git -C "${SHERWOOD_DIR}" pull
+else
+  git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"
+fi
+
+sudo rsync -a --delete /root/sherwood/ui/ /var/www/html/
+sudo chown -R www-data:www-data /var/www/html
+sudo chmod -R 755 /var/www/html
+USAGE
+
 ########################################
 
 : <<'USAGE'
@@ -11,15 +24,14 @@ USAGE
 ########################################
 
 : <<'LOGS'
+sudo journalctl -u postgres
 sudo journalctl -u sherwood
+sudo journalctl -u nginx
 LOGS
 
 ########################################
 
 : <<'POSTGRES_CMDS'
-sudo psql -U postgres -d db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-sudo psql -U postgres -d db -c "SELECT * from users;"
-sudo -u postgres psql -c "SELECT * from users;"
 sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'password';"
 POSTGRES_CMDS
 
@@ -31,6 +43,7 @@ POSTGRES_CMDS
 /etc/postgresql/16/main/postgresql.conf
 + listen_addresses = '*'`
 + port = 5432
+sudo ufw allow 5432/tcp
 POSTGRES_MODS
 
 ########################################
@@ -73,7 +86,7 @@ main() {
 
   sudo rsync -a --delete /root/sherwood/ui/ /var/www/html/
   sudo chown -R www-data:www-data /var/www/html
-  sudo chmod -R 755 /var/www/html 
+  sudo chmod -R 755 /var/www/html
 
   sudo cp "${SHERWOOD_DIR}"/nginx /etc/nginx/sites-available/sherwood
   [ -L /etc/nginx/sites-enabled/sherwood ] || sudo ln -s /etc/nginx/sites-available/sherwood /etc/nginx/sites-enabled/
@@ -88,6 +101,10 @@ main() {
   # sudo ufw allow 80
   # sudo ufw allow 443
   # sudo ufw enable 
+  
+  sudo systemctl status postgresql
+  sudo systemctl status sherwood  
+  sudo systemctl status nginx  
 }
 
 ########################################
@@ -158,7 +175,7 @@ integration_test() {
       echo
   done
 
-  sudo psql -U postgres -d db -c "DELETE FROM users WHERE email LIKE 'integration-test-%';"
+  sudo -u postgres psql -d db -c "DELETE FROM users WHERE email LIKE 'integration-test-%';"
 }
 
 
