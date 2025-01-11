@@ -80,12 +80,12 @@ main() {
 
   sudo cp "${SHERWOOD_DIR}"/nginx /etc/nginx/sites-available/sherwood
   [ -L /etc/nginx/sites-enabled/sherwood ] || sudo ln -s /etc/nginx/sites-available/sherwood /etc/nginx/sites-enabled/
-  `sudo nginx -t` || exit 1;
+  sudo nginx -t
 
   sudo systemctl restart nginx
   sudo systemctl restart sherwood
 
-  sudo certbot --nginx -d writewell.tech -d www.writewell.tech --non-interactive --agree-tos --reinstall
+  sudo certbot --nginx -d writewell.tech -d www.writewell.tech --non-interactive 
   sudo certbot renew --dry-run
 
   # sudo ufw allow 80

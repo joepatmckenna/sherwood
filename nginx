@@ -10,10 +10,10 @@ server {
     index index.html;
 
     location /x/0 { 
-      proxy_pass http://backend/sign-in; 
+      proxy_pass http://backend/sign-up; 
     }
     location /x/1 { 
-      proxy_pass http://backend/sign-up; 
+      proxy_pass http://backend/sign-in; 
     }
     location /x/2 { 
       proxy_pass http://backend/user; 
