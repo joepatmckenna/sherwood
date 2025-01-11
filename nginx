@@ -15,7 +15,7 @@ server {
     location /x/1 { 
       proxy_pass http://backend/sign-up; 
     }
-    location /x/1 { 
+    location /x/2 { 
       proxy_pass http://backend/user; 
       proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;
     }
