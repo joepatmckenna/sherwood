@@ -469,3 +469,82 @@ def test_invest_in_portfolio_missing_investee_ownership(
     )
     print(invest_response.json())
     assert invest_response.status_code == 500
+
+
+def test_divest_from_portfolio_success(client, valid_emails, valid_password):
+    sign_up_or_in_requests = [
+        {"email": valid_emails[0], "password": valid_password},
+        {"email": valid_emails[1], "password": valid_password},
+    ]
+    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[0])
+    assert sign_up_response.status_code == 200
+    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[1])
+    assert sign_up_response.status_code == 200
+    _header = lambda t: {"X-Sherwood-Authorization": f"Bearer {t}"}
+    headers = []
+    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[0])
+    assert sign_in_response.status_code == 200
+    headers.append(_header(sign_in_response.json()["access_token"]))
+    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
+    assert sign_in_response.status_code == 200
+    headers.append(_header(sign_in_response.json()["access_token"]))
+    deposit_response = client.post(
+        "/deposit", headers=headers[0], json={"dollars": 1000}
+    )
+    assert deposit_response.status_code == 200
+    deposit_response = client.post(
+        "/deposit", headers=headers[1], json={"dollars": 1000}
+    )
+    assert deposit_response.status_code == 200
+
+    buy_response = client.post(
+        "/buy", headers=headers[0], json={"symbol": "AAA", "dollars": 100}
+    )
+    assert buy_response.status_code == 200
+    buy_response = client.post(
+        "/buy", headers=headers[0], json={"symbol": "BBB", "dollars": 100}
+    )
+    assert buy_response.status_code == 200
+    invest_response = client.post(
+        "/invest", headers=headers[1], json={"investee_portfolio_id": 1, "dollars": 51}
+    )
+    assert invest_response.status_code == 200
+    divest_response = client.post(
+        "/divest", headers=headers[1], json={"investee_portfolio_id": 1, "dollars": 1}
+    )
+    assert divest_response.status_code == 200
+
+    users = []
+    get_user_response = client.get("/user", headers=headers[0])
+    assert get_user_response.status_code == 200
+    users.append(get_user_response.json())
+    get_user_response = client.get("/user", headers=headers[1])
+    assert get_user_response.status_code == 200
+    users.append(get_user_response.json())
+
+    assert users[0] == {
+        "id": 1,
+        "email": "user0@web.com",
+        "display_name": None,
+        "is_verified": False,
+        "portfolio": {
+            "id": 1,
+            "cash": 800.0,
+            "holdings": [
+                {"portfolio_id": 1, "symbol": "AAA", "cost": 125.0, "units": 125.0},
+                {"portfolio_id": 1, "symbol": "BBB", "cost": 125.0, "units": 62.5},
+            ],
+            "ownership": [
+                {"portfolio_id": 1, "owner_id": 1, "cost": 200.0, "percent": 0.8},
+                {"portfolio_id": 1, "owner_id": 2, "cost": 50.0, "percent": 0.2},
+            ],
+        },
+    }
+
+    assert users[1] == {
+        "id": 2,
+        "email": "user1@web.com",
+        "display_name": None,
+        "is_verified": False,
+        "portfolio": {"id": 2, "cash": 950.0, "holdings": [], "ownership": []},
+    }

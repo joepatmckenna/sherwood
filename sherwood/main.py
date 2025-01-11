@@ -358,7 +358,11 @@ def create_app(*args, **kwargs):
                 request.dollars,
             )
             return DivestResponse()
-        except (errors.InternalServerError,):
+        except (
+            errors.InternalServerError,
+            errors.RequestValueError,
+            errors.InsufficientHoldingsError,
+        ):
             raise
         except Exception as exc:
             raise errors.InternalServerError(

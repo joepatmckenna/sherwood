@@ -10,11 +10,10 @@ market_data_provider = MarketDataProvider()
 
 
 def sign_up_user(db: Session, email: str, password: str) -> None:
-    user = db.query(User).filter_by(email=email).first()
-    if user is not None:
+    if db.query(User).filter_by(email=email).first() is not None:
         raise errors.DuplicateUserError(email=email)
     try:
-        user = create_user(db, email, password)
+        create_user(db, email, password)
     except Exception as exc:
         raise errors.InternalServerError(detail="Failed to create user.") from exc
 
@@ -33,9 +32,9 @@ def sign_in_user(db: Session, email: str, password: str) -> str:
     try:
         access_token = generate_access_token(user)
     except Exception as exc:
-        msg = "Failed to generate access token."
-        logging.error(f"{msg} User: {user}. Error: {exc}")
-        raise errors.InternalServerError(msg)
+        raise errors.InternalServerError(
+            f"Failed to generate access token. User: {user}. Error: {exc}"
+        )
     return access_token
 
 
@@ -48,7 +47,7 @@ def _lock_portfolios(db: Session, portfolio_ids: list[int]) -> dict[int, Portfol
     portfolios = db.query(Portfolio).filter(condition).with_for_update().all()
     portfolio_by_id = {portfolio.id: portfolio for portfolio in portfolios}
     if missing := set(portfolio_ids) - set(portfolio_by_id):
-        raise errors.MissingPortfolioError(",".join(missing))
+        raise errors.MissingPortfolioError(", ".join(map(str, missing)))
     return portfolio_by_id
 
 
@@ -201,4 +200,53 @@ def invest_in_portfolio(
 def divest_from_portfolio(
     db: Session, investee_portfolio_id: int, investor_portfolio_id: int, dollars: float
 ):
-    pass
+    if investee_portfolio_id == investor_portfolio_id:
+        raise errors.RequestValueError("Self-divest prohibited")
+    portfolio_by_id = _lock_portfolios(
+        db, [investee_portfolio_id, investor_portfolio_id]
+    )
+    investee_portfolio = portfolio_by_id[investee_portfolio_id]
+    investee_portfolio_ownership_by_owner_id = {
+        ownership.owner_id: ownership for ownership in investee_portfolio.ownership
+    }
+    if investor_portfolio_id not in investee_portfolio_ownership_by_owner_id:
+        raise errors.InsufficientHoldingsError(
+            symbol=f"Portfolio(id={investee_portfolio_id})", actual=0
+        )
+    investor_portfolio = portfolio_by_id[investor_portfolio_id]
+    investee_portfolio_units_by_symbol = {
+        holding.symbol: holding.units for holding in investee_portfolio.holdings
+    }
+    investee_portfolio_value_by_symbol = {
+        symbol: units * market_data_provider.get_price(symbol)
+        for symbol, units in investee_portfolio_units_by_symbol.items()
+    }
+    investee_portfolio_value = sum(investee_portfolio_value_by_symbol.values())
+    percent_decrease = dollars / investee_portfolio_value
+    if percent_decrease >= 1:
+        raise errors.InternalServerError("Percent decrease >= 100%")
+    if (
+        percent_decrease
+        > investee_portfolio_ownership_by_owner_id[investor_portfolio_id].percent
+    ):
+        raise errors.InsufficientHoldingsError(
+            symbol=f"Portfolio(id={investee_portfolio_id})", actual=0
+        )
+    for holding in investee_portfolio.holdings:
+        holding.units -= (
+            investee_portfolio_units_by_symbol[holding.symbol] * percent_decrease
+        )
+        holding.cost -= (
+            investee_portfolio_value_by_symbol[holding.symbol] * percent_decrease
+        )
+    investor_portfolio.cash += dollars
+    investor_ownership = investee_portfolio_ownership_by_owner_id[investor_portfolio_id]
+    investor_ownership.percent -= percent_decrease
+    investor_ownership.cost -= dollars
+    denom = 1 - percent_decrease
+    for ownership in investee_portfolio_ownership_by_owner_id.values():
+        ownership.percent /= denom
+    investee_portfolio.ownership = list(
+        investee_portfolio_ownership_by_owner_id.values()
+    )
+    _try_db_commit(db, "Failed to divest from portfolio.")
