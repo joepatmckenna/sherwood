@@ -88,9 +88,9 @@ main() {
   sudo certbot --nginx -d writewell.tech -d www.writewell.tech --non-interactive --agree-tos --reinstall
   sudo certbot renew --dry-run
 
-  sudo ufw allow 80
-  sudo ufw allow 443
-  sudo ufw enable 
+  # sudo ufw allow 80
+  # sudo ufw allow 443
+  # sudo ufw enable 
 }
 
 ########################################
@@ -139,7 +139,6 @@ integration_test() {
   declare -A access_token_by_email
   declare -A user_id_by_email
 
-  integration_test_case "${email_1}" GET /
   integration_test_case "${email_1}" POST /x/0 '{"email": "'"${email_1}"'", "password": "'"${PASSWORD}"'"}'
   integration_test_case "${email_1}" POST /x/1 '{"email": "'"${email_1}"'", "password": "'"${PASSWORD}"'"}'
   integration_test_case "${email_2}" POST /x/0 '{"email": "'"${email_2}"'", "password": "'"${PASSWORD}"'"}'

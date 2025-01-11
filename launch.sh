@@ -1,5 +1,7 @@
 #!/bin/bash
 
+git add . && git commit -m '.' && git push
+
 HOST_IP='208.68.37.48'
 
 scp -i ~/.ssh/id_rsa_sherwood .env "root@${HOST_IP}:/root/sherwood/.env"
