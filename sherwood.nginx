@@ -1,13 +1,52 @@
+upstream backend {
+    server 127.0.0.1:8000;
+}
+
 server {
     listen 80;
     server_name writewell.tech www.writewell.tech;
 
+    root /var/www/html;
+    index index.html;
+
+    location /x/0 { 
+      proxy_pass http://backend/sign-in; 
+    }
+    location /x/1 { 
+      proxy_pass http://backend/sign-up; 
+    }
+    location /x/1 { 
+      proxy_pass http://backend/user; 
+      proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;
+    }
+    
+
+    location /x/f { 
+      proxy_pass http://backend/fund; 
+      proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;
+    }
+    location /x/w { 
+      proxy_pass http://backend/withdraw; 
+      proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;
+    }
+    location /x/b { 
+      proxy_pass http://backend/buy; 
+      proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;    
+    }
+    location /x/s { 
+      proxy_pass http://backend/sell;
+      proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;
+    }
+    location /x/i { 
+      proxy_pass http://backend/invest; 
+      proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;
+    }
+    location /x/d { 
+      proxy_pass http://backend/divest; 
+      proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;
+    }
+
     location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        try_files $uri $uri/ =404;
     }
 }

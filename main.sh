@@ -43,13 +43,13 @@ boot() {
     git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"
   fi
   source /root/sherwood/main.sh
-  launch
+  start_backend
 }
 
 VENV_DIR='/root/venv'
 PYTHON="${VENV_DIR}"/bin/python 
 
-launch() {
+start_backend() {
   sudo apt update && sudo apt upgrade -y
   sudo apt install -y \
     certbot \
@@ -93,8 +93,15 @@ EOF
   sudo systemctl restart sherwood
 
   sudo certbot --nginx -d writewell.tech -d www.writewell.tech
-  sudo certbot renew --dry-run  
+  sudo certbot renew --dry-run
 }
+
+######
+
+
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw enable
 
 ########################################
 
@@ -156,6 +163,7 @@ integration_test() {
   integration_test_case "${email_1}" POST /buy '{"symbol": "TSLA", "dollars": 500}'
   integration_test_case "${email_1}" POST /sell '{"symbol": "TSLA", "dollars": 100}'
   integration_test_case "${email_2}" POST /invest '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 100}'
+  integration_test_case "${email_2}" POST /divest '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 10}'
 
   for email in "${!access_token_by_email[@]}"; do
       echo
