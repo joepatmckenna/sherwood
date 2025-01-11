@@ -85,7 +85,7 @@ main() {
   sudo systemctl restart nginx
   sudo systemctl restart sherwood
 
-  sudo certbot --nginx -d writewell.tech -d www.writewell.tech
+  sudo certbot --nginx -d writewell.tech -d www.writewell.tech --non-interactive --agree-tos --reinstall
   sudo certbot renew --dry-run
 
   sudo ufw allow 80
