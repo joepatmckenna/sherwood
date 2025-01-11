@@ -79,8 +79,6 @@ async def authorized_user(
 
 AuthorizedUser = Annotated[User, Depends(authorized_user)]
 
-# app
-
 
 router = APIRouter(prefix="")
 

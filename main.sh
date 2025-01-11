@@ -1,10 +1,11 @@
 #!/bin/bash
+set -e
 
 ########################################
 
 : <<'USAGE'
 source /root/shwerwood/main.sh
-launch
+main
 integration_test
 USAGE
 
@@ -19,6 +20,10 @@ LOGS
 : <<'POSTGRES_CMDS'
 sudo psql -U postgres -d db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 sudo psql -U postgres -d db -c "SELECT * from users;"
+sudo psql -U postgres -d db -c "ALTER USER postgres WITH PASSWORD 'password';"
+sudo -i -u postgres psql <<EOF
+ALTER USER postgres WITH PASSWORD 'password';
+EOF
 POSTGRES_CMDS
 
 : <<'POSTGRES_MODS'
@@ -35,22 +40,12 @@ POSTGRES_MODS
 
 SHERWOOD_REPO='https://github.com/joepatmckenna/sherwood.git'
 SHERWOOD_DIR='/root/sherwood'
-
-boot() {
-  if [[ -d "${SHERWOOD_DIR}" ]]; then
-    git -C "${SHERWOOD_DIR}" pull
-  else
-    git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"
-  fi
-  source /root/sherwood/main.sh
-  start_backend
-}
-
 VENV_DIR='/root/venv'
 PYTHON="${VENV_DIR}"/bin/python 
 
-start_backend() {
+main() {
   sudo apt update && sudo apt upgrade -y
+
   sudo apt install -y \
     certbot \
     git \
@@ -63,45 +58,40 @@ start_backend() {
 
   sudo systemctl start postgresql
   sudo systemctl enable postgresql
-  sudo -i -u postgres psql <<EOF
-ALTER USER postgres WITH PASSWORD 'password';
-EOF
+
+  # # sherwood
+  # if [[ -d "${SHERWOOD_DIR}" ]]; then
+  #   git -C "${SHERWOOD_DIR}" pull
+  # else
+  #   git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"
+  # fi
 
   python3 -m venv "${VENV_DIR}"
-
-  # sherwood
-  if [[ -d "${SHERWOOD_DIR}" ]]; then
-    git -C "${SHERWOOD_DIR}" pull
-  else
-    git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"
-  fi
   "${PYTHON}" -m pip install "${SHERWOOD_DIR}" --no-cache-dir
-  sudo cp "${SHERWOOD_DIR}"/sherwood.service /etc/systemd/system/sherwood.service
+
+  sudo cp "${SHERWOOD_DIR}"/service /etc/systemd/system/sherwood
   sudo systemctl daemon-reload
   sudo systemctl enable sherwood
   sudo systemctl start sherwood
 
-  # nginx
-  sudo cp "${SHERWOOD_DIR}"/sherwood.nginx /etc/nginx/sites-available/sherwood
-  if [ -L /etc/nginx/sites-enabled/sherwood ] && [ "$(readlink /etc/nginx/sites-enabled/sherwood)" = "/etc/nginx/sites-available/sherwood" ]; then
-    sudo rm /etc/nginx/sites-enabled/sherwood
-  fi
-  sudo ln -s /etc/nginx/sites-available/sherwood /etc/nginx/sites-enabled/
+  sudo rsync -a --delete /root/sherwood/ui/ /var/www/html/
+  sudo chown -R www-data:www-data /var/www/html
+  sudo chmod -R 755 /var/www/html 
+
+  sudo cp "${SHERWOOD_DIR}"/nginx /etc/nginx/sites-available/sherwood
+  [ -L /etc/nginx/sites-enabled/sherwood ] || sudo ln -s /etc/nginx/sites-available/sherwood /etc/nginx/sites-enabled/
   `sudo nginx -t` || exit 1;
 
-  sudo systemctl restart nginx  
+  sudo systemctl restart nginx
   sudo systemctl restart sherwood
 
   sudo certbot --nginx -d writewell.tech -d www.writewell.tech
   sudo certbot renew --dry-run
+
+  sudo ufw allow 80
+  sudo ufw allow 443
+  sudo ufw enable 
 }
-
-######
-
-
-sudo ufw allow 80
-sudo ufw allow 443
-sudo ufw enable
 
 ########################################
 
@@ -138,7 +128,6 @@ integration_test_case() {
   elif [ "${route}" = "/user" ]; then
     user_id_by_email["${email}"]=$(echo $res | jq -r .id)
   fi
-
 }
 
 integration_test() {
@@ -151,19 +140,19 @@ integration_test() {
   declare -A user_id_by_email
 
   integration_test_case "${email_1}" GET /
-  integration_test_case "${email_1}" POST /sign-up '{"email": "'"${email_1}"'", "password": "'"${PASSWORD}"'"}'
-  integration_test_case "${email_1}" POST /sign-in '{"email": "'"${email_1}"'", "password": "'"${PASSWORD}"'"}'
-  integration_test_case "${email_2}" POST /sign-up '{"email": "'"${email_2}"'", "password": "'"${PASSWORD}"'"}'
-  integration_test_case "${email_2}" POST /sign-in '{"email": "'"${email_2}"'", "password": "'"${PASSWORD}"'"}'
-  integration_test_case "${email_1}" GET /user
-  integration_test_case "${email_2}" GET /user
-  integration_test_case "${email_1}" POST /deposit '{"dollars": 1010}'
-  integration_test_case "${email_1}" POST /withdraw '{"dollars": 10}'
-  integration_test_case "${email_2}" POST /deposit '{"dollars": 1000}'
-  integration_test_case "${email_1}" POST /buy '{"symbol": "TSLA", "dollars": 500}'
-  integration_test_case "${email_1}" POST /sell '{"symbol": "TSLA", "dollars": 100}'
-  integration_test_case "${email_2}" POST /invest '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 100}'
-  integration_test_case "${email_2}" POST /divest '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 10}'
+  integration_test_case "${email_1}" POST /x/0 '{"email": "'"${email_1}"'", "password": "'"${PASSWORD}"'"}'
+  integration_test_case "${email_1}" POST /x/1 '{"email": "'"${email_1}"'", "password": "'"${PASSWORD}"'"}'
+  integration_test_case "${email_2}" POST /x/0 '{"email": "'"${email_2}"'", "password": "'"${PASSWORD}"'"}'
+  integration_test_case "${email_2}" POST /x/1 '{"email": "'"${email_2}"'", "password": "'"${PASSWORD}"'"}'
+  integration_test_case "${email_1}" GET /x/2
+  integration_test_case "${email_2}" GET /x/2
+  integration_test_case "${email_1}" POST /x/f '{"dollars": 1010}'
+  integration_test_case "${email_1}" POST /x/w '{"dollars": 10}'
+  integration_test_case "${email_2}" POST /x/f '{"dollars": 1000}'
+  integration_test_case "${email_1}" POST /x/b '{"symbol": "TSLA", "dollars": 500}'
+  integration_test_case "${email_1}" POST /x/s '{"symbol": "TSLA", "dollars": 100}'
+  integration_test_case "${email_2}" POST /x/i '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 100}'
+  integration_test_case "${email_2}" POST /x/d '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 10}'
 
   for email in "${!access_token_by_email[@]}"; do
       echo

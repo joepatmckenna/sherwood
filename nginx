@@ -20,7 +20,6 @@ server {
       proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;
     }
     
-
     location /x/f { 
       proxy_pass http://backend/fund; 
       proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;
