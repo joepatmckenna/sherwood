@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -6,25 +7,21 @@
     <title>Sign Up</title>
     <script>
       async function handleSubmit(event) {
-        event.preventDefault(); // Prevent the default form submission
-
-        const email = document.getElementById("email").value;
-        const password = document.getElementById("password").value;
-
+        event.preventDefault();
         try {
           const response = await fetch("/x/0", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ email, password }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: document.getElementById("email").value,
+              password: document.getElementById("password").value,
+            }),
           });
-
+          const data = await response.json();
           if (response.ok) {
-            alert("Sign-up successful!");
+            window.location.href = data.redirect_url;
           } else {
-            const errorData = await response.json();
-            alert(`Error: ${JSON.stringify(errorData)}`);
+            alert(`Error: ${JSON.stringify(data)}`);
           }
         } catch (error) {
           console.error("Error:", error);
@@ -35,7 +32,7 @@
   </head>
   <body>
     <h1>Sign Up</h1>
-    <form id="signupForm" onsubmit="handleSubmit(event)">
+    <form id="signUpForm" onsubmit="handleSubmit(event)">
       <label for="email">Email:</label><br />
       <input type="email" id="email" name="email" required /><br /><br />
 

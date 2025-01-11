@@ -3,6 +3,7 @@ def test_sign_up_success(client, valid_email, valid_password):
         "/sign-up", json={"email": valid_email, "password": valid_password}
     )
     assert response.status_code == 200
+    assert response.json()["redirect_url"] == "/sign-in.html"
 
 
 def test_sign_up_invalid_email(client, valid_password):

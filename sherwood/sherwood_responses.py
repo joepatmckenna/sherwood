@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 
 class SignUpResponse(BaseModel):
-    pass
+    redirect_url: str
 
 
 class SignInResponse(BaseModel):

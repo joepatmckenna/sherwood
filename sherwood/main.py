@@ -87,7 +87,7 @@ router = APIRouter(prefix="")
 async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
     try:
         sign_up_user(db, request.email, request.password)
-        return SignUpResponse()
+        return SignUpResponse(redirect_url="/sign-in.html")
     except (
         errors.DuplicateUserError,
         errors.InternalServerError,
