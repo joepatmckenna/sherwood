@@ -56,12 +56,12 @@ main() {
   sudo systemctl start postgresql
   sudo systemctl enable postgresql
 
-  # # sherwood
-  # if [[ -d "${SHERWOOD_DIR}" ]]; then
-  #   git -C "${SHERWOOD_DIR}" pull
-  # else
-  #   git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"
-  # fi
+  # sherwood
+  if [[ -d "${SHERWOOD_DIR}" ]]; then
+    git -C "${SHERWOOD_DIR}" pull
+  else
+    git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"
+  fi
 
   python3 -m venv "${VENV_DIR}"
   "${PYTHON}" -m pip install "${SHERWOOD_DIR}" --no-cache-dir

@@ -19,7 +19,7 @@ from sherwood.broker import (
 from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_URL_ENV_VAR_NAME
 from sherwood.errors import error_handler
 from sherwood.models import to_dict, BaseModel as Base, User
-from sherwood.requests import (
+from sherwood.sherwood_requests import (
     SignUpRequest,
     SignInRequest,
     DepositRequest,
@@ -29,7 +29,7 @@ from sherwood.requests import (
     InvestRequest,
     DivestRequest,
 )
-from sherwood.responses import (
+from sherwood.sherwood_responses import (
     SignUpResponse,
     SignInResponse,
     DepositResponse,
