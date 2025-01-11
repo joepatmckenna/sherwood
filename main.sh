@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 ########################################
 
@@ -20,10 +19,8 @@ LOGS
 : <<'POSTGRES_CMDS'
 sudo psql -U postgres -d db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 sudo psql -U postgres -d db -c "SELECT * from users;"
-sudo psql -U postgres -d db -c "ALTER USER postgres WITH PASSWORD 'password';"
-sudo -i -u postgres psql <<EOF
-ALTER USER postgres WITH PASSWORD 'password';
-EOF
+sudo -u postgres psql -c "SELECT * from users;"
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'password';"
 POSTGRES_CMDS
 
 : <<'POSTGRES_MODS'
@@ -85,7 +82,7 @@ main() {
   sudo systemctl restart nginx
   sudo systemctl restart sherwood
 
-  sudo certbot --nginx -d writewell.tech -d www.writewell.tech --non-interactive 
+  sudo certbot --nginx -d writewell.tech -d www.writewell.tech --agree-tos --email=joepatmckenna@gmail.com --non-interactive 
   sudo certbot renew --dry-run
 
   # sudo ufw allow 80
@@ -123,9 +120,9 @@ integration_test_case() {
   if [ "${status_code}" -ne 200 ]; then
     echo "${cmd[@]}"
     echo "$res"
-  elif [ "${route}" = "/sign-in" ]; then
+  elif [ "${route}" = "/x/1" ]; then
     access_token_by_email["${email}"]=$(echo $res | jq -r .access_token)
-  elif [ "${route}" = "/user" ]; then
+  elif [ "${route}" = "/x/2" ]; then
     user_id_by_email["${email}"]=$(echo $res | jq -r .id)
   fi
 }

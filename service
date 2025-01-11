@@ -7,7 +7,7 @@ User=root
 Group=www-data
 WorkingDirectory=/root/sherwood
 EnvironmentFile=/root/sherwood/.env
-ExecStart=/root/venv/bin/python sherwood/main.py --bind="127.0.0.1:8000"
+ExecStart=/root/venv/bin/python /root/sherwood/sherwood/main.py --bind="127.0.0.1:8000"
 Restart=always
 
 [Install]

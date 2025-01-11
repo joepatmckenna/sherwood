@@ -21,7 +21,7 @@ server {
     }
     
     location /x/f { 
-      proxy_pass http://backend/fund; 
+      proxy_pass http://backend/deposit; 
       proxy_set_header X-Sherwood-Authorization $http_x_sherwood_authorization;
     }
     location /x/w { 

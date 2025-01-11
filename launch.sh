@@ -1,10 +1,10 @@
 #!/bin/bash
 
-git add . && git commit -m '.' && git push
+# git add . && git commit -m '.' && git push
 
 HOST_IP='208.68.37.48'
 
-scp -i ~/.ssh/id_rsa_sherwood .env "root@${HOST_IP}:/root/sherwood/.env"
+# scp -i ~/.ssh/id_rsa_sherwood .env "root@${HOST_IP}:/root/sherwood/.env"
 
 ssh "root@${HOST_IP}" << 'EOF'
 SHERWOOD_REPO='https://github.com/joepatmckenna/sherwood.git'
