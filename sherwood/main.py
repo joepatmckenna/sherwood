@@ -1,11 +1,20 @@
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, FastAPI, Header
+from fastapi import (
+    APIRouter,
+    Depends,
+    FastAPI,
+    Header,
+    WebSocket,
+    WebSocketDisconnect,
+)
+from fastapi.responses import JSONResponse
 import gunicorn.app.base
 import logging
 import os
 from sherwood import errors
-from sherwood.auth import decode_access_token
+from sherwood.auth import decode_access_token, validate_password
 from sherwood.broker import (
     sign_up_user,
     sign_in_user,
@@ -18,27 +27,8 @@ from sherwood.broker import (
 )
 from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_URL_ENV_VAR_NAME
 from sherwood.errors import error_handler
-from sherwood.models import to_dict, BaseModel as Base, User
-from sherwood.sherwood_requests import (
-    SignUpRequest,
-    SignInRequest,
-    DepositRequest,
-    WithdrawRequest,
-    BuyRequest,
-    SellRequest,
-    InvestRequest,
-    DivestRequest,
-)
-from sherwood.sherwood_responses import (
-    SignUpResponse,
-    SignInResponse,
-    DepositResponse,
-    WithdrawResponse,
-    BuyResponse,
-    SellResponse,
-    InvestResponse,
-    DivestResponse,
-)
+from sherwood.messages import *
+from sherwood.models import get_current_time, to_dict, BaseModel as Base, User
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session as SqlAlchemyOrmSession
 from typing import Annotated
@@ -83,6 +73,18 @@ AuthorizedUser = Annotated[User, Depends(authorized_user)]
 router = APIRouter(prefix="")
 
 
+@router.websocket("/validate-password")
+async def validate_password_websocket(ws: WebSocket):
+    await ws.accept()
+    try:
+        while True:
+            password = await ws.receive_text()
+            reasons = validate_password(password)
+            await ws.send_json({"reasons": reasons})
+    except WebSocketDisconnect:
+        logging.info("validate password websocket client disconnected")
+
+
 @router.post("/sign-up")
 async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
     try:
@@ -99,11 +101,38 @@ async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
         )
 
 
+_TOKEN_DURATION_HOURS = 4
+# _TOKEN_COOKIE_NAME = "x_sherwood_authorization"
+
+
 @router.post("/sign-in")
-async def post_sign_in(request: SignInRequest, db: Database) -> SignInResponse:
+async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
     try:
-        access_token = sign_in_user(db, request.email, request.password)
-        return SignInResponse(token_type="Bearer", access_token=access_token)
+        token_type = "Bearer"
+        access_token = sign_in_user(
+            db,
+            request.email,
+            request.password,
+            access_token_duration_hours=_TOKEN_DURATION_HOURS,
+        )
+        response = SignInResponse(
+            token_type=token_type,
+            access_token=access_token,
+            redirect_url="/profile.html",
+        )
+        # response = JSONResponse(content=response.model_dump())
+        # response.set_cookie(
+        #     key=_TOKEN_COOKIE_NAME,
+        #     value=f"{token_type} {access_token}",
+        #     httponly=False,
+        #     secure=True,
+        #     samesite="Strict",
+        #     expires=(
+        #         get_current_time() + timedelta(hours=_TOKEN_DURATION_HOURS)
+        #     ).strftime("%a, %d-%b-%Y %H:%M:%S GMT"),
+        # )
+        return response
+
     except (
         errors.DuplicateUserError,
         errors.IncorrectPasswordError,
@@ -296,7 +325,7 @@ class App(gunicorn.app.base.BaseApplication):
             self.cfg.set("workers", 2 * os.cpu_count() + 1)
 
     def load(self):
-        load_dotenv(".env")
+        load_dotenv(".env", override=True)
 
         postgresql_database_url = os.environ.get(POSTGRESQL_DATABASE_URL_ENV_VAR_NAME)
         if not postgresql_database_url:
@@ -304,7 +333,10 @@ class App(gunicorn.app.base.BaseApplication):
                 f"Environment variable '{POSTGRESQL_DATABASE_URL_ENV_VAR_NAME}' is not set."
             )
 
-        engine = create_engine(postgresql_database_url)
+        engine = create_engine(
+            postgresql_database_url,
+            # connect_args={"check_same_thread": False},  ### DELETE ME ###
+        )
         Session.configure(bind=engine)
 
         @asynccontextmanager

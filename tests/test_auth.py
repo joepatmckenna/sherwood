@@ -18,54 +18,30 @@ def test_encode_and_decode_jwt_for_user(db, valid_email, valid_password):
 
 
 @pytest.mark.parametrize(
-    ("password", "expected_is_valid", "expected_reasons"),
+    ("password", "expected_reasons"),
     [
-        pytest.param("A@a1A@a1", True, [], id="valid"),
+        pytest.param("A@a1A@a1", [], id="valid"),
+        pytest.param("A@a1", [ReasonPasswordInvalid.TOO_SHORT.value], id="short"),
         pytest.param(
-            "A@a1",
-            False,
-            [ReasonPasswordInvalid.TOO_SHORT.value],
-            id="too_short",
+            30 * "A" + "a@1", [ReasonPasswordInvalid.TOO_LONG.value], id="long"
         ),
         pytest.param(
-            30 * "A" + "a@1",
-            False,
-            [ReasonPasswordInvalid.TOO_LONG.value],
-            id="too_long",
+            "Aa@1 Aa@1", [ReasonPasswordInvalid.CONTAINS_SPACE.value], id="space"
         ),
         pytest.param(
-            "Aa@1 Aa@1",
-            False,
-            [ReasonPasswordInvalid.CONTAINS_SPACE.value],
-            id="contains_space",
+            "AA@1AA@1", [ReasonPasswordInvalid.MISSING_LOWERCASE.value], id="lower"
         ),
         pytest.param(
-            "AA@1AA@1",
-            False,
-            [ReasonPasswordInvalid.MISSING_LOWERCASE.value],
-            id="missing_lowercase",
+            "aa@1aa@1", [ReasonPasswordInvalid.MISSING_UPPERCASE.value], id="upper"
         ),
         pytest.param(
-            "aa@1aa@1",
-            False,
-            [ReasonPasswordInvalid.MISSING_UPPERCASE.value],
-            id="missing_uppercase",
+            "Aa@@Aa@@", [ReasonPasswordInvalid.MISSING_DIGIT.value], id="digit"
         ),
         pytest.param(
-            "Aa@@Aa@@",
-            False,
-            [ReasonPasswordInvalid.MISSING_DIGIT.value],
-            id="missing_digit",
-        ),
-        pytest.param(
-            "Aa11Aa11",
-            False,
-            [ReasonPasswordInvalid.MISSING_SPECIAL.value],
-            id="missing_special",
+            "Aa11Aa11", [ReasonPasswordInvalid.MISSING_SPECIAL.value], id="special"
         ),
         pytest.param(
             "a ",
-            False,
             [
                 ReasonPasswordInvalid.TOO_SHORT.value,
                 ReasonPasswordInvalid.CONTAINS_SPACE.value,
@@ -73,21 +49,19 @@ def test_encode_and_decode_jwt_for_user(db, valid_email, valid_password):
                 ReasonPasswordInvalid.MISSING_DIGIT.value,
                 ReasonPasswordInvalid.MISSING_SPECIAL.value,
             ],
-            id="missing_special",
+            id="weak",
         ),
         pytest.param(
             "password",
-            False,
             [
                 ReasonPasswordInvalid.MISSING_UPPERCASE.value,
                 ReasonPasswordInvalid.MISSING_DIGIT.value,
                 ReasonPasswordInvalid.MISSING_SPECIAL.value,
             ],
-            id="missing_special",
+            id="common",
         ),
     ],
 )
-def test_validate_password(password, expected_is_valid, expected_reasons):
-    is_valid, reasons = validate_password(password)
-    assert is_valid == expected_is_valid
+def test_validate_password(password, expected_reasons):
+    reasons = validate_password(password)
     assert reasons == expected_reasons

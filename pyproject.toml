@@ -21,7 +21,7 @@ dependencies = [
     "python-dotenv",
     "python-jose",
     "sqlalchemy",
-    "uvicorn",
+    "uvicorn[standard]",
     "yfinance",
 ]
 

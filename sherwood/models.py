@@ -209,8 +209,8 @@ class Ownership(BaseModel):
 
 @listens_for(User, "before_insert")
 def parse_password(mapper, connection, target):
-    password_is_valid, reasons = validate_password(target.password)
-    if not password_is_valid:
+    reasons = validate_password(target.password)
+    if reasons:
         raise errors.InvalidPasswordError(reasons)
     target.password = password_context.hash(target.password)
 

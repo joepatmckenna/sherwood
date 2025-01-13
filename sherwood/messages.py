@@ -3,7 +3,7 @@ from sherwood import errors
 from sherwood.auth import validate_password
 
 
-class _ModelWithEmail(BaseModel):
+class ModelWithEmail(BaseModel):
     email: EmailStr
 
 
@@ -11,7 +11,7 @@ class EmailValidatorMixin:
     @field_validator("email")
     def validate_email(cls, email):
         try:
-            _ModelWithEmail(email=email)
+            ModelWithEmail(email=email)
             return email
         except ValueError as exc:
             raise errors.RequestValueError(
@@ -22,8 +22,8 @@ class EmailValidatorMixin:
 class PasswordValidatorMixin:
     @field_validator("password")
     def validate_password_format(cls, password):
-        is_valid, reasons = validate_password(password)
-        if not is_valid:
+        reasons = validate_password(password)
+        if reasons:
             raise errors.InvalidPasswordError(reasons)
         return password
 
@@ -72,3 +72,62 @@ class InvestRequest(BaseModel, DollarsArePositiveValidatorMixin):
 class DivestRequest(BaseModel, DollarsArePositiveValidatorMixin):
     investee_portfolio_id: int
     dollars: float
+
+
+from pydantic import BaseModel
+
+
+class SignUpResponse(BaseModel):
+    redirect_url: str
+
+
+class SignInResponse(BaseModel):
+    token_type: str
+    access_token: str
+    redirect_url: str
+
+
+class DepositResponse(BaseModel):
+    starting_balance: float
+    ending_balance: float
+
+
+class WithdrawResponse(BaseModel):
+    starting_balance: float
+    ending_balance: float
+
+
+class BuyResponse(BaseModel):
+    pass
+
+
+class SellResponse(BaseModel):
+    pass
+
+
+class InvestResponse(BaseModel):
+    pass
+
+
+class DivestResponse(BaseModel):
+    pass
+
+
+__all__ = [
+    "SignUpRequest",
+    "SignInRequest",
+    "DepositRequest",
+    "WithdrawRequest",
+    "BuyRequest",
+    "SellRequest",
+    "InvestRequest",
+    "DivestRequest",
+    "SignUpResponse",
+    "SignInResponse",
+    "DepositResponse",
+    "WithdrawResponse",
+    "BuyResponse",
+    "SellResponse",
+    "InvestResponse",
+    "DivestResponse",
+]

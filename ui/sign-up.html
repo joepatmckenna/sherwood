@@ -1,15 +1,89 @@
 <!DOCTYPE html>
 
-<html lang="en">
+<html>
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sign Up</title>
+    <title>sign up</title>
+    <style>
+      .error {
+        color: red;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>sign up</h1>
+    <form id="signUpForm" onsubmit="handleSignUp(event)">
+      <label for="email">email:</label><br />
+      <input
+        type="email"
+        id="email"
+        name="email"
+        required
+        autocomplete="username"
+      /><br /><br />
+
+      <label for="password">password:</label><br />
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+        autocomplete="current-password"
+      /><br /><br />
+
+      <button type="submit">sign up</button><br />
+    </form>
+
+    <ul id="passwordRequirements"></ul>
+
+    <p class="error" id="errorMessage"></p>
+
     <script>
-      async function handleSubmit(event) {
+      const passwordInput = document.getElementById("password");
+      passwordInput.addEventListener("input", (event) => {
+        const password = event.target.value;
+        if (validatePasswordWebSocket.readyState === WebSocket.OPEN) {
+          validatePasswordWebSocket.send(password);
+        }
+      });
+
+      const passwordRequirements = document.getElementById(
+        "passwordRequirements"
+      );
+      function updatePasswordRequirements(reasons) {
+        passwordRequirements.innerHTML = "";
+        reasons.forEach((reason) => {
+          const li = document.createElement("li");
+          li.textContent = reason;
+          li.className = "error";
+          passwordRequirements.appendChild(li);
+        });
+      }
+
+      let validatePasswordWebSocket;
+      function connectToValidatePasswordWebSocket() {
+        validatePasswordWebSocket = new WebSocket("/ws/validate-password");
+        validatePasswordWebSocket.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          updatePasswordRequirements(data.reasons);
+        };
+        validatePasswordWebSocket.onclose = () => {
+          console.warn("/ws/validate-password closed. reconnecting...");
+          setTimeout(connectToValidatePasswordWebSocket, 1000);
+        };
+      }
+
+      connectToValidatePasswordWebSocket();
+
+      const errorMessageElement = document.getElementById("errorMessage");
+      const unknownErrorMessage =
+        "An unexpected error occurred. Please try again later.";
+
+      async function handleSignUp(event) {
         event.preventDefault();
         try {
-          const response = await fetch("/x/0", {
+          errorMessageElement.textContent = "";
+          const response = await fetch("/http/sign-up", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -21,30 +95,16 @@
           if (response.ok) {
             window.location.href = data.redirect_url;
           } else {
-            alert(`Error: ${JSON.stringify(data)}`);
+            console.error(JSON.stringify(data));
+            errorMessageElement.textContent = `Error: ${
+              data?.error?.detail || unknownErrorMessage
+            }`;
           }
         } catch (error) {
-          console.error("Error:", error);
-          alert("An error occurred while submitting the form.");
+          console.error(error);
+          errorMessageElement.textContent = unknownErrorMessage;
         }
       }
     </script>
-  </head>
-  <body>
-    <h1>Sign Up</h1>
-    <form id="signUpForm" onsubmit="handleSubmit(event)">
-      <label for="email">Email:</label><br />
-      <input type="email" id="email" name="email" required /><br /><br />
-
-      <label for="password">Password:</label><br />
-      <input
-        type="password"
-        id="password"
-        name="password"
-        required
-      /><br /><br />
-
-      <button type="submit">Sign Up</button>
-    </form>
   </body>
 </html>

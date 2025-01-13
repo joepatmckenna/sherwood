@@ -2,15 +2,22 @@
 
 
 : <<'USAGE'
+SHERWOOD_REPO='https://github.com/joepatmckenna/sherwood.git'
+SHERWOOD_DIR='/root/sherwood'
 if [[ -d "${SHERWOOD_DIR}" ]]; then
   git -C "${SHERWOOD_DIR}" pull
 else
   git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"
 fi
 
+sudo systemctl restart sherwood
+
 sudo rsync -a --delete /root/sherwood/ui/ /var/www/html/
 sudo chown -R www-data:www-data /var/www/html
 sudo chmod -R 755 /var/www/html
+
+sudo systemctl status sherwood  
+sudo systemctl status nginx  
 USAGE
 
 ########################################
@@ -133,6 +140,13 @@ integration_test_case() {
   res=$(cat "$tmp_res")
   rm "$tmp_res"
 
+  echo
+  echo "${cmd[@]}"
+  echo
+  echo "${res}"
+  echo
+  echo
+
   echo "${status_code}" "${email}" "${method}" "${route}"
   if [ "${status_code}" -ne 200 ]; then
     echo "${cmd[@]}"
@@ -177,5 +191,3 @@ integration_test() {
 
   sudo -u postgres psql -d db -c "DELETE FROM users WHERE email LIKE 'integration-test-%';"
 }
-
-

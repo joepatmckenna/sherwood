@@ -18,7 +18,12 @@ def sign_up_user(db: Session, email: str, password: str) -> None:
         raise errors.InternalServerError(detail="Failed to create user.") from exc
 
 
-def sign_in_user(db: Session, email: str, password: str) -> str:
+def sign_in_user(
+    db: Session,
+    email: str,
+    password: str,
+    access_token_duration_hours: int = 4,
+) -> str:
     try:
         user = db.query(User).filter_by(email=email).one_or_none()
     except MultipleResultsFound:
@@ -30,7 +35,7 @@ def sign_in_user(db: Session, email: str, password: str) -> str:
     if password_context.needs_update(user.password):
         user.password = password_context.hash(user.password)
     try:
-        access_token = generate_access_token(user)
+        access_token = generate_access_token(user, access_token_duration_hours)
     except Exception as exc:
         raise errors.InternalServerError(
             f"Failed to generate access token. User: {user}. Error: {exc}"

@@ -1,1 +1,76 @@
-signin
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <title>sign im</title>
+    <style>
+      .error {
+        color: red;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>sign in</h1>
+    <form id="signUpForm" onsubmit="handleSignIn(event)">
+      <label for="email">email:</label><br />
+      <input
+        type="email"
+        id="email"
+        name="email"
+        required
+        autocomplete="username"
+      /><br /><br />
+
+      <label for="password">password:</label><br />
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+        autocomplete="current-password"
+      /><br /><br />
+
+      <button type="submit">sign in</button><br />
+    </form>
+
+    <p class="error" id="errorMessage"></p>
+
+    <script>
+      const errorMessageElement = document.getElementById("errorMessage");
+      const unknownErrorMessage =
+        "An unexpected error occurred. Please try again later.";
+
+      async function handleSignIn(event) {
+        event.preventDefault();
+        try {
+          errorMessageElement.textContent = "";
+          const response = await fetch("/http/sign-in", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: document.getElementById("email").value,
+              password: document.getElementById("password").value,
+            }),
+          });
+          const data = await response.json();
+          if (response.ok) {
+            localStorage.setItem(
+              "x_sherwood_authorization",
+              `${data.token_type} ${data.access_token}`
+            );
+            window.location.href = data.redirect_url;
+          } else {
+            console.error(JSON.stringify(data));
+            errorMessageElement.textContent = `Error: ${
+              data?.error?.detail || unknownErrorMessage
+            }`;
+          }
+        } catch (error) {
+          console.error(error);
+          errorMessageElement.textContent = unknownErrorMessage;
+        }
+      }
+    </script>
+  </body>
+</html>

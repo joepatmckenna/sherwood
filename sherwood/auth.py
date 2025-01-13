@@ -29,31 +29,23 @@ class ReasonPasswordInvalid(Enum):
     MISSING_SPECIAL = "Password must contain at least one special character."
 
 
-def validate_password(password: str) -> tuple[bool, list[str]]:
-    is_valid = True
+def validate_password(password: str) -> list[str]:
     reasons = list()
     if len(password) < _MIN_PASSWORD_LENGTH:
-        is_valid = False
         reasons.append(ReasonPasswordInvalid.TOO_SHORT.value)
     if len(password) > _MAX_PASSWORD_LENGTH:
-        is_valid = False
         reasons.append(ReasonPasswordInvalid.TOO_LONG.value)
     if re.search(r"\s", password):
-        is_valid = False
         reasons.append(ReasonPasswordInvalid.CONTAINS_SPACE.value)
     if not re.search(r"[a-z]", password):
-        is_valid = False
         reasons.append(ReasonPasswordInvalid.MISSING_LOWERCASE.value)
     if not re.search(r"[A-Z]", password):
-        is_valid = False
         reasons.append(ReasonPasswordInvalid.MISSING_UPPERCASE.value)
     if not re.search(r"[0-9]", password):
-        is_valid = False
         reasons.append(ReasonPasswordInvalid.MISSING_DIGIT.value)
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
-        is_valid = False
         reasons.append(ReasonPasswordInvalid.MISSING_SPECIAL.value)
-    return is_valid, reasons
+    return reasons
 
 
 def _validate_env():
