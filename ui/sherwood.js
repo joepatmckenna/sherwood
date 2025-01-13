@@ -25,40 +25,42 @@ async function getUser() {
   }
 }
 
-async function makeBanner(user) {
-  const rightLinks = document.getElementById("rightLinks");
-  if (user) {
-    const profileLink = document.createElement("a");
-    profileLink.href = "/profile.html";
-    profileLink.textContent = "profile";
-    rightLinks.appendChild(profileLink);
+async function maybeMakeBanner(user) {
+  const bannerContainer = document.getElementById("bannerContainer");
+  if (bannerContainer) {
+    const response = await fetch("/banner.html");
+    const bannerHtml = await response.text();
+    bannerContainer.innerHTML = bannerHtml;
+    const rightLinks = document.getElementById("rightLinks");
+    if (user) {
+      const profileLink = document.createElement("a");
+      profileLink.href = "/profile.html";
+      profileLink.textContent = "profile";
+      rightLinks.appendChild(profileLink);
 
-    const signOutLink = document.createElement("a");
-    signOutLink.href = "/";
-    signOutLink.textContent = "sign out";
-    signOutLink.addEventListener("click", () => {
-      localStorage.removeItem("x_sherwood_authorization");
-    });
-    rightLinks.appendChild(signOutLink);
-  } else {
-    const signUpLink = document.createElement("a");
-    signUpLink.href = "/sign-up.html";
-    signUpLink.textContent = "sign up";
-    rightLinks.appendChild(signUpLink);
+      const signOutLink = document.createElement("a");
+      signOutLink.href = "/";
+      signOutLink.textContent = "sign out";
+      signOutLink.addEventListener("click", () => {
+        localStorage.removeItem("x_sherwood_authorization");
+      });
+      rightLinks.appendChild(signOutLink);
+    } else {
+      const signUpLink = document.createElement("a");
+      signUpLink.href = "/sign-up.html";
+      signUpLink.textContent = "sign up";
+      rightLinks.appendChild(signUpLink);
 
-    const signInLink = document.createElement("a");
-    signInLink.href = "/sign-in.html";
-    signInLink.textContent = "sign in";
-    rightLinks.appendChild(signInLink);
+      const signInLink = document.createElement("a");
+      signInLink.href = "/sign-in.html";
+      signInLink.textContent = "sign in";
+      rightLinks.appendChild(signInLink);
+    }
   }
 }
 
-async function loadBanner() {
+async function load() {
   const user = await getUser();
-  const bannerContainer = document.getElementById("bannerContainer");
-  const response = await fetch("/banner.html");
-  const bannerHtml = await response.text();
-  bannerContainer.innerHTML = bannerHtml;
-  makeBanner(user);
-  return user;
+  await maybeMakeBanner(user);
+  return { user };
 }

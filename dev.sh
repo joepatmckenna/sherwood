@@ -5,8 +5,6 @@ CREATE ROLE postgres WITH LOGIN SUPERUSER PASSWORD 'password';
 CREATE DATABASE db;
 \q
 
-
-
 PYTHON='venv/bin/python'
 "${PYTHON}" -m pip install -e . --no-cache-dir
 lsof -t -i :8000 | xargs kill

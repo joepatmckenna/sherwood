@@ -66,8 +66,32 @@
         </div>
 
         <div>
-          <label>holdings:</label>
-          <ul id="userPortfolioHoldings"></ul>
+          <label>ownership:</label>
+          <span id="userOwnershipPercent"></span>
+        </div>
+
+        <div>
+          <h3>holdings</h3>
+          <table id="userPortfolioHoldings">
+            <thead>
+              <tr>
+                <th>symbol</th>
+                <th>units</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+
+        <div>
+          <h3>investors</h3>
+          <table id="userPortfolioOwnership">
+            <thead>
+              <tr>
+                <th>user id</th>
+                <th>percent</th>
+              </tr>
+            </thead>
+          </table>
         </div>
       </div>
     </div>
@@ -240,85 +264,116 @@
       const unknownErrorMessage =
         "An unexpected error occurred. Please try again later.";
 
-      loadBanner().then((user) => {
-        if (!user) {
-          window.location.href = "/";
-        }
-        console.log(user);
+      function setupModal(openButtonId, closeButtonId, overlayId) {
+        const openButton = document.getElementById(openButtonId);
+        const closeButton = document.getElementById(closeButtonId);
+        const overlay = document.getElementById(overlayId);
+        openButton.addEventListener("click", () => {
+          overlay.classList.add("active");
+        });
+        closeButton.addEventListener("click", () => {
+          overlay.classList.remove("active");
+        });
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) {
+            overlay.classList.remove("active");
+          }
+        });
+      }
 
+      function setupForm(formId, errorMessageId, overlayId, endpoint) {
+        const form = document.getElementById(formId);
+        const errorMessage = document.getElementById(errorMessageId);
+        const overlay = document.getElementById(overlayId);
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          errorMessage.textContent = "";
+
+          const formData = new FormData(form);
+          const json = Object.fromEntries(formData.entries());
+
+          try {
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Sherwood-Authorization": localStorage.getItem(
+                  "x_sherwood_authorization"
+                ),
+              },
+              body: JSON.stringify(json),
+            });
+            if (response.ok) {
+              overlay.classList.remove("active");
+              form.reset();
+              location.reload();
+            } else {
+              const data = await response.json();
+              errorMessage.textContent =
+                data?.error?.detail || unknownErrorMessage;
+            }
+          } catch (error) {
+            console.error(error);
+            errorMessage.textContent = unknownErrorMessage;
+          }
+        });
+      }
+
+      function makeProfile(user) {
         document.getElementById("userEmail").textContent = user.email;
         document.getElementById(
           "userPortfolioCash"
         ).textContent = `$${user.portfolio.cash.toFixed(2)}`;
-        const userPortfolioHoldingsList = document.getElementById(
+        const userOwnership = user.portfolio.ownership.find(
+          (ownership) => ownership.owner_id === user.portfolio.id
+        );
+        if (!userOwnership) {
+          conosle.error("owner ownership not found");
+          return;
+        }
+        const userOwnershipPercent = userOwnership.percent;
+        document.getElementById("userOwnershipPercent").textContent = `${(
+          userOwnershipPercent * 100
+        ).toFixed(1)}%`;
+
+        const userPortfolioHoldingsTable = document.getElementById(
           "userPortfolioHoldings"
         );
-        if (user.portfolio.holdings.length > 0) {
-          user.portfolio.holdings.forEach((holding) => {
-            const li = document.createElement("li");
-            li.textContent = `${holding.symbol}, ${holding.units.toFixed(2)}`;
-            userPortfolioHoldingsList.appendChild(li);
-          });
-        } else {
-          userPortfolioHoldingsList.innerHTML = "<li>No holdings</li>";
+        const userPortfolioOwnershipTable = document.getElementById(
+          "userPortfolioOwnership"
+        );
+
+        user.portfolio.holdings.forEach((holding) => {
+          const userPortfolioHoldingRow =
+            userPortfolioHoldingsTable.insertRow();
+          const symbolCell = userPortfolioHoldingRow.insertCell(0);
+          const unitsCell = userPortfolioHoldingRow.insertCell(1);
+          const valueCell = userPortfolioHoldingRow.insertCell(2);
+          const ownerUnits = holding.units * userOwnershipPercent;
+          symbolCell.textContent = holding.symbol;
+          unitsCell.textContent = `${ownerUnits.toFixed(2)}`;
+        });
+
+        user.portfolio.ownership.forEach((ownership) => {
+          if (ownership.owner_id === user.portfolio.id) {
+            return;
+          }
+          const userPortfolioOwnershipRow =
+            userPortfolioOwnershipTable.insertRow();
+          const userIdCell = userPortfolioOwnershipRow.insertCell(0);
+          const percentCell = userPortfolioOwnershipRow.insertCell(1);
+          userIdCell.textContent = `${ownership.owner_id}`;
+          percentCell.textContent = `${(ownership.percent * 100).toFixed(1)}%`;
+        });
+      }
+
+      load().then(({ user }) => {
+        if (!user) {
+          window.location.href = "/";
         }
-
-        function setupModal(openButtonId, closeButtonId, overlayId) {
-          const openButton = document.getElementById(openButtonId);
-          const closeButton = document.getElementById(closeButtonId);
-          const overlay = document.getElementById(overlayId);
-          openButton.addEventListener("click", () => {
-            overlay.classList.add("active");
-          });
-          closeButton.addEventListener("click", () => {
-            overlay.classList.remove("active");
-          });
-          overlay.addEventListener("click", (event) => {
-            if (event.target === overlay) {
-              overlay.classList.remove("active");
-            }
-          });
-        }
-
-        function setupForm(formId, errorMessageId, overlayId, endpoint) {
-          const form = document.getElementById(formId);
-          const errorMessage = document.getElementById(errorMessageId);
-          const overlay = document.getElementById(overlayId);
-
-          form.addEventListener("submit", async (event) => {
-            event.preventDefault();
-            errorMessage.textContent = "";
-
-            const formData = new FormData(form);
-            const json = Object.fromEntries(formData.entries());
-
-            try {
-              const response = await fetch(endpoint, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-Sherwood-Authorization": localStorage.getItem(
-                    "x_sherwood_authorization"
-                  ),
-                },
-                body: JSON.stringify(json),
-              });
-              if (response.ok) {
-                overlay.classList.remove("active");
-                form.reset();
-                location.reload();
-              } else {
-                const data = await response.json();
-                errorMessage.textContent =
-                  data?.error?.detail || unknownErrorMessage;
-              }
-            } catch (error) {
-              console.error(error);
-              errorMessage.textContent = unknownErrorMessage;
-            }
-          });
-        }
-
+        console.log(user);
+        makeProfile(user);
         setupModal(
           "depositButton",
           "closeDepositModalButton",
