@@ -95,7 +95,7 @@ main() {
   sudo chown -R www-data:www-data /var/www/html
   sudo chmod -R 755 /var/www/html
 
-  sudo cp "${SHERWOOD_DIR}"/nginx /etc/nginx/sites-available/sherwood
+  sudo cp "${SHERWOOD_DIR}"/nginx.conf /etc/nginx/sites-available/sherwood
   [ -L /etc/nginx/sites-enabled/sherwood ] || sudo ln -s /etc/nginx/sites-available/sherwood /etc/nginx/sites-enabled/
   sudo nginx -t
 
@@ -140,20 +140,14 @@ integration_test_case() {
   res=$(cat "$tmp_res")
   rm "$tmp_res"
 
-  echo
-  echo "${cmd[@]}"
-  echo
-  echo "${res}"
-  echo
-  echo
-
   echo "${status_code}" "${email}" "${method}" "${route}"
+
   if [ "${status_code}" -ne 200 ]; then
     echo "${cmd[@]}"
     echo "$res"
-  elif [ "${route}" = "/x/1" ]; then
+  elif [ "${route}" = "/http/1" ]; then
     access_token_by_email["${email}"]=$(echo $res | jq -r .access_token)
-  elif [ "${route}" = "/x/2" ]; then
+  elif [ "${route}" = "/http/2" ]; then
     user_id_by_email["${email}"]=$(echo $res | jq -r .id)
   fi
 }
@@ -167,19 +161,19 @@ integration_test() {
   declare -A access_token_by_email
   declare -A user_id_by_email
 
-  integration_test_case "${email_1}" POST /x/0 '{"email": "'"${email_1}"'", "password": "'"${PASSWORD}"'"}'
-  integration_test_case "${email_1}" POST /x/1 '{"email": "'"${email_1}"'", "password": "'"${PASSWORD}"'"}'
-  integration_test_case "${email_2}" POST /x/0 '{"email": "'"${email_2}"'", "password": "'"${PASSWORD}"'"}'
-  integration_test_case "${email_2}" POST /x/1 '{"email": "'"${email_2}"'", "password": "'"${PASSWORD}"'"}'
-  integration_test_case "${email_1}" GET /x/2
-  integration_test_case "${email_2}" GET /x/2
-  integration_test_case "${email_1}" POST /x/f '{"dollars": 1010}'
-  integration_test_case "${email_1}" POST /x/w '{"dollars": 10}'
-  integration_test_case "${email_2}" POST /x/f '{"dollars": 1000}'
-  integration_test_case "${email_1}" POST /x/b '{"symbol": "TSLA", "dollars": 500}'
-  integration_test_case "${email_1}" POST /x/s '{"symbol": "TSLA", "dollars": 100}'
-  integration_test_case "${email_2}" POST /x/i '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 100}'
-  integration_test_case "${email_2}" POST /x/d '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 10}'
+  integration_test_case "${email_1}" POST /http/sign-up '{"email": "'"${email_1}"'", "password": "'"${PASSWORD}"'"}'
+  integration_test_case "${email_1}" POST /http/sign-in '{"email": "'"${email_1}"'", "password": "'"${PASSWORD}"'"}'
+  integration_test_case "${email_2}" POST /http/sign-up '{"email": "'"${email_2}"'", "password": "'"${PASSWORD}"'"}'
+  integration_test_case "${email_2}" POST /http/sign-in '{"email": "'"${email_2}"'", "password": "'"${PASSWORD}"'"}'
+  integration_test_case "${email_1}" GET /http/user
+  integration_test_case "${email_2}" GET /http/user
+  integration_test_case "${email_1}" POST /http/deposit '{"dollars": 1010}'
+  integration_test_case "${email_1}" POST /http/withdraw '{"dollars": 10}'
+  integration_test_case "${email_2}" POST /http/deposit '{"dollars": 1000}'
+  integration_test_case "${email_1}" POST /http/buy '{"symbol": "TSLA", "dollars": 500}'
+  integration_test_case "${email_1}" POST /http/sell '{"symbol": "TSLA", "dollars": 100}'
+  integration_test_case "${email_2}" POST /http/invest '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 100}'
+  integration_test_case "${email_2}" POST /http/divest '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 10}'
 
   for email in "${!access_token_by_email[@]}"; do
       echo
