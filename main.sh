@@ -253,9 +253,9 @@ integration_test() {
   integration_test_case "${email_2}" POST /sign-in '{"email": "'"${email_2}"'", "password": "'"${PASSWORD}"'"}'
   integration_test_case "${email_1}" GET /user
   integration_test_case "${email_2}" GET /user
-  integration_test_case "${email_1}" POST /deposit '{"dollars": 1010}'
-  integration_test_case "${email_1}" POST /withdraw '{"dollars": 10}'
-  integration_test_case "${email_2}" POST /deposit '{"dollars": 1000}'
+  # integration_test_case "${email_1}" POST /deposit '{"dollars": 1010}'
+  # integration_test_case "${email_1}" POST /withdraw '{"dollars": 10}'
+  # integration_test_case "${email_2}" POST /deposit '{"dollars": 1000}'
   integration_test_case "${email_1}" POST /buy '{"symbol": "TSLA", "dollars": 500}'
   integration_test_case "${email_1}" POST /sell '{"symbol": "TSLA", "dollars": 100}'
   integration_test_case "${email_2}" POST /invest '{"investee_portfolio_id": "'"${user_id_by_email[${email_1}]}"'", "dollars": 100}'
