@@ -60,21 +60,21 @@ setup_postgresql() {
   database=sherwood
 
   database_exists=$(run_psql "SELECT 1 FROM pg_database WHERE datname = '${database}';")
-  [ "${database_exists}" == "1" ] || sudo_psql "CREATE DATABASE ${database};"
+  [ "${database_exists}" == "1" ] || run_psql "CREATE DATABASE ${database};"
 
   user_exists=$(run_psql "SELECT 1 FROM pg_roles WHERE rolname = '${database}';")
   if [ "${user_exists}" != "1" ]; then
-    sudo_psql "CREATE USER ${database} WITH PASSWORD '${POSTGRESQL_DATABASE_PASSWORD}';"
+    run_psql "CREATE USER ${database} WITH PASSWORD '${POSTGRESQL_DATABASE_PASSWORD}';"
   fi
 
-  # sudo_psql "GRANT USAGE ON SCHEMA public TO ${database};"
-  # sudo_psql "GRANT CREATE ON SCHEMA public TO ${database};"
-  # sudo_psql "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${database};"
-  # sudo_psql "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${database};"
-  # sudo_psql "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${database};"
-  # sudo_psql "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${database};"
-  # sudo_psql "ALTER SCHEMA public OWNER TO ${database};"
-  sudo_psql "ALTER DATABASE sherwood OWNER TO sherwood;"
+  # run_psql "GRANT USAGE ON SCHEMA public TO ${database};"
+  # run_psql "GRANT CREATE ON SCHEMA public TO ${database};"
+  # run_psql "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${database};"
+  # run_psql "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${database};"
+  # run_psql "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${database};"
+  # run_psql "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${database};"
+  # run_psql "ALTER SCHEMA public OWNER TO ${database};"
+  run_psql "ALTER DATABASE sherwood OWNER TO sherwood;"
 
   sudo sed -i "/^listen_addresses =/d" "${pg_conf}"
   echo "listen_addresses = '*'" | sudo tee -a "${pg_conf}"
