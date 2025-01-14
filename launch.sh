@@ -1,6 +1,6 @@
 #!/bin/bash
 
-git add
+git add .
 git commit -m 'fix password validator websocket'
 git push
 
