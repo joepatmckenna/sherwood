@@ -62,13 +62,17 @@
 
       let validatePasswordWebSocket;
       function connectToValidatePasswordWebSocket() {
-        validatePasswordWebSocket = new WebSocket("/ws/validate-password");
+        validatePasswordWebSocket = new WebSocket(
+          "/sherwood/ws/validate-password"
+        );
         validatePasswordWebSocket.onmessage = (event) => {
           const data = JSON.parse(event.data);
           updatePasswordRequirements(data.reasons);
         };
         validatePasswordWebSocket.onclose = () => {
-          console.warn("/ws/validate-password closed. reconnecting...");
+          console.warn(
+            "/sherwood/ws/validate-password closed. reconnecting..."
+          );
           setTimeout(connectToValidatePasswordWebSocket, 1000);
         };
       }

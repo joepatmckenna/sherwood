@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# git add . && git commit -m '.' && git push
+git add
+git commit -m 'fix password validator websocket'
+git push
 
-HOST_IP='208.68.37.48'
-
+# copy .env to /root/.env on host
 # scp -i ~/.ssh/id_rsa_sherwood .env "root@${HOST_IP}:/root/sherwood/.env"
 
-ssh "root@${HOST_IP}" << 'EOF'
+# run on host
 SHERWOOD_REPO='https://github.com/joepatmckenna/sherwood.git'
 SHERWOOD_DIR='/root/sherwood'
 if [[ -d "${SHERWOOD_DIR}" ]]; then
@@ -17,4 +18,3 @@ fi
 source /root/sherwood/main.sh
 main
 integration_test
-EOF
