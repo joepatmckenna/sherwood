@@ -101,7 +101,6 @@ async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
 
 
 _TOKEN_DURATION_HOURS = 4
-# _TOKEN_COOKIE_NAME = "x_sherwood_authorization"
 
 
 @router.post("/sign-in")
@@ -149,53 +148,53 @@ async def get_user(user: AuthorizedUser):
         )
 
 
-@router.post("/deposit")
-async def post_deposit(
-    request: DepositRequest, db: Database, user: AuthorizedUser
-) -> BuyResponse:
-    try:
-        starting_balance = user.portfolio.cash
-        deposit_cash_into_portfolio(db, user.portfolio.id, request.dollars)
-        ending_balance = user.portfolio.cash
-        return DepositResponse(
-            starting_balance=starting_balance,
-            ending_balance=ending_balance,
-        )
-    except (
-        errors.DuplicatePortfolioError,
-        errors.MissingPortfolioError,
-        errors.InternalServerError,
-    ):
-        raise
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to deposit cash. Request: {request}. Error: {exc}."
-        ) from exc
+# @router.post("/deposit")
+# async def post_deposit(
+#     request: DepositRequest, db: Database, user: AuthorizedUser
+# ) -> BuyResponse:
+#     try:
+#         starting_balance = user.portfolio.cash
+#         deposit_cash_into_portfolio(db, user.portfolio.id, request.dollars)
+#         ending_balance = user.portfolio.cash
+#         return DepositResponse(
+#             starting_balance=starting_balance,
+#             ending_balance=ending_balance,
+#         )
+#     except (
+#         errors.DuplicatePortfolioError,
+#         errors.MissingPortfolioError,
+#         errors.InternalServerError,
+#     ):
+#         raise
+#     except Exception as exc:
+#         raise errors.InternalServerError(
+#             f"Failed to deposit cash. Request: {request}. Error: {exc}."
+#         ) from exc
 
 
-@router.post("/withdraw")
-async def post_withdraw(
-    request: WithdrawRequest, db: Database, user: AuthorizedUser
-) -> BuyResponse:
-    try:
-        starting_balance = user.portfolio.cash
-        withdraw_cash_from_portfolio(db, user.portfolio.id, request.dollars)
-        ending_balance = user.portfolio.cash
-        return WithdrawResponse(
-            starting_balance=starting_balance,
-            ending_balance=ending_balance,
-        )
-    except (
-        errors.DuplicatePortfolioError,
-        errors.InsufficientCashError,
-        errors.MissingPortfolioError,
-        errors.InternalServerError,
-    ):
-        raise
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to deposit cash. Request: {request}. Error: {exc}."
-        ) from exc
+# @router.post("/withdraw")
+# async def post_withdraw(
+#     request: WithdrawRequest, db: Database, user: AuthorizedUser
+# ) -> BuyResponse:
+#     try:
+#         starting_balance = user.portfolio.cash
+#         withdraw_cash_from_portfolio(db, user.portfolio.id, request.dollars)
+#         ending_balance = user.portfolio.cash
+#         return WithdrawResponse(
+#             starting_balance=starting_balance,
+#             ending_balance=ending_balance,
+#         )
+#     except (
+#         errors.DuplicatePortfolioError,
+#         errors.InsufficientCashError,
+#         errors.MissingPortfolioError,
+#         errors.InternalServerError,
+#     ):
+#         raise
+#     except Exception as exc:
+#         raise errors.InternalServerError(
+#             f"Failed to deposit cash. Request: {request}. Error: {exc}."
+#         ) from exc
 
 
 @router.post("/buy")
@@ -206,10 +205,10 @@ async def post_buy(
         buy_portfolio_holding(db, user.portfolio.id, request.symbol, request.dollars)
         return BuyResponse()
     except (
+        errors.InternalServerError,
+        errors.MissingPortfolioError,
         errors.DuplicatePortfolioError,
         errors.InsufficientCashError,
-        errors.MissingPortfolioError,
-        errors.InternalServerError,
     ):
         raise
     except Exception as exc:
@@ -226,10 +225,10 @@ async def post_sell(
         sell_portfolio_holding(db, user.portfolio.id, request.symbol, request.dollars)
         return SellResponse()
     except (
+        errors.InternalServerError,
+        errors.MissingPortfolioError,
         errors.DuplicatePortfolioError,
         errors.InsufficientHoldingsError,
-        errors.MissingPortfolioError,
-        errors.InternalServerError,
     ):
         raise
     except Exception as exc:
@@ -251,8 +250,8 @@ async def post_invest(
         )
         return InvestResponse()
     except (
-        errors.InternalServerError,
         errors.RequestValueError,
+        errors.InternalServerError,
         errors.InsufficientCashError,
         errors.InsufficientHoldingsError,
     ):
@@ -276,8 +275,8 @@ async def post_divest(
         )
         return DivestResponse()
     except (
-        errors.InternalServerError,
         errors.RequestValueError,
+        errors.InternalServerError,
         errors.InsufficientHoldingsError,
     ):
         raise
