@@ -45,7 +45,7 @@
         event.preventDefault();
         try {
           errorMessageElement.textContent = "";
-          const response = await fetch("/http/sign-in", {
+          const response = await fetch("/sherwood/http/sign-in", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

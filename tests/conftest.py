@@ -7,16 +7,27 @@ import jose.jwt
 import os
 import pytest
 from sherwood.auth import _JWT_ALGORITHM, _JWT_ISSUER, JWT_SECRET_KEY_ENV_VAR_NAME
-from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_URL_ENV_VAR_NAME
+from sherwood.db import get_db, Session
 from sherwood.main import create_app
 from sherwood.market_data_provider import MarketDataProvider
 from sherwood.models import BaseModel
 from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
 
 
 load_dotenv(".env.dev", override=True)
 engine = create_engine(
-    os.environ[POSTGRESQL_DATABASE_URL_ENV_VAR_NAME],
+    URL.create(
+        drivername="sqlite",
+        database=":memory:",
+    ),
+    # URL.create(
+    #     drivername="postgresql",
+    #     username="joe",
+    #     host="localhost",
+    #     port=5432,
+    #     database="db",
+    # )
     connect_args={"check_same_thread": False},
 )
 Session.configure(bind=engine)

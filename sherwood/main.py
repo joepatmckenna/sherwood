@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-from datetime import timedelta
 from dotenv import load_dotenv
 from fastapi import (
     APIRouter,
@@ -9,7 +8,6 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.responses import JSONResponse
 import gunicorn.app.base
 import logging
 import os
@@ -25,11 +23,12 @@ from sherwood.broker import (
     invest_in_portfolio,
     divest_from_portfolio,
 )
-from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_URL_ENV_VAR_NAME
+from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_PASSWORD_ENV_VAR_NAME
 from sherwood.errors import error_handler
 from sherwood.messages import *
-from sherwood.models import get_current_time, to_dict, BaseModel as Base, User
+from sherwood.models import to_dict, BaseModel as Base, User
 from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session as SqlAlchemyOrmSession
 from typing import Annotated
 
@@ -89,7 +88,7 @@ async def validate_password_websocket(ws: WebSocket):
 async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
     try:
         sign_up_user(db, request.email, request.password)
-        return SignUpResponse(redirect_url="/sign-in.html")
+        return SignUpResponse(redirect_url="/sherwood/sign-in.html")
     except (
         errors.DuplicateUserError,
         errors.InternalServerError,
@@ -118,19 +117,8 @@ async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
         response = SignInResponse(
             token_type=token_type,
             access_token=access_token,
-            redirect_url="/profile.html",
+            redirect_url="/sherwood/profile.html",
         )
-        # response = JSONResponse(content=response.model_dump())
-        # response.set_cookie(
-        #     key=_TOKEN_COOKIE_NAME,
-        #     value=f"{token_type} {access_token}",
-        #     httponly=False,
-        #     secure=True,
-        #     samesite="Strict",
-        #     expires=(
-        #         get_current_time() + timedelta(hours=_TOKEN_DURATION_HOURS)
-        #     ).strftime("%a, %d-%b-%Y %H:%M:%S GMT"),
-        # )
         return response
 
     except (
@@ -326,17 +314,23 @@ class App(gunicorn.app.base.BaseApplication):
 
     def load(self):
         load_dotenv(".env", override=True)
-
-        postgresql_database_url = os.environ.get(POSTGRESQL_DATABASE_URL_ENV_VAR_NAME)
-        if not postgresql_database_url:
-            raise RuntimeError(
-                f"Environment variable '{POSTGRESQL_DATABASE_URL_ENV_VAR_NAME}' is not set."
-            )
-
-        engine = create_engine(
-            postgresql_database_url,
-            # connect_args={"check_same_thread": False},  ### DELETE ME ###
+        postgresql_database_password = os.environ.get(
+            POSTGRESQL_DATABASE_PASSWORD_ENV_VAR_NAME
         )
+        if not postgresql_database_password:
+            raise RuntimeError(
+                f"Environment variable '{POSTGRESQL_DATABASE_PASSWORD_ENV_VAR_NAME}' is not set."
+            )
+        postgresql_database_url = URL.create(
+            drivername="postgresql",
+            username="sherwood",
+            password=postgresql_database_password,
+            host="sql.joemckenna.xyz",
+            port=5432,
+            database="sherwood",
+            query={"sslmode": "require"},
+        )
+        engine = create_engine(postgresql_database_url)
         Session.configure(bind=engine)
 
         @asynccontextmanager

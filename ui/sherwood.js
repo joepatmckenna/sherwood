@@ -6,7 +6,7 @@ async function getUser() {
     return null;
   }
   try {
-    const response = await fetch("/http/user", {
+    const response = await fetch("/sherwood/http/user", {
       method: "GET",
       headers: {
         "X-Sherwood-Authorization": x_sherwood_authorization,
@@ -28,18 +28,18 @@ async function getUser() {
 async function maybeMakeBanner(user) {
   const bannerContainer = document.getElementById("bannerContainer");
   if (bannerContainer) {
-    const response = await fetch("/banner.html");
+    const response = await fetch("/sherwood/banner.html");
     const bannerHtml = await response.text();
     bannerContainer.innerHTML = bannerHtml;
     const rightLinks = document.getElementById("rightLinks");
     if (user) {
       const profileLink = document.createElement("a");
-      profileLink.href = "/profile.html";
+      profileLink.href = "/sherwood/profile.html";
       profileLink.textContent = "profile";
       rightLinks.appendChild(profileLink);
 
       const signOutLink = document.createElement("a");
-      signOutLink.href = "/";
+      signOutLink.href = "/sherwood/index.html";
       signOutLink.textContent = "sign out";
       signOutLink.addEventListener("click", () => {
         localStorage.removeItem("x_sherwood_authorization");
@@ -47,12 +47,12 @@ async function maybeMakeBanner(user) {
       rightLinks.appendChild(signOutLink);
     } else {
       const signUpLink = document.createElement("a");
-      signUpLink.href = "/sign-up.html";
+      signUpLink.href = "/sherwood/sign-up.html";
       signUpLink.textContent = "sign up";
       rightLinks.appendChild(signUpLink);
 
       const signInLink = document.createElement("a");
-      signInLink.href = "/sign-in.html";
+      signInLink.href = "/sherwood/sign-in.html";
       signInLink.textContent = "sign in";
       rightLinks.appendChild(signInLink);
     }

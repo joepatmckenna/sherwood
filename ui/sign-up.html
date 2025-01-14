@@ -83,7 +83,7 @@
         event.preventDefault();
         try {
           errorMessageElement.textContent = "";
-          const response = await fetch("/http/sign-up", {
+          const response = await fetch("/sherwood/http/sign-up", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

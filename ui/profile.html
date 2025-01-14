@@ -36,7 +36,7 @@
         color: red;
       }
     </style>
-    <link rel="stylesheet" href="/sherwood.css" />
+    <link rel="stylesheet" href="/sherwood/sherwood.css" />
   </head>
   <body>
     <div id="bannerContainer"></div>
@@ -259,7 +259,7 @@
       </div>
     </div>
 
-    <script src="/sherwood.js"></script>
+    <script src="/sherwood/sherwood.js"></script>
     <script>
       const unknownErrorMessage =
         "An unexpected error occurred. Please try again later.";
@@ -370,7 +370,7 @@
 
       load().then(({ user }) => {
         if (!user) {
-          window.location.href = "/";
+          window.location.href = "/sherwood/index.html";
         }
         console.log(user);
         makeProfile(user);
@@ -401,32 +401,37 @@
           "depositForm",
           "depositErrorMessage",
           "depositModalOverlay",
-          "/http/deposit"
+          "/sherwood/http/deposit"
         );
         setupForm(
           "withdrawForm",
           "withdrawErrorMessage",
           "withdrawModalOverlay",
-          "/http/withdraw"
+          "/sherwood/http/withdraw"
         );
-        setupForm("buyForm", "buyErrorMessage", "buyModalOverlay", "/http/buy");
+        setupForm(
+          "buyForm",
+          "buyErrorMessage",
+          "buyModalOverlay",
+          "/sherwood/http/buy"
+        );
         setupForm(
           "sellForm",
           "sellErrorMessage",
           "sellModalOverlay",
-          "/http/sell"
+          "/sherwood/http/sell"
         );
         setupForm(
           "investForm",
           "investErrorMessage",
           "investModalOverlay",
-          "/http/invest"
+          "/sherwood/http/invest"
         );
         setupForm(
           "divestForm",
           "divestErrorMessage",
           "divestModalOverlay",
-          "/http/divest"
+          "/sherwood/http/divest"
         );
       });
     </script>
