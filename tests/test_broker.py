@@ -3,10 +3,10 @@ from sherwood.auth import decode_access_token
 from sherwood.broker import (
     sign_up_user,
     sign_in_user,
-    deposit_cash_into_portfolio,
-    withdraw_cash_from_portfolio,
     buy_portfolio_holding,
     sell_portfolio_holding,
+    value_portfolio,
+    STARTING_BALANCE,
 )
 from sherwood.models import create_user, User, Portfolio, Holding, Ownership
 from sherwood import errors
@@ -15,7 +15,7 @@ from sherwood import errors
 def test_sign_up_user(db, valid_email, valid_password):
     expected = User(email=valid_email, password=valid_password)
     expected.id = 1
-    expected.portfolio = Portfolio()
+    expected.portfolio = Portfolio(cash=STARTING_BALANCE)
     expected.portfolio.id = 1
     sign_up_user(db, valid_email, valid_password)
     assert expected == db.get(User, 1)
@@ -51,53 +51,6 @@ def test_sign_in_user_incorrect_password(db, valid_email, valid_password):
     sign_up_user(db, valid_email, valid_password)
     with pytest.raises(errors.IncorrectPasswordError):
         sign_in_user(db, valid_email, "password")
-
-
-def test_deposit_cash_into_portfolio(db, valid_email, valid_password):
-    expected = User(email=valid_email, password=valid_password)
-    expected.id = 1
-    expected.portfolio = Portfolio(cash=100)
-    expected.portfolio.id = 1
-
-    user = create_user(db, valid_email, valid_password)
-    deposit_cash_into_portfolio(db, user.portfolio.id, 100)
-    assert expected == db.get(User, user.id)
-
-
-def test_deposit_cash_into_portfolio_missing_portfolio(db):
-    with pytest.raises(errors.MissingPortfolioError):
-        deposit_cash_into_portfolio(db, 1, 100)
-
-
-def test_withdraw_cash_from_portfolio(db, valid_email, valid_password):
-    expected = User(email=valid_email, password=valid_password)
-    expected.id = 1
-    expected.portfolio = Portfolio(cash=90)
-    expected.portfolio.id = 1
-
-    user = create_user(db, valid_email, valid_password)
-    deposit_cash_into_portfolio(db, user.portfolio.id, 100)
-    withdraw_cash_from_portfolio(db, user.portfolio.id, 10)
-    assert expected == db.get(User, user.id)
-
-
-def test_withdraw_cash_into_portfolio_missing_portfolio(db):
-    with pytest.raises(errors.MissingPortfolioError):
-        withdraw_cash_from_portfolio(db, 1, 100)
-
-
-def test_withdraw_cash_from_portfolio_insufficient_cash(
-    db, valid_email, valid_password
-):
-    expected = User(email=valid_email, password=valid_password)
-    expected.id = 1
-    expected.portfolio = Portfolio(cash=90)
-    expected.portfolio.id = 1
-
-    user = create_user(db, valid_email, valid_password)
-    deposit_cash_into_portfolio(db, user.portfolio.id, 100)
-    with pytest.raises(errors.InsufficientCashError):
-        withdraw_cash_from_portfolio(db, user.portfolio.id, 101)
 
 
 def test_buy_portfolio_holding(db, valid_email, valid_password):
@@ -155,3 +108,12 @@ def test_invest_in_portfolio():
 # TODO
 def test_divest_from_portfolio():
     pass
+
+
+def test_value_portfolio(db, valid_email, valid_password):
+    user = create_user(db, valid_email, valid_password)
+    user.portfolio.cash = 1000
+    buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
+    buy_portfolio_holding(db, user.portfolio.id, "BBB", 200)
+    buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
+    print(value_portfolio(user.portfolio))

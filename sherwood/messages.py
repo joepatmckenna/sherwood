@@ -46,14 +46,6 @@ class SignInRequest(BaseModel, EmailValidatorMixin):
     password: str
 
 
-# class DepositRequest(BaseModel, DollarsArePositiveValidatorMixin):
-#    dollars: float
-
-
-# class WithdrawRequest(BaseModel, DollarsArePositiveValidatorMixin):
-#    dollars: float
-
-
 class BuyRequest(BaseModel, DollarsArePositiveValidatorMixin):
     symbol: str
     dollars: float
@@ -72,7 +64,7 @@ class InvestRequest(BaseModel, DollarsArePositiveValidatorMixin):
 class DivestRequest(BaseModel, DollarsArePositiveValidatorMixin):
     investee_portfolio_id: int
     dollars: float
-    
+
 
 class SignUpResponse(BaseModel):
     redirect_url: str
@@ -82,16 +74,6 @@ class SignInResponse(BaseModel):
     token_type: str
     access_token: str
     redirect_url: str
-
-
-# class DepositResponse(BaseModel):
-#     starting_balance: float
-#     ending_balance: float
-
-
-# class WithdrawResponse(BaseModel):
-#     starting_balance: float
-#     ending_balance: float
 
 
 class BuyResponse(BaseModel):
@@ -113,16 +95,12 @@ class DivestResponse(BaseModel):
 __all__ = [
     "SignUpRequest",
     "SignInRequest",
-    "DepositRequest",
-    "WithdrawRequest",
     "BuyRequest",
     "SellRequest",
     "InvestRequest",
     "DivestRequest",
     "SignUpResponse",
     "SignInResponse",
-    "DepositResponse",
-    "WithdrawResponse",
     "BuyResponse",
     "SellResponse",
     "InvestResponse",

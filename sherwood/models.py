@@ -215,9 +215,9 @@ def parse_password(mapper, connection, target):
     target.password = password_context.hash(target.password)
 
 
-def create_user(db: Session, email: str, password: str) -> User:
+def create_user(db: Session, email: str, password: str, cash: float = 0) -> User:
     user = User(email, password)
-    user.portfolio = Portfolio()
+    user.portfolio = Portfolio(cash=cash)
     db.add(user)
     try:
         db.commit()

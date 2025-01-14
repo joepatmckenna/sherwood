@@ -1,9 +1,12 @@
+from sherwood.broker import STARTING_BALANCE
+
+
 def test_sign_up_success(client, valid_email, valid_password):
     response = client.post(
         "/sign-up", json={"email": valid_email, "password": valid_password}
     )
     assert response.status_code == 200
-    assert response.json()["redirect_url"] == "/sign-in.html"
+    assert response.json()["redirect_url"] == "/sherwood/sign-in.html"
 
 
 def test_sign_up_invalid_email(client, valid_password):
@@ -74,7 +77,7 @@ def test_get_user(client, valid_email, valid_password):
         "is_verified": False,
         "portfolio": {
             "id": 1,
-            "cash": 0.0,
+            "cash": STARTING_BALANCE,
             "holdings": [],
             "ownership": [],
         },
@@ -84,93 +87,6 @@ def test_get_user(client, valid_email, valid_password):
 def test_get_user_missing_authorization_header(client):
     get_user_response = client.get("/user")
     assert get_user_response.status_code == 401
-
-
-def test_deposit_cash_success(client, valid_email, valid_password):
-    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
-    assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
-    assert sign_in_response.status_code == 200
-    sign_in_response = sign_in_response.json()
-    headers = {
-        "X-Sherwood-Authorization": (
-            sign_in_response["token_type"] + " " + sign_in_response["access_token"]
-        )
-    }
-    deposit_response = client.post("/deposit", headers=headers, json={"dollars": 1})
-    assert deposit_response.status_code == 200
-    get_user_response = client.get("/user", headers=headers)
-    assert get_user_response.status_code == 200
-    assert get_user_response.json()["portfolio"]["cash"] == 1
-
-
-def test_deposit_cash_missing_authorization_header(client):
-    deposit_response = client.post("/deposit", json={"dollars": 1})
-    assert deposit_response.status_code == 401
-
-
-def test_deposit_cash_missing_user(client, fake_access_token):
-    deposit_response = client.post(
-        "/deposit",
-        headers={"X-Sherwood-Authorization": f"Bearer {fake_access_token}"},
-        json={"dollars": 1},
-    )
-    assert deposit_response.status_code == 404
-
-
-def test_withdraw_cash_success(db, client, valid_email, valid_password):
-    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
-    assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
-    assert sign_in_response.status_code == 200
-    sign_in_response = sign_in_response.json()
-    headers = {
-        "X-Sherwood-Authorization": (
-            sign_in_response["token_type"] + " " + sign_in_response["access_token"]
-        )
-    }
-    deposit_response = client.post("/deposit", headers=headers, json={"dollars": 100})
-    assert deposit_response.status_code == 200
-    deposit_response = client.post("/withdraw", headers=headers, json={"dollars": 1})
-    assert deposit_response.status_code == 200
-    get_user_response = client.get("/user", headers=headers)
-    assert get_user_response.status_code == 200
-    assert get_user_response.json()["portfolio"]["cash"] == 99
-
-
-def test_withdraw_insufficient_cash(client, valid_email, valid_password):
-    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
-    assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
-    assert sign_in_response.status_code == 200
-    sign_in_response = sign_in_response.json()
-    headers = {
-        "X-Sherwood-Authorization": (
-            sign_in_response["token_type"] + " " + sign_in_response["access_token"]
-        )
-    }
-    withdraw_response = client.post("/withdraw", headers=headers, json={"dollars": 1})
-    assert withdraw_response.status_code == 400
-    get_user_response = client.get("/user", headers=headers)
-    assert get_user_response.status_code == 200
-    assert get_user_response.json()["portfolio"]["cash"] == 0
-
-
-def test_withdraw_cash_missing_authorization_header(client):
-    withdraw_response = client.post("/withdraw", json={"dollars": 1})
-    assert withdraw_response.status_code == 401
-
-
-def test_withdraw_cash_missing_user(client, fake_access_token):
-    withdraw_response = client.post(
-        "/withdraw",
-        headers={"X-Sherwood-Authorization": f"Bearer {fake_access_token}"},
-        json={"dollars": 1},
-    )
-    assert withdraw_response.status_code == 404
 
 
 def test_buy_portfolio_holding_success(client, valid_email, valid_password):
@@ -185,8 +101,6 @@ def test_buy_portfolio_holding_success(client, valid_email, valid_password):
             sign_in_response["token_type"] + " " + sign_in_response["access_token"]
         )
     }
-    deposit_response = client.post("/deposit", headers=headers, json={"dollars": 100})
-    assert deposit_response.status_code == 200
     buy_response = client.post(
         "/buy", headers=headers, json={"symbol": "AAA", "dollars": 50}
     )
@@ -194,7 +108,7 @@ def test_buy_portfolio_holding_success(client, valid_email, valid_password):
     get_user_response = client.get("/user", headers=headers)
     assert get_user_response.status_code == 200
     user = get_user_response.json()
-    assert user["portfolio"]["cash"] == 50
+    assert user["portfolio"]["cash"] == STARTING_BALANCE - 50
     assert user["portfolio"]["holdings"] == [
         {"portfolio_id": 1, "symbol": "AAA", "cost": 50, "units": 50}
     ]
@@ -217,7 +131,7 @@ def test_buy_portfolio_holding_insufficient_cash(client, valid_email, valid_pass
                 sign_in_response["token_type"] + " " + sign_in_response["access_token"]
             )
         },
-        json={"symbol": "AAA", "dollars": 1},
+        json={"symbol": "AAA", "dollars": STARTING_BALANCE + 1},
     )
     assert buy_response.status_code == 400
 
@@ -234,8 +148,6 @@ def test_sell_portfolio_holding_success(client, valid_email, valid_password):
             sign_in_response["token_type"] + " " + sign_in_response["access_token"]
         )
     }
-    deposit_response = client.post("/deposit", headers=headers, json={"dollars": 100})
-    assert deposit_response.status_code == 200
     buy_response = client.post(
         "/buy", headers=headers, json={"symbol": "AAA", "dollars": 50}
     )
@@ -247,7 +159,7 @@ def test_sell_portfolio_holding_success(client, valid_email, valid_password):
     get_user_response = client.get("/user", headers=headers)
     assert get_user_response.status_code == 200
     user = get_user_response.json()
-    assert user["portfolio"]["cash"] == 75
+    assert user["portfolio"]["cash"] == STARTING_BALANCE - 25
     assert user["portfolio"]["holdings"] == [
         {"portfolio_id": 1, "symbol": "AAA", "cost": 25, "units": 25}
     ]
@@ -270,8 +182,6 @@ def test_sell_portfolio_holding_insufficient_holdings(
             sign_in_response["token_type"] + " " + sign_in_response["access_token"]
         )
     }
-    deposit_response = client.post("/deposit", headers=headers, json={"dollars": 100})
-    assert deposit_response.status_code == 200
     buy_response = client.post(
         "/buy", headers=headers, json={"symbol": "AAA", "dollars": 50}
     )
@@ -299,15 +209,6 @@ def test_invest_in_portfolio_success(client, valid_emails, valid_password):
     sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
-    deposit_response = client.post(
-        "/deposit", headers=headers[0], json={"dollars": 1000}
-    )
-    assert deposit_response.status_code == 200
-    deposit_response = client.post(
-        "/deposit", headers=headers[1], json={"dollars": 1000}
-    )
-    assert deposit_response.status_code == 200
-
     buy_response = client.post(
         "/buy", headers=headers[0], json={"symbol": "AAA", "dollars": 100}
     )
@@ -336,10 +237,10 @@ def test_invest_in_portfolio_success(client, valid_emails, valid_password):
         "is_verified": False,
         "portfolio": {
             "id": 1,
-            "cash": 800.0,
+            "cash": STARTING_BALANCE - 200,
             "holdings": [
-                {"portfolio_id": 1, "symbol": "AAA", "cost": 125.0, "units": 125.0},
-                {"portfolio_id": 1, "symbol": "BBB", "cost": 125.0, "units": 62.5},
+                {"portfolio_id": 1, "symbol": "AAA", "cost": 100.0, "units": 125.0},
+                {"portfolio_id": 1, "symbol": "BBB", "cost": 100.0, "units": 62.5},
             ],
             "ownership": [
                 {"portfolio_id": 1, "owner_id": 1, "cost": 200.0, "percent": 0.8},
@@ -353,7 +254,12 @@ def test_invest_in_portfolio_success(client, valid_emails, valid_password):
         "email": "user1@web.com",
         "display_name": None,
         "is_verified": False,
-        "portfolio": {"id": 2, "cash": 950.0, "holdings": [], "ownership": []},
+        "portfolio": {
+            "id": 2,
+            "cash": STARTING_BALANCE - 50,
+            "holdings": [],
+            "ownership": [],
+        },
     }
 
 
@@ -390,12 +296,6 @@ def test_invest_in_portfolio_insufficient_cash(client, valid_emails, valid_passw
     sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
-    deposit_response = client.post(
-        "/deposit", headers=headers[0], json={"dollars": 100}
-    )
-    assert deposit_response.status_code == 200
-    deposit_response = client.post("/deposit", headers=headers[1], json={"dollars": 1})
-    assert deposit_response.status_code == 200
     buy_response = client.post(
         "/buy", headers=headers[0], json={"symbol": "AAA", "dollars": 1}
     )
@@ -403,7 +303,7 @@ def test_invest_in_portfolio_insufficient_cash(client, valid_emails, valid_passw
     invest_response = client.post(
         "/invest",
         headers=headers[1],
-        json={"investee_portfolio_id": 1, "dollars": 1000},
+        json={"investee_portfolio_id": 1, "dollars": STARTING_BALANCE + 1},
     )
     assert invest_response.status_code == 400
 
@@ -427,10 +327,6 @@ def test_invest_in_portfolio_insufficient_investee_holdings(
     sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
-    deposit_response = client.post("/deposit", headers=headers[0], json={"dollars": 1})
-    assert deposit_response.status_code == 200
-    deposit_response = client.post("/deposit", headers=headers[1], json={"dollars": 1})
-    assert deposit_response.status_code == 200
     buy_response = client.post(
         "/buy", headers=headers[0], json={"symbol": "AAA", "dollars": 0.009}
     )
@@ -461,10 +357,6 @@ def test_invest_in_portfolio_missing_investee_ownership(
     sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
-    deposit_response = client.post("/deposit", headers=headers[0], json={"dollars": 1})
-    assert deposit_response.status_code == 200
-    deposit_response = client.post("/deposit", headers=headers[1], json={"dollars": 1})
-    assert deposit_response.status_code == 200
     invest_response = client.post(
         "/invest", headers=headers[1], json={"investee_portfolio_id": 1, "dollars": 1}
     )
@@ -489,15 +381,6 @@ def test_divest_from_portfolio_success(client, valid_emails, valid_password):
     sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
-    deposit_response = client.post(
-        "/deposit", headers=headers[0], json={"dollars": 1000}
-    )
-    assert deposit_response.status_code == 200
-    deposit_response = client.post(
-        "/deposit", headers=headers[1], json={"dollars": 1000}
-    )
-    assert deposit_response.status_code == 200
-
     buy_response = client.post(
         "/buy", headers=headers[0], json={"symbol": "AAA", "dollars": 100}
     )
@@ -530,10 +413,10 @@ def test_divest_from_portfolio_success(client, valid_emails, valid_password):
         "is_verified": False,
         "portfolio": {
             "id": 1,
-            "cash": 800.0,
+            "cash": STARTING_BALANCE - 200,
             "holdings": [
-                {"portfolio_id": 1, "symbol": "AAA", "cost": 125.0, "units": 125.0},
-                {"portfolio_id": 1, "symbol": "BBB", "cost": 125.0, "units": 62.5},
+                {"portfolio_id": 1, "symbol": "AAA", "cost": 100.0, "units": 125.0},
+                {"portfolio_id": 1, "symbol": "BBB", "cost": 100.0, "units": 62.5},
             ],
             "ownership": [
                 {"portfolio_id": 1, "owner_id": 1, "cost": 200.0, "percent": 0.8},
@@ -547,5 +430,10 @@ def test_divest_from_portfolio_success(client, valid_emails, valid_password):
         "email": "user1@web.com",
         "display_name": None,
         "is_verified": False,
-        "portfolio": {"id": 2, "cash": 950.0, "holdings": [], "ownership": []},
+        "portfolio": {
+            "id": 2,
+            "cash": STARTING_BALANCE - 50,
+            "holdings": [],
+            "ownership": [],
+        },
     }

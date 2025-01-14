@@ -51,8 +51,6 @@
         <h2>portfolio</h2>
 
         <div>
-<!--           <button id="depositButton">deposit</button> -->
-<!--           <button id="withdrawButton">withdraw</button> -->
           <button id="buyButton">buy</button>
           <button id="sellButton">sell</button>
           <button id="investButton">invest</button>
@@ -96,48 +94,6 @@
       </div>
     </div>
 
-    <!-- deposit modal -->
-    <!--     <div class="modal-overlay" id="depositModalOverlay">
-      <div class="modal">
-        <button class="close-button" id="closeDepositModalButton">
-          &times;
-        </button>
-        <h2>deposit</h2>
-        <form id="depositForm">
-          <label for="depositDollars">dollars:</label><br />
-          <input
-            type="number"
-            id="depositDollars"
-            name="dollars"
-            required
-          /><br /><br />
-          <button type="submit">submit</button><br />
-        </form>
-        <p class="error" id="depositErrorMessage"></p>
-      </div>
-    </div> -->
-
-    <!-- withdraw modal -->
-    <!--     <div class="modal-overlay" id="withdrawModalOverlay">
-      <div class="modal">
-        <button class="close-button" id="closeWithdrawModalButton">
-          &times;
-        </button>
-        <h2>withdraw</h2>
-        <form id="withdrawForm">
-          <label for="withdrawDollars">dollars:</label><br />
-          <input
-            type="number"
-            id="withdrawDollars"
-            name="dollars"
-            required
-          /><br /><br />
-          <button type="submit">submit</button><br />
-        </form>
-        <p class="error" id="withdrawErrorMessage"></p>
-      </div>
-    </div>
- -->
     <!-- buy modal -->
     <div class="modal-overlay" id="buyModalOverlay">
       <div class="modal">
@@ -373,16 +329,6 @@
         }
         console.log(user);
         makeProfile(user);
-        // setupModal(
-        //   "depositButton",
-        //   "closeDepositModalButton",
-        //   "depositModalOverlay"
-        // );
-        // setupModal(
-        //   "withdrawButton",
-        //   "closeWithdrawModalButton",
-        //   "withdrawModalOverlay"
-        // );
         setupModal("buyButton", "closeBuyModalButton", "buyModalOverlay");
         setupModal("sellButton", "closeSellModalButton", "sellModalOverlay");
         setupModal(
@@ -396,18 +342,6 @@
           "divestModalOverlay"
         );
 
-        // setupForm(
-        //   "depositForm",
-        //   "depositErrorMessage",
-        //   "depositModalOverlay",
-        //   "/sherwood/http/deposit"
-        // );
-        // setupForm(
-        //   "withdrawForm",
-        //   "withdrawErrorMessage",
-        //   "withdrawModalOverlay",
-        //   "/sherwood/http/withdraw"
-        // );
         setupForm(
           "buyForm",
           "buyErrorMessage",

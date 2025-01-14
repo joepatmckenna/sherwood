@@ -8,12 +8,16 @@ from sqlalchemy.exc import MultipleResultsFound
 
 market_data_provider = MarketDataProvider()
 
+STARTING_BALANCE = 100_000
 
-def sign_up_user(db: Session, email: str, password: str) -> None:
+
+def sign_up_user(
+    db: Session, email: str, password: str, starting_balance=STARTING_BALANCE
+) -> None:
     if db.query(User).filter_by(email=email).first() is not None:
         raise errors.DuplicateUserError(email=email)
     try:
-        create_user(db, email, password)
+        create_user(db, email, password, cash=starting_balance)
     except Exception as exc:
         raise errors.InternalServerError(detail="Failed to create user.") from exc
 
@@ -62,20 +66,6 @@ def _try_db_commit(db, error_message: str):
     except Exception as exc:
         db.rollback()
         raise errors.InternalServerError(f"{error_message} Error: {exc}") from exc
-
-
-def deposit_cash_into_portfolio(db: Session, portfolio_id: int, dollars: float):
-    portfolio = _lock_portfolios(db, [portfolio_id])[portfolio_id]
-    portfolio.cash += dollars
-    _try_db_commit(db, "Failed to deposit cash.")
-
-
-def withdraw_cash_from_portfolio(db: Session, portfolio_id: int, dollars: float):
-    portfolio = _lock_portfolios(db, [portfolio_id])[portfolio_id]
-    if dollars > portfolio.cash:
-        raise errors.InsufficientCashError(dollars, portfolio.cash)
-    portfolio.cash -= dollars
-    _try_db_commit(db, "Failed to withdraw cash.")
 
 
 def _convert_dollars_to_units(symbol: str, dollars: float) -> float:
@@ -184,9 +174,6 @@ def invest_in_portfolio(
         holding.units += (
             investee_portfolio_units_by_symbol[holding.symbol] * percent_increase
         )
-        holding.cost += (
-            investee_portfolio_value_by_symbol[holding.symbol] * percent_increase
-        )
     investor_ownership = investee_portfolio_ownership_by_owner_id.setdefault(
         investor_portfolio_id,
         Ownership(investee_portfolio_id, investor_portfolio_id, 0, 0),
@@ -241,9 +228,6 @@ def divest_from_portfolio(
         holding.units -= (
             investee_portfolio_units_by_symbol[holding.symbol] * percent_decrease
         )
-        holding.cost -= (
-            investee_portfolio_value_by_symbol[holding.symbol] * percent_decrease
-        )
     investor_portfolio.cash += dollars
     investor_ownership = investee_portfolio_ownership_by_owner_id[investor_portfolio_id]
     investor_ownership.percent -= percent_decrease
@@ -255,3 +239,41 @@ def divest_from_portfolio(
         investee_portfolio_ownership_by_owner_id.values()
     )
     _try_db_commit(db, "Failed to divest from portfolio.")
+
+
+def value_portfolio(portfolio):
+    user_ownership = [
+        ownership
+        for ownership in portfolio.ownership
+        if ownership.owner_id == portfolio.id
+    ]
+    if not user_ownership:
+        raise ValueError("missing user ownership")
+    elif len(user_ownership) > 1:
+        raise ValueError("multiple ownership with portfolio id")
+    user_ownership = user_ownership[0]
+
+    portfolio_value = sum(
+        holding.units * market_data_provider.get_price(holding.symbol)
+        for holding in portfolio.holdings
+    )
+
+    x = {
+        holding.symbol: {
+            "cost": holding.cost,
+            "value": holding.units
+            * market_data_provider.get_price(holding.symbol)
+            * user_ownership.percent,
+        }
+        for holding in portfolio.holdings
+    }
+
+    y = {
+        ownership.owner_id: {
+            "cost": ownership.cost,
+            "value": user_ownership.percent * portfolio_value,
+        }
+        for ownership in portfolio.ownership
+    }
+
+    return x, y

@@ -16,8 +16,6 @@ from sherwood.auth import decode_access_token, validate_password
 from sherwood.broker import (
     sign_up_user,
     sign_in_user,
-    deposit_cash_into_portfolio,
-    withdraw_cash_from_portfolio,
     buy_portfolio_holding,
     sell_portfolio_holding,
     invest_in_portfolio,
@@ -146,55 +144,6 @@ async def get_user(user: AuthorizedUser):
         raise errors.InternalServerError(
             f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."
         )
-
-
-# @router.post("/deposit")
-# async def post_deposit(
-#     request: DepositRequest, db: Database, user: AuthorizedUser
-# ) -> BuyResponse:
-#     try:
-#         starting_balance = user.portfolio.cash
-#         deposit_cash_into_portfolio(db, user.portfolio.id, request.dollars)
-#         ending_balance = user.portfolio.cash
-#         return DepositResponse(
-#             starting_balance=starting_balance,
-#             ending_balance=ending_balance,
-#         )
-#     except (
-#         errors.DuplicatePortfolioError,
-#         errors.MissingPortfolioError,
-#         errors.InternalServerError,
-#     ):
-#         raise
-#     except Exception as exc:
-#         raise errors.InternalServerError(
-#             f"Failed to deposit cash. Request: {request}. Error: {exc}."
-#         ) from exc
-
-
-# @router.post("/withdraw")
-# async def post_withdraw(
-#     request: WithdrawRequest, db: Database, user: AuthorizedUser
-# ) -> BuyResponse:
-#     try:
-#         starting_balance = user.portfolio.cash
-#         withdraw_cash_from_portfolio(db, user.portfolio.id, request.dollars)
-#         ending_balance = user.portfolio.cash
-#         return WithdrawResponse(
-#             starting_balance=starting_balance,
-#             ending_balance=ending_balance,
-#         )
-#     except (
-#         errors.DuplicatePortfolioError,
-#         errors.InsufficientCashError,
-#         errors.MissingPortfolioError,
-#         errors.InternalServerError,
-#     ):
-#         raise
-#     except Exception as exc:
-#         raise errors.InternalServerError(
-#             f"Failed to deposit cash. Request: {request}. Error: {exc}."
-#         ) from exc
 
 
 @router.post("/buy")
