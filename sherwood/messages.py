@@ -46,12 +46,12 @@ class SignInRequest(BaseModel, EmailValidatorMixin):
     password: str
 
 
-class DepositRequest(BaseModel, DollarsArePositiveValidatorMixin):
-    dollars: float
+# class DepositRequest(BaseModel, DollarsArePositiveValidatorMixin):
+#    dollars: float
 
 
-class WithdrawRequest(BaseModel, DollarsArePositiveValidatorMixin):
-    dollars: float
+# class WithdrawRequest(BaseModel, DollarsArePositiveValidatorMixin):
+#    dollars: float
 
 
 class BuyRequest(BaseModel, DollarsArePositiveValidatorMixin):
@@ -72,10 +72,7 @@ class InvestRequest(BaseModel, DollarsArePositiveValidatorMixin):
 class DivestRequest(BaseModel, DollarsArePositiveValidatorMixin):
     investee_portfolio_id: int
     dollars: float
-
-
-from pydantic import BaseModel
-
+    
 
 class SignUpResponse(BaseModel):
     redirect_url: str
@@ -87,14 +84,14 @@ class SignInResponse(BaseModel):
     redirect_url: str
 
 
-class DepositResponse(BaseModel):
-    starting_balance: float
-    ending_balance: float
+# class DepositResponse(BaseModel):
+#     starting_balance: float
+#     ending_balance: float
 
 
-class WithdrawResponse(BaseModel):
-    starting_balance: float
-    ending_balance: float
+# class WithdrawResponse(BaseModel):
+#     starting_balance: float
+#     ending_balance: float
 
 
 class BuyResponse(BaseModel):
