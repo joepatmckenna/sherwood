@@ -1,10 +1,14 @@
 #!/bin/bash
 
-SHERWOOD_REPO='https://github.com/joepatmckenna/sherwood.git'
 SHERWOOD_DIR='/root/sherwood'
 
-source "${SHERWOOD_DIR}/.env"
+source "/root/.env"
 # POSTGRESQL_DATABASE_PASSWORD=...
+
+if [ ! -f "/root/.env" ]; then
+  echo "Error: missing .env"
+  exit 1
+fi
 
 check_postgresql_service() {
   if systemctl is-active --quiet postgresql; then
@@ -47,9 +51,16 @@ setup_postgresql() {
   user_exists=$(run_psql "SELECT 1 FROM pg_roles WHERE rolname = '${database}';")
   if [ "${user_exists}" != "1" ]; then
     sudo_psql "CREATE USER ${database} WITH PASSWORD '${POSTGRESQL_DATABASE_PASSWORD}';"
-    sudo_psql "GRANT ALL PRIVILEGES ON DATABASE ${database} TO ${database};"
-    sudo_psql "ALTER USER ${database} WITH NOSUPERUSER NOCREATEDB NOCREATEROLE;"
   fi
+
+  # sudo_psql "GRANT USAGE ON SCHEMA public TO ${database};"
+  # sudo_psql "GRANT CREATE ON SCHEMA public TO ${database};"
+  # sudo_psql "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${database};"
+  # sudo_psql "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${database};"
+  # sudo_psql "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${database};"
+  # sudo_psql "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${database};"
+  # sudo_psql "ALTER SCHEMA public OWNER TO ${database};"
+  sudo_psql "ALTER DATABASE sherwood OWNER TO sherwood;"
 
   sudo sed -i "/^listen_addresses =/d" "${pg_conf}"
   echo "listen_addresses = '*'" | sudo tee -a "${pg_conf}"
@@ -95,36 +106,43 @@ setup_postgresql() {
 }
 
 
-VENV_DIR='/root/venv'
-PYTHON="${VENV_DIR}/bin/python"
 
 setup_sherwood() {
   sudo apt install -y git python3 python3-pip python3-venv
+
+  VENV_DIR='/root/venv'
+  PYTHON="${VENV_DIR}/bin/python"
+
   python3 -m venv "${VENV_DIR}"
 
-  if [[ -d "${SHERWOOD_DIR}" ]]; then
+  SHERWOOD_REPO='https://github.com/joepatmckenna/sherwood.git'
+  if [[ -f "${SHERWOOD_DIR}/.git" ]]; then
     git -C "${SHERWOOD_DIR}" pull
   else
     git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"
   fi
-
   "${PYTHON}" -m pip install "${SHERWOOD_DIR}" --no-cache-dir
 
-  sudo cp "${SHERWOOD_DIR}"/service /etc/systemd/system/sherwood
+  sudo cp "${SHERWOOD_DIR}"/service /etc/systemd/system/sherwood.service
+  # TODO: --env-file=/root/.env
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable sherwood
+  sudo systemctl start sherwood
 
   sudo mkdir -p /var/www/html/sherwood
-  sudo rsync -a --delete /root/sherwood/ui /var/www/html/sherwood
+  sudo rsync -a --delete /root/sherwood/ui/ /var/www/html/sherwood
 
-  sudo systemctl start sherwood
-  sudo systemctl enable sherwood
+  # sudo systemctl status sherwood
+  # sudo journalctl -u sherwood
 }
 
 setup_nginx() {
   sudo apt install -y nginx python3-certbot-nginx certbot
 
-  local config="${SHERWOOD_DIR}"/nginx.conf
-  local available="/etc/nginx/sites-available/sherwood"
-  local enabled="/etc/nginx/sites-enabled/sherwood"
+  config="${SHERWOOD_DIR}"/nginx.conf
+  available="/etc/nginx/sites-available/sherwood"
+  enabled="/etc/nginx/sites-enabled/sherwood"
 
   if [ ! -f "${config}" ]; then
     echo "Error: ${config} does not exist."
@@ -134,7 +152,7 @@ setup_nginx() {
   sudo cp "${config}" "${available}"
 
   if [ -L "${enabled}" ]; then
-    local target=$(readlink -f "${enabled}")
+    target=$(readlink -f "${enabled}")
     if [ "${target}" != "${available}" ]; then
       sudo ln -sf "${available}" "${enabled}"
     fi

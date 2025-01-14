@@ -313,7 +313,7 @@ class App(gunicorn.app.base.BaseApplication):
             self.cfg.set("workers", 2 * os.cpu_count() + 1)
 
     def load(self):
-        load_dotenv(".env", override=True)
+        load_dotenv("/root/.env", override=True)  # TODO: self.cfg.get("env_file")
         postgresql_database_password = os.environ.get(
             POSTGRESQL_DATABASE_PASSWORD_ENV_VAR_NAME
         )

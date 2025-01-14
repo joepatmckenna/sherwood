@@ -329,10 +329,9 @@
           (ownership) => ownership.owner_id === user.portfolio.id
         );
         if (!userOwnership) {
-          conosle.error("owner ownership not found");
-          return;
+          console.error("owner ownership not found");
         }
-        const userOwnershipPercent = userOwnership.percent;
+        const userOwnershipPercent = userOwnership?.percent || 0;
         document.getElementById("userOwnershipPercent").textContent = `${(
           userOwnershipPercent * 100
         ).toFixed(1)}%`;
