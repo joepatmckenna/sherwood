@@ -269,5 +269,5 @@ integration_test() {
       echo
   done
 
-  sudo_psql "DELETE FROM users WHERE email LIKE 'integration-test-%';"
+  sudo -u postgres psql -d sherwood -c "DELETE FROM users WHERE email LIKE 'integration-test%';"
 }
