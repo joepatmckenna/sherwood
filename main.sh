@@ -137,13 +137,14 @@ setup_sherwood() {
 
   sudo cp "${SHERWOOD_DIR}"/service /etc/systemd/system/sherwood.service
   # TODO: --env-file=/root/.env
-
   sudo systemctl daemon-reload
   sudo systemctl enable sherwood
   sudo systemctl start sherwood
 
   sudo mkdir -p /var/www/html/sherwood
   sudo rsync -a --delete /root/sherwood/ui/ /var/www/html/sherwood
+
+  sudo systemctl restart sherwood
 
   # sudo systemctl status sherwood
   # sudo journalctl -u sherwood
