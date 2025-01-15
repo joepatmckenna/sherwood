@@ -1,10 +1,12 @@
 from collections.abc import Iterable
 from dataclasses import fields
 import datetime
+from enum import Enum
+import re
 from sherwood import errors
 from sherwood.auth import password_context, validate_password
 from six import string_types
-from sqlalchemy import ForeignKey
+from sqlalchemy import func, ForeignKey, Index
 from sqlalchemy.event import listens_for
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -15,6 +17,9 @@ from sqlalchemy.orm import (
     Session,
 )
 from typing import Any
+
+_MIN_DISPLAY_NAME_LENGTH = 3
+_MAX_DISPLAY_NAME_LENGTH = 32
 
 get_current_time = lambda: datetime.datetime.now(datetime.timezone.utc)
 
@@ -60,11 +65,11 @@ class User(BaseModel):
     )
 
     display_name: Mapped[str] = mapped_column(
-        init=False,
-        repr=True,
-        nullable=True,
-        unique=True,
+        nullable=False,
+        index=True,
+        unique=False,
         compare=True,
+        repr=True,
     )
 
     password: Mapped[str] = mapped_column(
@@ -88,6 +93,14 @@ class User(BaseModel):
         init=False,
         repr=True,
         compare=True,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_users_display_name_lower",
+            func.lower(display_name),
+            unique=True,
+        ),
     )
 
 
@@ -207,16 +220,45 @@ class Ownership(BaseModel):
     )
 
 
+class ReasonDisplayNameInvalid(Enum):
+    TOO_SHORT = (
+        f"Display name must be at least {_MIN_DISPLAY_NAME_LENGTH} characters long."
+    )
+    TOO_Long = (
+        f"Display name must not be longer than {_MAX_DISPLAY_NAME_LENGTH} characters."
+    )
+    CONTAINS_SPECIAL = "Display name must only use letters (a-z or A-Z), numbers (0-9), underscores (_), hyphens (-), or periods (.)."
+    STARTS_WITH_SPECIAL = "Display name must begin with a letter (a-z or A-Z)."
+
+
+def validate_display_name(display_name: str) -> list[str]:
+    reasons = []
+    if len(display_name) < _MIN_DISPLAY_NAME_LENGTH:
+        reasons.append(ReasonDisplayNameInvalid.TOO_SHORT.value)
+    if len(display_name) > _MAX_DISPLAY_NAME_LENGTH:
+        reasons.append(ReasonDisplayNameInvalid.TOO_LONG.value)
+    if not re.match(r"^[a-zA-Z0-9._\-]+$", display_name):
+        reasons.append(ReasonDisplayNameInvalid.CONTAINS_SPECIAL.value)
+    if not re.match(r"^[a-zA-Z]", display_name):
+        reasons.append(ReasonDisplayNameInvalid.STARTS_WITH_SPECIAL.value)
+    return reasons
+
+
 @listens_for(User, "before_insert")
-def parse_password(mapper, connection, target):
+def validate_user(mapper, connection, target):
+    reasons = validate_display_name(target.display_name)
+    if reasons:
+        raise errors.InvalidDisplayNameError(target.display_name)
     reasons = validate_password(target.password)
     if reasons:
         raise errors.InvalidPasswordError(reasons)
     target.password = password_context.hash(target.password)
 
 
-def create_user(db: Session, email: str, password: str, cash: float = 0) -> User:
-    user = User(email, password)
+def create_user(
+    db: Session, email: str, display_name: str, password: str, cash: float = 0
+) -> User:
+    user = User(email=email, display_name=display_name, password=password)
     user.portfolio = Portfolio(cash=cash)
     db.add(user)
     try:

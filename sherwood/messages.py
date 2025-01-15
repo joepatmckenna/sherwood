@@ -1,6 +1,7 @@
 from pydantic import field_validator, BaseModel, EmailStr
 from sherwood import errors
 from sherwood.auth import validate_password
+from sherwood.models import validate_display_name
 
 
 class ModelWithEmail(BaseModel):
@@ -17,6 +18,15 @@ class EmailValidatorMixin:
             raise errors.RequestValueError(
                 f"Invalid email: {email}. Error: {exc.errors()[0]['msg']}",
             ) from exc
+
+
+class DisplayNameValidatorMixin:
+    @field_validator("display_name")
+    def validate_display_name_format(cls, password):
+        reasons = validate_display_name(password)
+        if reasons:
+            raise errors.InvalidDisplayNameError(reasons)
+        return password
 
 
 class PasswordValidatorMixin:
@@ -36,8 +46,11 @@ class DollarsArePositiveValidatorMixin:
         return dollars
 
 
-class SignUpRequest(BaseModel, EmailValidatorMixin, PasswordValidatorMixin):
+class SignUpRequest(
+    BaseModel, EmailValidatorMixin, DisplayNameValidatorMixin, PasswordValidatorMixin
+):
     email: str
+    display_name: str
     password: str
 
 

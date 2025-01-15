@@ -85,12 +85,10 @@ def decode_access_token(access_token: str) -> dict[str, str]:
             algorithms=[_JWT_ALGORITHM],
             issuer=_JWT_ISSUER,
         )
-    except jose.jwt.ExpiredSignatureError:
-        logging.error("Token has expired.")
-        raise
-    except jose.jwt.JWTClaimsError as exc:
-        logging.error(f"Invalid claims: {exc}")
-        raise
-    except jose.jwt.JWTError as exc:
-        logging.error(f"General token error: {exc}")
+    except (
+        jose.jwt.ExpiredSignatureError,
+        jose.jwt.JWTClaimsError,
+        jose.jwt.JWTError,
+    ) as exc:
+        logging.error(f"Error decoding access_token: {exc}.")
         raise

@@ -1,9 +1,14 @@
 from sherwood.broker import STARTING_BALANCE
 
 
-def test_sign_up_success(client, valid_email, valid_password):
+def test_sign_up_success(client, valid_email, valid_display_name, valid_password):
     response = client.post(
-        "/sign-up", json={"email": valid_email, "password": valid_password}
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
     )
     assert response.status_code == 200
     assert response.json()["redirect_url"] == "/sherwood/sign-in.html"
@@ -21,11 +26,19 @@ def test_sign_up_invalid_password(client, valid_email):
     assert response.status_code == 422
 
 
-def test_sign_in_success(client, valid_email, valid_password):
-    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
+def test_sign_in_success(client, valid_email, valid_display_name, valid_password):
+    sign_up_response = client.post(
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
+    )
     assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
+    sign_in_response = client.post(
+        "/sign-in", json={"email": valid_email, "password": valid_password}
+    )
     assert sign_in_response.status_code == 200
 
 
@@ -43,9 +56,16 @@ def test_sign_in_user_not_found(client, valid_email, valid_password):
     assert response.status_code == 404
 
 
-def test_sign_in_incorrect_password(client, valid_email, valid_password):
+def test_sign_in_incorrect_password(
+    client, valid_email, valid_display_name, valid_password
+):
     sign_up_response = client.post(
-        "/sign-up", json={"email": valid_email, "password": valid_password}
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
     )
     assert sign_up_response.status_code == 200
     sign_in_response = client.post(
@@ -54,11 +74,19 @@ def test_sign_in_incorrect_password(client, valid_email, valid_password):
     assert sign_in_response.status_code == 401
 
 
-def test_get_user(client, valid_email, valid_password):
-    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
+def test_get_user(client, valid_email, valid_display_name, valid_password):
+    sign_up_response = client.post(
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
+    )
     assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
+    sign_in_response = client.post(
+        "/sign-in", json={"email": valid_email, "password": valid_password}
+    )
     assert sign_in_response.status_code == 200
     sign_in_response = sign_in_response.json()
     get_user_response = client.get(
@@ -73,7 +101,7 @@ def test_get_user(client, valid_email, valid_password):
     assert get_user_response.json() == {
         "id": 1,
         "email": valid_email,
-        "display_name": None,
+        "display_name": valid_display_name,
         "is_verified": False,
         "portfolio": {
             "id": 1,
@@ -89,11 +117,21 @@ def test_get_user_missing_authorization_header(client):
     assert get_user_response.status_code == 401
 
 
-def test_buy_portfolio_holding_success(client, valid_email, valid_password):
-    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
+def test_buy_portfolio_holding_success(
+    client, valid_email, valid_display_name, valid_password
+):
+    sign_up_response = client.post(
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
+    )
     assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
+    sign_in_response = client.post(
+        "/sign-in", json={"email": valid_email, "password": valid_password}
+    )
     assert sign_in_response.status_code == 200
     sign_in_response = sign_in_response.json()
     headers = {
@@ -117,11 +155,21 @@ def test_buy_portfolio_holding_success(client, valid_email, valid_password):
     ]
 
 
-def test_buy_portfolio_holding_insufficient_cash(client, valid_email, valid_password):
-    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
+def test_buy_portfolio_holding_insufficient_cash(
+    client, valid_email, valid_display_name, valid_password
+):
+    sign_up_response = client.post(
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
+    )
     assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
+    sign_in_response = client.post(
+        "/sign-in", json={"email": valid_email, "password": valid_password}
+    )
     assert sign_in_response.status_code == 200
     sign_in_response = sign_in_response.json()
     buy_response = client.post(
@@ -136,11 +184,21 @@ def test_buy_portfolio_holding_insufficient_cash(client, valid_email, valid_pass
     assert buy_response.status_code == 400
 
 
-def test_sell_portfolio_holding_success(client, valid_email, valid_password):
-    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
+def test_sell_portfolio_holding_success(
+    client, valid_email, valid_display_name, valid_password
+):
+    sign_up_response = client.post(
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
+    )
     assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
+    sign_in_response = client.post(
+        "/sign-in", json={"email": valid_email, "password": valid_password}
+    )
     assert sign_in_response.status_code == 200
     sign_in_response = sign_in_response.json()
     headers = {
@@ -169,12 +227,20 @@ def test_sell_portfolio_holding_success(client, valid_email, valid_password):
 
 
 def test_sell_portfolio_holding_insufficient_holdings(
-    client, valid_email, valid_password
+    client, valid_email, valid_display_name, valid_password
 ):
-    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
+    sign_up_response = client.post(
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
+    )
     assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
+    sign_in_response = client.post(
+        "/sign-in", json={"email": valid_email, "password": valid_password}
+    )
     assert sign_in_response.status_code == 200
     sign_in_response = sign_in_response.json()
     headers = {
@@ -192,21 +258,35 @@ def test_sell_portfolio_holding_insufficient_holdings(
     assert sell_response.status_code == 400
 
 
-def test_invest_in_portfolio_success(client, valid_emails, valid_password):
-    sign_up_or_in_requests = [
+def test_invest_in_portfolio_success(
+    client, valid_emails, valid_display_name, valid_password
+):
+    sign_up_requests = [
+        {
+            "email": valid_emails[0],
+            "display_name": valid_display_name + "1",
+            "password": valid_password,
+        },
+        {
+            "email": valid_emails[1],
+            "display_name": valid_display_name + "2",
+            "password": valid_password,
+        },
+    ]
+    sign_in_requests = [
         {"email": valid_emails[0], "password": valid_password},
         {"email": valid_emails[1], "password": valid_password},
     ]
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[0])
+    sign_up_response = client.post("/sign-up", json=sign_up_requests[0])
     assert sign_up_response.status_code == 200
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[1])
+    sign_up_response = client.post("/sign-up", json=sign_up_requests[1])
     assert sign_up_response.status_code == 200
     _header = lambda t: {"X-Sherwood-Authorization": f"Bearer {t}"}
     headers = []
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[0])
+    sign_in_response = client.post("/sign-in", json=sign_in_requests[0])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
+    sign_in_response = client.post("/sign-in", json=sign_in_requests[1])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
     buy_response = client.post(
@@ -233,7 +313,7 @@ def test_invest_in_portfolio_success(client, valid_emails, valid_password):
     assert users[0] == {
         "id": 1,
         "email": "user0@web.com",
-        "display_name": None,
+        "display_name": valid_display_name + "1",
         "is_verified": False,
         "portfolio": {
             "id": 1,
@@ -252,7 +332,7 @@ def test_invest_in_portfolio_success(client, valid_emails, valid_password):
     assert users[1] == {
         "id": 2,
         "email": "user1@web.com",
-        "display_name": None,
+        "display_name": valid_display_name + "2",
         "is_verified": False,
         "portfolio": {
             "id": 2,
@@ -263,11 +343,21 @@ def test_invest_in_portfolio_success(client, valid_emails, valid_password):
     }
 
 
-def test_self_invest_in_portfolio(client, valid_email, valid_password):
-    sign_up_or_in_request = {"email": valid_email, "password": valid_password}
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_request)
+def test_self_invest_in_portfolio(
+    client, valid_email, valid_display_name, valid_password
+):
+    sign_up_response = client.post(
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
+    )
     assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_request)
+    sign_in_response = client.post(
+        "/sign-in", json={"email": valid_email, "password": valid_password}
+    )
     assert sign_in_response.status_code == 200
     headers = {
         "X-Sherwood-Authorization": f"Bearer {sign_in_response.json()['access_token']}"
@@ -275,25 +365,39 @@ def test_self_invest_in_portfolio(client, valid_email, valid_password):
     invest_response = client.post(
         "/invest", headers=headers, json={"investee_portfolio_id": 1, "dollars": 1}
     )
-    print(invest_response.json())
     assert invest_response.status_code == 422
 
 
-def test_invest_in_portfolio_insufficient_cash(client, valid_emails, valid_password):
-    sign_up_or_in_requests = [
+def test_invest_in_portfolio_insufficient_cash(
+    client, valid_emails, valid_display_name, valid_password
+):
+    sign_up_requests = [
+        {
+            "email": valid_emails[0],
+            "display_name": valid_display_name + "1",
+            "password": valid_password,
+        },
+        {
+            "email": valid_emails[1],
+            "display_name": valid_display_name + "2",
+            "password": valid_password,
+        },
+    ]
+    sign_in_requests = [
         {"email": valid_emails[0], "password": valid_password},
         {"email": valid_emails[1], "password": valid_password},
     ]
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[0])
+
+    sign_up_response = client.post("/sign-up", json=sign_up_requests[0])
     assert sign_up_response.status_code == 200
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[1])
+    sign_up_response = client.post("/sign-up", json=sign_up_requests[1])
     assert sign_up_response.status_code == 200
     _header = lambda t: {"X-Sherwood-Authorization": f"Bearer {t}"}
     headers = []
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[0])
+    sign_in_response = client.post("/sign-in", json=sign_in_requests[0])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
+    sign_in_response = client.post("/sign-in", json=sign_in_requests[1])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
     buy_response = client.post(
@@ -309,22 +413,34 @@ def test_invest_in_portfolio_insufficient_cash(client, valid_emails, valid_passw
 
 
 def test_invest_in_portfolio_insufficient_investee_holdings(
-    client, valid_emails, valid_password
+    client, valid_emails, valid_display_name, valid_password
 ):
-    sign_up_or_in_requests = [
+    sign_up_requests = [
+        {
+            "email": valid_emails[0],
+            "display_name": valid_display_name + "1",
+            "password": valid_password,
+        },
+        {
+            "email": valid_emails[1],
+            "display_name": valid_display_name + "2",
+            "password": valid_password,
+        },
+    ]
+    sign_in_requests = [
         {"email": valid_emails[0], "password": valid_password},
         {"email": valid_emails[1], "password": valid_password},
     ]
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[0])
+    sign_up_response = client.post("/sign-up", json=sign_up_requests[0])
     assert sign_up_response.status_code == 200
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[1])
+    sign_up_response = client.post("/sign-up", json=sign_up_requests[1])
     assert sign_up_response.status_code == 200
     _header = lambda t: {"X-Sherwood-Authorization": f"Bearer {t}"}
     headers = []
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[0])
+    sign_in_response = client.post("/sign-in", json=sign_in_requests[0])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
+    sign_in_response = client.post("/sign-in", json=sign_in_requests[1])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
     buy_response = client.post(
@@ -339,22 +455,34 @@ def test_invest_in_portfolio_insufficient_investee_holdings(
 
 
 def test_invest_in_portfolio_missing_investee_ownership(
-    client, valid_emails, valid_password
+    client, valid_emails, valid_display_name, valid_password
 ):
-    sign_up_or_in_requests = [
+    sign_up_requests = [
+        {
+            "email": valid_emails[0],
+            "display_name": valid_display_name + "1",
+            "password": valid_password,
+        },
+        {
+            "email": valid_emails[1],
+            "display_name": valid_display_name + "2",
+            "password": valid_password,
+        },
+    ]
+    sign_in_requests = [
         {"email": valid_emails[0], "password": valid_password},
         {"email": valid_emails[1], "password": valid_password},
     ]
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[0])
+    sign_up_response = client.post("/sign-up", json=sign_up_requests[0])
     assert sign_up_response.status_code == 200
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[1])
+    sign_up_response = client.post("/sign-up", json=sign_up_requests[1])
     assert sign_up_response.status_code == 200
     _header = lambda t: {"X-Sherwood-Authorization": f"Bearer {t}"}
     headers = []
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[0])
+    sign_in_response = client.post("/sign-in", json=sign_in_requests[0])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
+    sign_in_response = client.post("/sign-in", json=sign_in_requests[1])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
     invest_response = client.post(
@@ -364,21 +492,35 @@ def test_invest_in_portfolio_missing_investee_ownership(
     assert invest_response.status_code == 500
 
 
-def test_divest_from_portfolio_success(client, valid_emails, valid_password):
-    sign_up_or_in_requests = [
+def test_divest_from_portfolio_success(
+    client, valid_emails, valid_display_name, valid_password
+):
+    sign_up_requests = [
+        {
+            "email": valid_emails[0],
+            "display_name": valid_display_name + "1",
+            "password": valid_password,
+        },
+        {
+            "email": valid_emails[1],
+            "display_name": valid_display_name + "2",
+            "password": valid_password,
+        },
+    ]
+    sign_in_requests = [
         {"email": valid_emails[0], "password": valid_password},
         {"email": valid_emails[1], "password": valid_password},
     ]
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[0])
+    sign_up_response = client.post("/sign-up", json=sign_up_requests[0])
     assert sign_up_response.status_code == 200
-    sign_up_response = client.post("/sign-up", json=sign_up_or_in_requests[1])
+    sign_up_response = client.post("/sign-up", json=sign_up_requests[1])
     assert sign_up_response.status_code == 200
     _header = lambda t: {"X-Sherwood-Authorization": f"Bearer {t}"}
     headers = []
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[0])
+    sign_in_response = client.post("/sign-in", json=sign_in_requests[0])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
-    sign_in_response = client.post("/sign-in", json=sign_up_or_in_requests[1])
+    sign_in_response = client.post("/sign-in", json=sign_in_requests[1])
     assert sign_in_response.status_code == 200
     headers.append(_header(sign_in_response.json()["access_token"]))
     buy_response = client.post(
@@ -409,7 +551,7 @@ def test_divest_from_portfolio_success(client, valid_emails, valid_password):
     assert users[0] == {
         "id": 1,
         "email": "user0@web.com",
-        "display_name": None,
+        "display_name": valid_display_name + "1",
         "is_verified": False,
         "portfolio": {
             "id": 1,
@@ -428,7 +570,7 @@ def test_divest_from_portfolio_success(client, valid_emails, valid_password):
     assert users[1] == {
         "id": 2,
         "email": "user1@web.com",
-        "display_name": None,
+        "display_name": valid_display_name + "2",
         "is_verified": False,
         "portfolio": {
             "id": 2,

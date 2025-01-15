@@ -74,6 +74,11 @@ def valid_emails(scope="session"):
 
 
 @pytest.fixture
+def valid_display_name(scope="session"):
+    return "user"
+
+
+@pytest.fixture
 def valid_password(scope="session"):
     return "Abcd@1234"
 

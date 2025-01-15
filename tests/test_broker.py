@@ -12,31 +12,41 @@ from sherwood.models import create_user, User, Portfolio, Holding, Ownership
 from sherwood import errors
 
 
-def test_sign_up_user(db, valid_email, valid_password):
-    expected = User(email=valid_email, password=valid_password)
+def test_sign_up_user(db, valid_email, valid_display_name, valid_password):
+    expected = User(
+        email=valid_email, display_name=valid_display_name, password=valid_password
+    )
     expected.id = 1
     expected.portfolio = Portfolio(cash=STARTING_BALANCE)
     expected.portfolio.id = 1
-    sign_up_user(db, valid_email, valid_password)
+    sign_up_user(db, valid_email, valid_display_name, valid_password)
     assert expected == db.get(User, 1)
 
 
-def test_sign_up_user_duplicate(db, valid_email, valid_password):
-    expected = User(email=valid_email, password=valid_password)
-    expected.id = 1
-    expected.portfolio = Portfolio()
-    expected.portfolio.id = 1
-    sign_up_user(db, valid_email, valid_password)
+def test_sign_up_user_duplicate_email(
+    db, valid_email, valid_display_name, valid_password
+):
+    sign_up_user(db, valid_email, valid_display_name + "1", valid_password)
     with pytest.raises(errors.DuplicateUserError):
-        sign_up_user(db, valid_email, valid_password)
+        sign_up_user(db, valid_email, valid_display_name + "1", valid_password)
 
 
-def test_sign_in_user(db, valid_email, valid_password):
-    expected = User(email=valid_email, password=valid_password)
+def test_sign_up_user_duplicate_display_name(
+    db, valid_emails, valid_display_name, valid_password
+):
+    sign_up_user(db, valid_emails[0], valid_display_name.lower(), valid_password)
+    with pytest.raises(errors.DuplicateUserError):
+        sign_up_user(db, valid_emails[1], valid_display_name.upper(), valid_password)
+
+
+def test_sign_in_user(db, valid_email, valid_display_name, valid_password):
+    expected = User(
+        email=valid_email, display_name=valid_display_name, password=valid_password
+    )
     expected.id = 1
     expected.portfolio = Portfolio()
     expected.portfolio.id = 1
-    sign_up_user(db, valid_email, valid_password)
+    sign_up_user(db, valid_email, valid_display_name, valid_password)
     access_token = sign_in_user(db, valid_email, valid_password)
     payload = decode_access_token(access_token)
     assert payload["sub"] == str(expected.id)
@@ -47,14 +57,18 @@ def test_sign_in_user_missing_user(db, valid_email, valid_password):
         sign_in_user(db, valid_email, valid_password)
 
 
-def test_sign_in_user_incorrect_password(db, valid_email, valid_password):
-    sign_up_user(db, valid_email, valid_password)
+def test_sign_in_user_incorrect_password(
+    db, valid_email, valid_display_name, valid_password
+):
+    sign_up_user(db, valid_email, valid_display_name, valid_password)
     with pytest.raises(errors.IncorrectPasswordError):
         sign_in_user(db, valid_email, "password")
 
 
-def test_buy_portfolio_holding(db, valid_email, valid_password):
-    expected = User(email=valid_email, password=valid_password)
+def test_buy_portfolio_holding(db, valid_email, valid_display_name, valid_password):
+    expected = User(
+        email=valid_email, display_name=valid_display_name, password=valid_password
+    )
     expected.id = 1
     expected.portfolio = Portfolio(
         cash=700,
@@ -67,7 +81,7 @@ def test_buy_portfolio_holding(db, valid_email, valid_password):
         ],
     )
     expected.portfolio.id = 1
-    user = create_user(db, valid_email, valid_password)
+    user = create_user(db, valid_email, valid_display_name, valid_password)
     user.portfolio.cash = 1000
     buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
     buy_portfolio_holding(db, user.portfolio.id, "BBB", 200)
@@ -75,8 +89,10 @@ def test_buy_portfolio_holding(db, valid_email, valid_password):
     assert expected == db.get(User, 1)
 
 
-def test_sell_portfolio_holding(db, valid_email, valid_password):
-    expected = User(email=valid_email, password=valid_password)
+def test_sell_portfolio_holding(db, valid_email, valid_display_name, valid_password):
+    expected = User(
+        email=valid_email, display_name=valid_display_name, password=valid_password
+    )
     expected.id = 1
     expected.portfolio = Portfolio(
         cash=730,
@@ -90,7 +106,7 @@ def test_sell_portfolio_holding(db, valid_email, valid_password):
     )
     expected.portfolio.id = 1
 
-    user = create_user(db, valid_email, valid_password)
+    user = create_user(db, valid_email, valid_display_name, valid_password)
     user.portfolio.cash = 1000
     buy_portfolio_holding(db, user.portfolio.id, "AAA", 100)
     buy_portfolio_holding(db, user.portfolio.id, "BBB", 200)
@@ -110,10 +126,17 @@ def test_divest_from_portfolio():
     pass
 
 
-def test_value_portfolio(db, valid_email, valid_password):
-    user = create_user(db, valid_email, valid_password)
+# python -m pytest tests/test_broker.py::test_value_portfolio --capture=no
+
+
+def test_value_portfolio(db, valid_email, valid_display_name, valid_password):
+    user = create_user(db, valid_email, valid_display_name, valid_password)
     user.portfolio.cash = 1000
     buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
     buy_portfolio_holding(db, user.portfolio.id, "BBB", 200)
     buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
-    print(value_portfolio(user.portfolio))
+    from sherwood.models import to_dict
+    import json
+
+    print(json.dumps(to_dict(user), indent=2))
+    print(json.dumps(value_portfolio(user.portfolio), indent=2))

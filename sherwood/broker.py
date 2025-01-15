@@ -3,6 +3,7 @@ from sherwood import errors
 from sherwood.auth import generate_access_token, password_context
 from sherwood.market_data_provider import MarketDataProvider
 from sherwood.models import create_user, Holding, Ownership, Portfolio, User
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import MultipleResultsFound
 
@@ -12,12 +13,29 @@ STARTING_BALANCE = 100_000
 
 
 def sign_up_user(
-    db: Session, email: str, password: str, starting_balance=STARTING_BALANCE
+    db: Session,
+    email: str,
+    display_name: str,
+    password: str,
+    starting_balance=STARTING_BALANCE,
 ) -> None:
     if db.query(User).filter_by(email=email).first() is not None:
         raise errors.DuplicateUserError(email=email)
+    if (
+        db.query(User)
+        .filter(func.lower(User.display_name) == display_name.lower())
+        .first()
+        is not None
+    ):
+        raise errors.DuplicateUserError(display_name=display_name)
     try:
-        create_user(db, email, password, cash=starting_balance)
+        create_user(
+            db=db,
+            email=email,
+            display_name=display_name,
+            password=password,
+            cash=starting_balance,
+        )
     except Exception as exc:
         raise errors.InternalServerError(detail="Failed to create user.") from exc
 
@@ -252,28 +270,30 @@ def value_portfolio(portfolio):
     elif len(user_ownership) > 1:
         raise ValueError("multiple ownership with portfolio id")
     user_ownership = user_ownership[0]
-
     portfolio_value = sum(
         holding.units * market_data_provider.get_price(holding.symbol)
         for holding in portfolio.holdings
     )
+    user_value = portfolio_value * user_ownership.percent
+    user_cost = user_ownership.cost
+    return user_value - user_cost
 
-    x = {
-        holding.symbol: {
-            "cost": holding.cost,
-            "value": holding.units
-            * market_data_provider.get_price(holding.symbol)
-            * user_ownership.percent,
-        }
-        for holding in portfolio.holdings
-    }
+    # x = {
+    #     holding.symbol: {
+    #         "cost": holding.cost,
+    #         "value": holding.units
+    #         * market_data_provider.get_price(holding.symbol)
+    #         * user_ownership.percent,
+    #     }
+    #     for holding in portfolio.holdings
+    # }
 
-    y = {
-        ownership.owner_id: {
-            "cost": ownership.cost,
-            "value": user_ownership.percent * portfolio_value,
-        }
-        for ownership in portfolio.ownership
-    }
+    # y = {
+    #     ownership.owner_id: {
+    #         "cost": ownership.cost,
+    #         "value": user_ownership.percent * portfolio_value,
+    #     }
+    #     for ownership in portfolio.ownership
+    # }
 
-    return x, y
+    # return x, y

@@ -29,6 +29,15 @@ class RequestValueError(SherwoodError):
         )
 
 
+class InvalidDisplayNameError(SherwoodError):
+    def __init__(self, reasons: list[str], headers=None) -> None:
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=" ".join(reasons),
+            headers=headers,
+        )
+
+
 class InvalidPasswordError(SherwoodError):
     def __init__(self, reasons: list[str], headers=None) -> None:
         super().__init__(
@@ -72,13 +81,18 @@ class MissingUserError(SherwoodError):
 
 class DuplicateUserError(SherwoodError):
     def __init__(
-        self, user_id: str | None = None, email: str | None = None, headers=None
+        self,
+        user_id: str | None = None,
+        email: str | None = None,
+        display_name: str | None = None,
+        headers=None,
     ) -> None:
         super().__init__(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"User already exists"
             + ("" if user_id is None else f", user ID: {user_id}")
             + ("" if email is None else f", email: {email}")
+            + ("" if display_name is None else f", display_name: {display_name}")
             + ".",
             headers=headers,
         )

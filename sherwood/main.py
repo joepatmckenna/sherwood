@@ -32,6 +32,7 @@ from typing import Annotated
 
 logging.basicConfig(level=logging.DEBUG)
 
+_ACCESS_TOKEN_DURATION_HOURS = 4
 
 Database = Annotated[SqlAlchemyOrmSession, Depends(get_db)]
 
@@ -85,7 +86,7 @@ async def validate_password_websocket(ws: WebSocket):
 @router.post("/sign-up")
 async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
     try:
-        sign_up_user(db, request.email, request.password)
+        sign_up_user(db, request.email, request.display_name, request.password)
         return SignUpResponse(redirect_url="/sherwood/sign-in.html")
     except (
         errors.DuplicateUserError,
@@ -98,9 +99,6 @@ async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
         )
 
 
-_TOKEN_DURATION_HOURS = 4
-
-
 @router.post("/sign-in")
 async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
     try:
@@ -109,7 +107,7 @@ async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
             db,
             request.email,
             request.password,
-            access_token_duration_hours=_TOKEN_DURATION_HOURS,
+            access_token_duration_hours=_ACCESS_TOKEN_DURATION_HOURS,
         )
         response = SignInResponse(
             token_type=token_type,
