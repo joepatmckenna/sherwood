@@ -579,3 +579,34 @@ def test_divest_from_portfolio_success(
             "ownership": [],
         },
     }
+
+
+# python -m pytest tests/test_main.py::test_get_leaderboard_success --capture=no
+def test_get_leaderboard_success(
+    client, valid_email, valid_display_name, valid_password
+):
+
+    sign_up_response = client.post(
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
+    )
+    assert sign_up_response.status_code == 200
+    sign_in_response = client.post(
+        "/sign-in",
+        json={"email": valid_email, "password": valid_password},
+    )
+    assert sign_in_response.status_code == 200
+    headers = {
+        "X-Sherwood-Authorization": f"Bearer {sign_in_response.json()['access_token']}"
+    }
+    client.post("/buy", headers=headers, json={"symbol": "AAA", "dollars": 1000})
+
+    leaderboard_response = client.post("/leaderboard", json={"sort_by": "gain_or_loss"})
+    print(leaderboard_response)
+    import json
+
+    print(json.dumps(leaderboard_response.json(), indent=2))

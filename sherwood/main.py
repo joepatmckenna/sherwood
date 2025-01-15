@@ -240,6 +240,10 @@ from sherwood.models import to_dict, Portfolio
 from typing import Any
 
 
+class LeaderboardRequest(BaseModel):
+    sort_by: str = "gain_or_loss"
+
+
 class LeaderboardResponse(BaseModel):
     portfolios: list[dict[str, Any]]
 
@@ -265,19 +269,18 @@ def _process_portfolio(portfolio):
     return portfolio
 
 
-@router.get("/leaderboard")
-async def get_leaderboard(db: Database):
+@router.post("/leaderboard")
+async def get_leaderboard(request: LeaderboardRequest, db: Database):
     portfolios = db.query(Portfolio).all()
     symbols = {h.symbol for p in portfolios for h in p.holdings}
     market_data_provider.prefetch_prices(list(symbols))
-    processed_portfolios = []
-    with ProcessPoolExecutor() as executor:
-        futures = [executor.submit(_process_portfolio, p) for p in portfolios]
-        for future in as_completed(futures):
-            processed_portfolios.append(future.result())
-    return LeaderboardResponse(
-        portfolios=sorted(processed_portfolios, key=lambda p: p["value"] - p["cost"])
-    )
+    portfolios = [_process_portfolio(p) for p in portfolios]
+    if request.sort_by == "gain_or_loss":
+        portfolios = sorted(
+            portfolios,
+            key=lambda p: p["value"] - p["cost"],
+        )
+    return LeaderboardResponse(portfolios=portfolios)
 
 
 def create_app(*args, **kwargs):

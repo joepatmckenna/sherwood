@@ -34,6 +34,7 @@ class MarketDataProvider:
                         time=time.time(),
                         price=ticker_data.tickers[symbol].info["currentPrice"],
                     )
+                return
             except Exception as exc:
                 exceptions.append(exc)
                 attempts -= 1
