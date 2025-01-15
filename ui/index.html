@@ -13,7 +13,8 @@
       async function getLeaderboard() {
         try {
           const response = await fetch("/sherwood/http/leaderboard", {
-            method: "GET",
+            method: "POST",
+            json: JSON.stringify({ sort_by: "gain_or_loss" }),
           });
           const data = await response.json();
           if (response.ok) {
