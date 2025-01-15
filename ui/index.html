@@ -9,6 +9,23 @@
     <script src="/sherwood/sherwood.js"></script>
     <script>
       load();
+
+      async function getLeaderboard() {
+        try {
+          const response = await fetch("/sherwood/http/leaderboard", {
+            method: "GET",
+          });
+          const data = await response.json();
+          if (response.ok) {
+            console.log(data);
+          } else {
+            console.error(data);
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      getLeaderboard();
     </script>
   </body>
 </html>
