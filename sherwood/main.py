@@ -272,8 +272,8 @@ def _process_portfolio(portfolio):
 @router.post("/leaderboard")
 async def get_leaderboard(request: LeaderboardRequest, db: Database):
     portfolios = db.query(Portfolio).all()
-    symbols = {h.symbol for p in portfolios for h in p.holdings}
-    market_data_provider.prefetch_prices(list(symbols))
+    # symbols = {h.symbol for p in portfolios for h in p.holdings}
+    # market_data_provider.prefetch_prices(list(symbols))
     portfolios = [_process_portfolio(p) for p in portfolios]
     if request.sort_by == "gain_or_loss":
         portfolios = sorted(

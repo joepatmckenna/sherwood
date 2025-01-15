@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import logging
 from sherwood import errors
 import time
-import yfinance as yf
+import yfinance
 
 
 @dataclass
@@ -21,14 +21,13 @@ class MarketDataProvider:
         exceptions = []
         while attempts:
             try:
-                ticker_data = yf.Tickers(" ".join(symbols))
+                ticker_data = yfinance.Tickers(symbols)
                 for symbol in symbols:
                     if (
                         symbol not in ticker_data.tickers
                         or "currentPrice" not in ticker_data.tickers[symbol].info
                     ):
-                        logging.error(f"Missing price for symbol {symbol}")
-                        continue
+                        raise errors.InternalServerError(f"missing price for {symbol}")
                     self._by_symbol[symbol] = Quote(
                         symbol=symbol,
                         time=time.time(),
@@ -46,7 +45,7 @@ class MarketDataProvider:
         #         self._by_symbol[symbol] = Quote(
         #             symbol=symbol,
         #             time=time.time(),
-        #             price=yf.Ticker(symbol).info["currentPrice"],
+        #             price=yfinance.Ticker(symbol).info["currentPrice"],
         #         )
         #     except Exception as exc:
         #         print(f"Failed to prefetch {symbol}: {exc}")
@@ -61,7 +60,7 @@ class MarketDataProvider:
                 self._by_symbol[symbol] = Quote(
                     symbol=symbol,
                     time=time.time(),
-                    price=yf.Ticker(symbol).info["currentPrice"],
+                    price=yfinance.Ticker(symbol).info["currentPrice"],
                 )
                 return self._by_symbol[symbol].price
             except Exception as exc:
