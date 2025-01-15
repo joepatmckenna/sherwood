@@ -255,7 +255,7 @@ def _process_portfolio(portfolio):
         for ownership in portfolio["ownership"]
         if ownership["owner_id"] == portfolio["id"]
     ][0]
-    portfolio["cost"] = 0
+    portfolio["cost"] = portfolio["cash"]
     portfolio["value"] = portfolio["cash"]
     for holding in portfolio["holdings"]:
         holding["value"] = (
