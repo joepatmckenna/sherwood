@@ -266,6 +266,7 @@ def _process_portfolio(portfolio):
         portfolio["cost"] += holding["cost"]
         portfolio["value"] += holding["value"]
 
+    portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
     return portfolio
 
 
@@ -275,11 +276,11 @@ async def get_leaderboard(request: LeaderboardRequest, db: Database):
     # symbols = {h.symbol for p in portfolios for h in p.holdings}
     # market_data_provider.prefetch_prices(list(symbols))
     portfolios = [_process_portfolio(p) for p in portfolios]
-    if request.sort_by == "gain_or_loss":
-        portfolios = sorted(
-            portfolios,
-            key=lambda p: p["value"] - p["cost"],
+    if any(p.get(request.sort_by) is None for p in portfolios):
+        raise errors.InternalServerError(
+            f"at least one portfolio missing sort key: {request.sort_by}"
         )
+    portfolios = sorted(portfolios, key=lambda p: p[request.sort_by])
     return LeaderboardResponse(portfolios=portfolios)
 
 
