@@ -256,7 +256,7 @@ def _process_portfolio(portfolio):
         if ownership["owner_id"] == portfolio["id"]
     ][0]
     portfolio["cost"] = 0
-    portfolio["value"] = 0
+    portfolio["value"] = portfolio["cash"]
     for holding in portfolio["holdings"]:
         holding["value"] = (
             user_ownership["percent"]
