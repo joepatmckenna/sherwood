@@ -241,7 +241,7 @@ from typing import Any
 
 
 class LeaderboardRequest(BaseModel):
-    sort_by: str = "gain_or_loss"
+    sort_by: str
 
 
 class LeaderboardResponse(BaseModel):
