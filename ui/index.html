@@ -25,7 +25,9 @@
           console.error(error);
         }
       }
-      getLeaderboard();
+      getLeaderboard().then((response) => {
+        console.log(response);
+      });
     </script>
   </body>
 </html>
