@@ -233,6 +233,53 @@ async def post_divest(
         ) from exc
 
 
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from pydantic import BaseModel
+from sherwood.broker import market_data_provider
+from sherwood.models import to_dict, Portfolio
+from typing import Any
+
+
+class LeaderboardResponse(BaseModel):
+    portfolios: list[dict[str, Any]]
+
+
+def _process_portfolio(portfolio):
+    portfolio = to_dict(portfolio)
+    user_ownership = [
+        ownership
+        for ownership in portfolio["ownership"]
+        if ownership["owner_id"] == portfolio["id"]
+    ][0]
+    portfolio["cost"] = 0
+    portfolio["value"] = 0
+    for holding in portfolio["holdings"]:
+        holding["value"] = (
+            user_ownership["percent"]
+            * holding["units"]
+            * market_data_provider.get_price(holding["symbol"])
+        )
+        portfolio["cost"] += holding["cost"]
+        portfolio["value"] += holding["value"]
+
+    return portfolio
+
+
+@router.post("/leaderboard")
+async def get_leaderboard(db: Database):
+    portfolios = db.query(Portfolio).all()
+    symbols = {h.symbol for p in portfolios for h in p.holdings}
+    market_data_provider.prefetch_prices(list(symbols))
+    processed_portfolios = []
+    with ProcessPoolExecutor() as executor:
+        futures = [executor.submit(_process_portfolio, p) for p in portfolios]
+        for future in as_completed(futures):
+            processed_portfolios.append(future.result())
+    return LeaderboardResponse(
+        portfolios=sorted(processed_portfolios, key=lambda p: p["value"] - p["cost"])
+    )
+
+
 def create_app(*args, **kwargs):
     app = FastAPI(*args, **kwargs)
     app.include_router(router)

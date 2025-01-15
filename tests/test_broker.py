@@ -5,7 +5,6 @@ from sherwood.broker import (
     sign_in_user,
     buy_portfolio_holding,
     sell_portfolio_holding,
-    value_portfolio,
     STARTING_BALANCE,
 )
 from sherwood.models import create_user, User, Portfolio, Holding, Ownership
@@ -124,19 +123,3 @@ def test_invest_in_portfolio():
 # TODO
 def test_divest_from_portfolio():
     pass
-
-
-# python -m pytest tests/test_broker.py::test_value_portfolio --capture=no
-
-
-def test_value_portfolio(db, valid_email, valid_display_name, valid_password):
-    user = create_user(db, valid_email, valid_display_name, valid_password)
-    user.portfolio.cash = 1000
-    buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
-    buy_portfolio_holding(db, user.portfolio.id, "BBB", 200)
-    buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
-    from sherwood.models import to_dict
-    import json
-
-    print(json.dumps(to_dict(user), indent=2))
-    print(json.dumps(value_portfolio(user.portfolio), indent=2))

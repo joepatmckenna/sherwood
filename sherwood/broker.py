@@ -7,6 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import MultipleResultsFound
 
+
 market_data_provider = MarketDataProvider()
 
 STARTING_BALANCE = 100_000
@@ -257,43 +258,3 @@ def divest_from_portfolio(
         investee_portfolio_ownership_by_owner_id.values()
     )
     _try_db_commit(db, "Failed to divest from portfolio.")
-
-
-def value_portfolio(portfolio):
-    user_ownership = [
-        ownership
-        for ownership in portfolio.ownership
-        if ownership.owner_id == portfolio.id
-    ]
-    if not user_ownership:
-        raise ValueError("missing user ownership")
-    elif len(user_ownership) > 1:
-        raise ValueError("multiple ownership with portfolio id")
-    user_ownership = user_ownership[0]
-    portfolio_value = sum(
-        holding.units * market_data_provider.get_price(holding.symbol)
-        for holding in portfolio.holdings
-    )
-    user_value = portfolio_value * user_ownership.percent
-    user_cost = user_ownership.cost
-    return user_value - user_cost
-
-    # x = {
-    #     holding.symbol: {
-    #         "cost": holding.cost,
-    #         "value": holding.units
-    #         * market_data_provider.get_price(holding.symbol)
-    #         * user_ownership.percent,
-    #     }
-    #     for holding in portfolio.holdings
-    # }
-
-    # y = {
-    #     ownership.owner_id: {
-    #         "cost": ownership.cost,
-    #         "value": user_ownership.percent * portfolio_value,
-    #     }
-    #     for ownership in portfolio.ownership
-    # }
-
-    # return x, y
