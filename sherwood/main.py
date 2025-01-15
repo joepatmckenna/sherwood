@@ -265,7 +265,7 @@ def _process_portfolio(portfolio):
     return portfolio
 
 
-@router.post("/leaderboard")
+@router.get("/leaderboard")
 async def get_leaderboard(db: Database):
     portfolios = db.query(Portfolio).all()
     symbols = {h.symbol for p in portfolios for h in p.holdings}
