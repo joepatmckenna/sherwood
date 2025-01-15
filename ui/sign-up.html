@@ -88,13 +88,13 @@
         event.preventDefault();
         try {
           errorMessageElement.textContent = "";
+          const signUpForm = document.getElementById("signUpForm");
+          const signUpFormData = new FormData(signUpForm);
+          const json = Object.fromEntries(signUpFormData.entries());
           const response = await fetch("/sherwood/http/sign-up", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: document.getElementById("email").value,
-              password: document.getElementById("password").value,
-            }),
+            body: JSON.stringify(json),
           });
           const data = await response.json();
           if (response.ok) {
