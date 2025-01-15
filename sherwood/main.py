@@ -245,11 +245,12 @@ class LeaderboardRequest(BaseModel):
 
 
 class LeaderboardResponse(BaseModel):
-    portfolios: list[dict[str, Any]]
+    users: list[dict[str, Any]]
 
 
-def _process_portfolio(portfolio):
-    portfolio = to_dict(portfolio)
+def _process_user(user):
+    user = to_dict(user)
+    portfolio = user["portfolio"]
     user_ownership = [
         ownership
         for ownership in portfolio["ownership"]
@@ -265,23 +266,21 @@ def _process_portfolio(portfolio):
         )
         portfolio["cost"] += holding["cost"]
         portfolio["value"] += holding["value"]
-
     portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
-    return portfolio
+    user["portfolio"] = portfolio
+    return user
 
 
 @router.post("/leaderboard")
 async def get_leaderboard(request: LeaderboardRequest, db: Database):
-    portfolios = db.query(Portfolio).all()
-    # symbols = {h.symbol for p in portfolios for h in p.holdings}
-    # market_data_provider.prefetch_prices(list(symbols))
-    portfolios = [_process_portfolio(p) for p in portfolios]
-    if any(p.get(request.sort_by) is None for p in portfolios):
+    users = db.query(User).all()
+    users = [_process_user(user) for user in users]
+    if any(user["portfolio"].get(request.sort_by) is None for user in users):
         raise errors.InternalServerError(
             f"at least one portfolio missing sort key: {request.sort_by}"
         )
-    portfolios = sorted(portfolios, key=lambda p: p[request.sort_by])
-    return LeaderboardResponse(portfolios=portfolios)
+    users = sorted(users, key=lambda user: user["portfolio"][request.sort_by])
+    return LeaderboardResponse(users=users)
 
 
 def create_app(*args, **kwargs):

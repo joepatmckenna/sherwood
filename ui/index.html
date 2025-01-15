@@ -6,6 +6,20 @@
   </head>
   <body>
     <div id="bannerContainer"></div>
+
+    <div>
+      <h1>leaderboard</h1>
+      <table id="leaderboardTable">
+        <thead>
+          <tr>
+            <th>user</th>
+            <th>value</th>
+            <th>lifetime gain or loss</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+
     <script src="/sherwood/sherwood.js"></script>
     <script>
       load();
@@ -26,8 +40,20 @@
           console.error(error);
         }
       }
-      getLeaderboard().then((response) => {
-        console.log(response);
+      getLeaderboard().then(({ users }) => {
+        const leaderboardTable = document.getElementById("leaderboardTable");
+
+        users.forEach((user) => {
+          const leaderboardRow = leaderboardTable.insertRow();
+          const userCell = leaderboardRow.insertCell(0);
+          const valueCell = leaderboardRow.insertCell(1);
+          const gainOrLossCell = leaderboardRow.insertCell(2);
+          userCell.textContent = `${user.display_name}`;
+          valueCell.textContent = `${user.portfolio.value.toFixed(2)}`;
+          gainOrLossCell.textContent = `${user.portfolio.gain_or_loss.toFixed(
+            2
+          )}`;
+        });
       });
     </script>
   </body>
