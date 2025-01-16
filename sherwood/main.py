@@ -37,13 +37,10 @@ from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session as SqlAlchemyOrmSession
 from typing import Annotated
 
-
-LEADERBOARD_LATENCY = 60
-
-
 logging.basicConfig(level=logging.DEBUG)
 
-_ACCESS_TOKEN_DURATION_HOURS = 4
+ACCESS_TOKEN_DURATION_HOURS = 4
+LEADERBOARD_REFRESH_RATE_SECONDS = 60
 
 Database = Annotated[SqlAlchemyOrmSession, Depends(get_db)]
 
@@ -118,7 +115,7 @@ async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
             db,
             request.email,
             request.password,
-            access_token_duration_hours=_ACCESS_TOKEN_DURATION_HOURS,
+            access_token_duration_hours=ACCESS_TOKEN_DURATION_HOURS,
         )
         response = SignInResponse(
             token_type=token_type,
@@ -250,7 +247,7 @@ async def get_leaderboard(
 ) -> LeaderboardResponse:
     try:
         blob = db.get(Blob, repr(request))
-        if blob is None or has_expired(blob, LEADERBOARD_LATENCY):
+        if blob is None or has_expired(blob, LEADERBOARD_REFRESH_RATE_SECONDS):
             blob = create_leaderboard(db, request)
         return LeaderboardResponse.model_validate_json(blob.value)
     except errors.InternalServerError:
