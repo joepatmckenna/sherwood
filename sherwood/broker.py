@@ -5,7 +5,6 @@ from sherwood.market_data_provider import MarketDataProvider
 from sherwood.messages import LeaderboardRequest, LeaderboardResponse, LeaderboardSortBy
 from sherwood.models import (
     create_user,
-    get_current_time,
     to_dict,
     Blob,
     Holding,
@@ -296,19 +295,21 @@ def enrich_user_with_price_info(user):
         if ownership["owner_id"] == portfolio["id"]
     ]
     if not user_ownership:
-        return user
-    user_ownership = user_ownership[0]
-    portfolio["cost"] = portfolio["cash"]
-    portfolio["value"] = portfolio["cash"]
-    for holding in portfolio["holdings"]:
-        holding["value"] = (
-            user_ownership["percent"]
-            * holding["units"]
-            * market_data_provider.get_price(holding["symbol"])
-        )
-        portfolio["cost"] += holding["cost"]
-        portfolio["value"] += holding["value"]
-    portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
+        portfolio["gain_or_loss"] = 0
+    else:
+        user_ownership = user_ownership[0]
+        portfolio["cost"] = portfolio["cash"]
+        portfolio["value"] = portfolio["cash"]
+        for holding in portfolio["holdings"]:
+            holding["value"] = (
+                user_ownership["percent"]
+                * holding["units"]
+                * market_data_provider.get_price(holding["symbol"])
+            )
+            holding["gain_or_loss"] = holding["value"] - holding["cost"]
+            portfolio["cost"] += holding["cost"]
+            portfolio["value"] += holding["value"]
+        portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
     user["portfolio"] = portfolio
     return user
 

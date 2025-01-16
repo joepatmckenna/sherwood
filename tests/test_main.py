@@ -106,6 +106,7 @@ def test_get_user(client, valid_email, valid_display_name, valid_password):
         "is_verified": False,
         "portfolio": {
             "id": 1,
+            "gain_or_loss": 0,
             "cash": STARTING_BALANCE,
             "holdings": [],
             "ownership": [],
@@ -118,7 +119,6 @@ def test_get_user_missing_authorization_header(client):
     assert get_user_response.status_code == 401
 
 
-# python -m pytest tests/test_main.py::test_get_user_by_id
 def test_get_user_by_id(client, valid_email, valid_display_name, valid_password):
     sign_up_response = client.post(
         "/sign-up",
@@ -164,7 +164,14 @@ def test_buy_portfolio_holding_success(
     user = get_user_response.json()
     assert user["portfolio"]["cash"] == STARTING_BALANCE - 50
     assert user["portfolio"]["holdings"] == [
-        {"portfolio_id": 1, "symbol": "AAA", "cost": 50, "units": 50, "value": 50}
+        {
+            "portfolio_id": 1,
+            "symbol": "AAA",
+            "cost": 50,
+            "units": 50,
+            "value": 50,
+            "gain_or_loss": 0,
+        }
     ]
     assert user["portfolio"]["ownership"] == [
         {"portfolio_id": 1, "owner_id": 1, "cost": 50, "percent": 1}
@@ -235,7 +242,14 @@ def test_sell_portfolio_holding_success(
     user = get_user_response.json()
     assert user["portfolio"]["cash"] == STARTING_BALANCE - 25
     assert user["portfolio"]["holdings"] == [
-        {"portfolio_id": 1, "symbol": "AAA", "cost": 25, "units": 25, "value": 25}
+        {
+            "portfolio_id": 1,
+            "symbol": "AAA",
+            "cost": 25,
+            "units": 25,
+            "value": 25,
+            "gain_or_loss": 0,
+        }
     ]
     assert user["portfolio"]["ownership"] == [
         {"portfolio_id": 1, "owner_id": 1, "cost": 25, "percent": 1}

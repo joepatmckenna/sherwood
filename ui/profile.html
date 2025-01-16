@@ -70,14 +70,7 @@
 
         <div>
           <h3>holdings</h3>
-          <table id="userPortfolioHoldings">
-            <thead>
-              <tr>
-                <th>symbol</th>
-                <th>units</th>
-              </tr>
-            </thead>
-          </table>
+          <table id="userPortfolioHoldingsTable"></table>
         </div>
 
         <div>
@@ -293,11 +286,32 @@
         ).toFixed(1)}%`;
 
         const userPortfolioHoldingsTable = document.getElementById(
-          "userPortfolioHoldings"
+          "userPortfolioHoldingsTable"
         );
         const userPortfolioOwnershipTable = document.getElementById(
           "userPortfolioOwnership"
         );
+
+        // <thead>
+        //       <tr>
+        //         <th>symbol</th>
+        //         <th>units</th>
+        //       </tr>
+        //     </thead>
+
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+
+        const symbolTh = document.createElement("th");
+        symbolTh.textContent = "symbol";
+        headerRow.appendChild(symbolTh);
+
+        const unitsTh = document.createElement("th");
+        unitsTh.textContent = "units";
+        headerRow.appendChild(unitsTh);
+
+        thead.appendChild(headerRow);
+        table.insertBefore(thead, table.firstChild);
 
         user.portfolio.holdings.forEach((holding) => {
           const userPortfolioHoldingRow =
