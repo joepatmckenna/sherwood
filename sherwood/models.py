@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import fields
-import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import re
 from sherwood import errors
@@ -21,13 +21,13 @@ from typing import Any
 _MIN_DISPLAY_NAME_LENGTH = 3
 _MAX_DISPLAY_NAME_LENGTH = 32
 
-get_current_time = lambda: datetime.datetime.now(datetime.timezone.utc)
+get_current_time = lambda: datetime.now(timezone.utc)
 
 
 class BaseModel(DeclarativeBase, MappedAsDataclass):
     __abstract__ = True
 
-    created_at: Mapped[datetime.datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         init=False,
         repr=False,
         default_factory=get_current_time,
@@ -35,7 +35,7 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
         compare=False,
     )
 
-    last_updated_at: Mapped[datetime.datetime] = mapped_column(
+    last_updated_at: Mapped[datetime] = mapped_column(
         init=False,
         repr=False,
         default_factory=get_current_time,
@@ -300,5 +300,7 @@ def to_dict(obj: Any) -> dict[str, Any]:
     return obj
 
 
-def has_expired(model: BaseModel, lifetime: int):
-    return (get_current_time() - model.created_at).total_seconds() > lifetime
+def has_expired(model: BaseModel, seconds: int):
+    return (
+        get_current_time() - model.created_at.replace(tzinfo=timezone.utc)
+    ).total_seconds() > seconds
