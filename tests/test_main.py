@@ -581,9 +581,6 @@ def test_divest_from_portfolio_success(
     }
 
 
-# python -m pytest tests/test_main.py::test_get_leaderboard_success --capture=no
-
-
 def test_get_leaderboard_success(
     client, valid_email, valid_display_name, valid_password
 ):

@@ -299,10 +299,18 @@ def create_leaderboard(db, request):
     else:
         raise errors.InternalServerError(f"Unrecognized sort_by={request.sort_by}")
     response = LeaderboardResponse(users=sorted(users, key=sort_fn))
-    blob = Blob(key=repr(request), value=response.model_dump_json())
-    db.add(blob)
+
+    key = repr(request)
+    value = response.model_dump_json()
+    blob = db.get(Blob, key)
+    if blob is None:
+        blob = Blob(key=key, value=value)
+        db.add(blob)
+    else:
+        blob.value = value
     try:
         db.commit()
+        db.refresh(blob)
         return blob
     except Exception as exc:
         db.rollback()
