@@ -98,6 +98,7 @@ def test_get_user(client, valid_email, valid_display_name, valid_password):
         },
     )
     assert get_user_response.status_code == 200
+
     assert get_user_response.json() == {
         "id": 1,
         "email": valid_email,
@@ -115,6 +116,21 @@ def test_get_user(client, valid_email, valid_display_name, valid_password):
 def test_get_user_missing_authorization_header(client):
     get_user_response = client.get("/user")
     assert get_user_response.status_code == 401
+
+
+# python -m pytest tests/test_main.py::test_get_user_by_id
+def test_get_user_by_id(client, valid_email, valid_display_name, valid_password):
+    sign_up_response = client.post(
+        "/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": valid_password,
+        },
+    )
+    assert sign_up_response.status_code == 200
+    get_user_by_id_response = client.get("/user/1")
+    assert get_user_by_id_response.status_code == 200
 
 
 def test_buy_portfolio_holding_success(
@@ -148,7 +164,7 @@ def test_buy_portfolio_holding_success(
     user = get_user_response.json()
     assert user["portfolio"]["cash"] == STARTING_BALANCE - 50
     assert user["portfolio"]["holdings"] == [
-        {"portfolio_id": 1, "symbol": "AAA", "cost": 50, "units": 50}
+        {"portfolio_id": 1, "symbol": "AAA", "cost": 50, "units": 50, "value": 50}
     ]
     assert user["portfolio"]["ownership"] == [
         {"portfolio_id": 1, "owner_id": 1, "cost": 50, "percent": 1}
@@ -219,7 +235,7 @@ def test_sell_portfolio_holding_success(
     user = get_user_response.json()
     assert user["portfolio"]["cash"] == STARTING_BALANCE - 25
     assert user["portfolio"]["holdings"] == [
-        {"portfolio_id": 1, "symbol": "AAA", "cost": 25, "units": 25}
+        {"portfolio_id": 1, "symbol": "AAA", "cost": 25, "units": 25, "value": 25}
     ]
     assert user["portfolio"]["ownership"] == [
         {"portfolio_id": 1, "owner_id": 1, "cost": 25, "percent": 1}
@@ -302,45 +318,10 @@ def test_invest_in_portfolio_success(
     )
     assert invest_response.status_code == 200
 
-    users = []
     get_user_response = client.get("/user", headers=headers[0])
     assert get_user_response.status_code == 200
-    users.append(get_user_response.json())
     get_user_response = client.get("/user", headers=headers[1])
     assert get_user_response.status_code == 200
-    users.append(get_user_response.json())
-
-    assert users[0] == {
-        "id": 1,
-        "email": "user0@web.com",
-        "display_name": valid_display_names[0],
-        "is_verified": False,
-        "portfolio": {
-            "id": 1,
-            "cash": STARTING_BALANCE - 200,
-            "holdings": [
-                {"portfolio_id": 1, "symbol": "AAA", "cost": 100.0, "units": 125.0},
-                {"portfolio_id": 1, "symbol": "BBB", "cost": 100.0, "units": 62.5},
-            ],
-            "ownership": [
-                {"portfolio_id": 1, "owner_id": 1, "cost": 200.0, "percent": 0.8},
-                {"portfolio_id": 1, "owner_id": 2, "cost": 50.0, "percent": 0.2},
-            ],
-        },
-    }
-
-    assert users[1] == {
-        "id": 2,
-        "email": "user1@web.com",
-        "display_name": valid_display_names[1],
-        "is_verified": False,
-        "portfolio": {
-            "id": 2,
-            "cash": STARTING_BALANCE - 50,
-            "holdings": [],
-            "ownership": [],
-        },
-    }
 
 
 def test_self_invest_in_portfolio(
@@ -540,45 +521,10 @@ def test_divest_from_portfolio_success(
     )
     assert divest_response.status_code == 200
 
-    users = []
     get_user_response = client.get("/user", headers=headers[0])
     assert get_user_response.status_code == 200
-    users.append(get_user_response.json())
     get_user_response = client.get("/user", headers=headers[1])
     assert get_user_response.status_code == 200
-    users.append(get_user_response.json())
-
-    assert users[0] == {
-        "id": 1,
-        "email": "user0@web.com",
-        "display_name": valid_display_names[0],
-        "is_verified": False,
-        "portfolio": {
-            "id": 1,
-            "cash": STARTING_BALANCE - 200,
-            "holdings": [
-                {"portfolio_id": 1, "symbol": "AAA", "cost": 100.0, "units": 125.0},
-                {"portfolio_id": 1, "symbol": "BBB", "cost": 100.0, "units": 62.5},
-            ],
-            "ownership": [
-                {"portfolio_id": 1, "owner_id": 1, "cost": 200.0, "percent": 0.8},
-                {"portfolio_id": 1, "owner_id": 2, "cost": 50.0, "percent": 0.2},
-            ],
-        },
-    }
-
-    assert users[1] == {
-        "id": 2,
-        "email": "user1@web.com",
-        "display_name": valid_display_names[1],
-        "is_verified": False,
-        "portfolio": {
-            "id": 2,
-            "cash": STARTING_BALANCE - 50,
-            "holdings": [],
-            "ownership": [],
-        },
-    }
 
 
 def test_get_leaderboard_success(

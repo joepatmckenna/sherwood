@@ -22,6 +22,32 @@ market_data_provider = MarketDataProvider()
 STARTING_BALANCE = 100_000
 
 
+def _try_db_commit(db, error_message: str):
+    try:
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise errors.InternalServerError(f"{error_message} Error: {exc}") from exc
+
+
+def _upsert_blob(db: Session, key: str, value: str):
+    blob = db.get(Blob, key)
+    if blob is None:
+        blob = Blob(key=key, value=value)
+        db.add(blob)
+    else:
+        blob.value = value
+    try:
+        db.commit()
+        db.refresh(blob)
+        return blob
+    except Exception as exc:
+        db.rollback()
+        raise errors.InternalServerError(
+            detail=f"Failed to upsert blob. Error: {exc}"
+        ) from exc
+
+
 def sign_up_user(
     db: Session,
     email: str,
@@ -86,14 +112,6 @@ def _lock_portfolios(db: Session, portfolio_ids: list[int]) -> dict[int, Portfol
     if missing := set(portfolio_ids) - set(portfolio_by_id):
         raise errors.MissingPortfolioError(", ".join(map(str, missing)))
     return portfolio_by_id
-
-
-def _try_db_commit(db, error_message: str):
-    try:
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        raise errors.InternalServerError(f"{error_message} Error: {exc}") from exc
 
 
 def _convert_dollars_to_units(symbol: str, dollars: float) -> float:
@@ -269,14 +287,17 @@ def divest_from_portfolio(
     _try_db_commit(db, "Failed to divest from portfolio.")
 
 
-def _create_leaderboard__process_user(user):
+def enrich_user_with_price_info(user):
     user = to_dict(user)
     portfolio = user["portfolio"]
     user_ownership = [
         ownership
         for ownership in portfolio["ownership"]
         if ownership["owner_id"] == portfolio["id"]
-    ][0]
+    ]
+    if not user_ownership:
+        return user
+    user_ownership = user_ownership[0]
     portfolio["cost"] = portfolio["cash"]
     portfolio["value"] = portfolio["cash"]
     for holding in portfolio["holdings"]:
@@ -293,27 +314,10 @@ def _create_leaderboard__process_user(user):
 
 
 def create_leaderboard(db, request):
-    users = [_create_leaderboard__process_user(user) for user in db.query(User).all()]
+    users = [enrich_user_with_price_info(user) for user in db.query(User).all()]
     if request.sort_by == LeaderboardSortBy.GAIN_OR_LOSS:
-        sort_fn = lambda user: user["portfolio"]["gain_or_loss"]
+        sort_fn = lambda user: user["portfolio"].get(request.sort_by, 0)
     else:
         raise errors.InternalServerError(f"Unrecognized sort_by={request.sort_by}")
     response = LeaderboardResponse(users=sorted(users, key=sort_fn))
-
-    key = repr(request)
-    value = response.model_dump_json()
-    blob = db.get(Blob, key)
-    if blob is None:
-        blob = Blob(key=key, value=value)
-        db.add(blob)
-    else:
-        blob.value = value
-    try:
-        db.commit()
-        db.refresh(blob)
-        return blob
-    except Exception as exc:
-        db.rollback()
-        raise errors.InternalServerError(
-            detail=f"Failed to create leaderboard. Error: {exc}"
-        ) from exc
+    return _upsert_blob(db, repr(request), response.model_dump_json())

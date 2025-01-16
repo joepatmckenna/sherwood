@@ -15,6 +15,7 @@ from sherwood import errors
 from sherwood.auth import decode_access_token, validate_password
 from sherwood.broker import (
     create_leaderboard,
+    enrich_user_with_price_info,
     sign_up_user,
     sign_in_user,
     buy_portfolio_holding,
@@ -140,12 +141,22 @@ async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
 @router.get("/user")
 async def get_user(user: AuthorizedUser):
     try:
-        return to_dict(user)
+        return enrich_user_with_price_info(user)
     except (
         errors.InvalidAccessToken,
         errors.MissingUserError,
     ):
         raise
+    except Exception as exc:
+        raise errors.InternalServerError(
+            f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."
+        )
+
+
+@router.get("/user/{user_id}")
+async def get_user_by_id(user_id: int, db: Database):
+    try:
+        return enrich_user_with_price_info(db.get(User, user_id))
     except Exception as exc:
         raise errors.InternalServerError(
             f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."

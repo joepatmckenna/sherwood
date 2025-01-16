@@ -57,9 +57,10 @@
           valueCell.textContent = `$${user.portfolio.value.toFixed(2)}`;
 
           const gainOrLossCell = leaderboardRow.insertCell(2);
-          gainOrLossCell.textContent = `$${user.portfolio.gain_or_loss.toFixed(
-            2
-          )}`;
+          const gainOrLoss = user.portfolio.gain_or_loss;
+          const percentChange =
+            100 * (gainOrLoss / user.portfolio.cost).toFixed(1);
+          gainOrLossCell.textContent = `$${gainOrLoss} (${percentChange}%)`;
         });
       });
     </script>

@@ -61,6 +61,18 @@ class SignInRequest(BaseModel, EmailValidatorMixin):
     password: str
 
 
+class LeaderboardSortBy(Enum):
+    GAIN_OR_LOSS = "gain_or_loss"
+
+
+class LeaderboardRequest(BaseModel):
+    sort_by: LeaderboardSortBy
+
+
+class LeaderboardResponse(BaseModel):
+    users: list[dict[str, Any]]
+
+
 class BuyRequest(BaseModel, DollarsArePositiveValidatorMixin):
     symbol: str
     dollars: float
@@ -107,21 +119,11 @@ class DivestResponse(BaseModel):
     pass
 
 
-class LeaderboardSortBy(Enum):
-    GAIN_OR_LOSS = "gain_or_loss"
-
-
-class LeaderboardRequest(BaseModel):
-    sort_by: LeaderboardSortBy
-
-
-class LeaderboardResponse(BaseModel):
-    users: list[dict[str, Any]]
-
-
 __all__ = [
     "SignUpRequest",
     "SignInRequest",
+    "LeaderboardRequest",
+    "LeaderboardResponse",
     "BuyRequest",
     "SellRequest",
     "InvestRequest",
@@ -132,6 +134,4 @@ __all__ = [
     "SellResponse",
     "InvestResponse",
     "DivestResponse",
-    "LeaderboardRequest",
-    "LeaderboardResponse",
 ]
