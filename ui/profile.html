@@ -293,30 +293,7 @@
           "userPortfolioHoldingsTable"
         );
 
-        const thead = document.createElement("thead");
-        const headerRow = document.createElement("tr");
-
-        const symbolTh = document.createElement("th");
-        symbolTh.textContent = "symbol";
-        headerRow.appendChild(symbolTh);
-
-        const unitsTh = document.createElement("th");
-        unitsTh.textContent = "units";
-        headerRow.appendChild(unitsTh);
-
-        thead.appendChild(headerRow);
-        table.insertBefore(thead, table.firstChild);
-
-        user.portfolio.holdings.forEach((holding) => {
-          const userPortfolioHoldingRow =
-            userPortfolioHoldingsTable.insertRow();
-          const symbolCell = userPortfolioHoldingRow.insertCell(0);
-          const unitsCell = userPortfolioHoldingRow.insertCell(1);
-          const valueCell = userPortfolioHoldingRow.insertCell(2);
-          const ownerUnits = holding.units * userOwnershipPercent;
-          symbolCell.textContent = holding.symbol;
-          unitsCell.textContent = `${ownerUnits.toFixed(2)}`;
-        });
+        makeUserPortfolioHoldingsTable(user, "userPortfolioHoldingsTable");
 
         user.portfolio.ownership.forEach((ownership) => {
           if (ownership.owner_id === user.portfolio.id) {
