@@ -86,7 +86,7 @@ function makeUserPortfolioHoldingsTable(user, elementId) {
     const userPortfolioHoldingRow = userPortfolioHoldingsTable.insertRow();
     const symbolCell = userPortfolioHoldingRow.insertCell(0);
     const unitsCell = userPortfolioHoldingRow.insertCell(1);
-\    const ownerUnits = holding.units * userOwnershipPercent;
+    const ownerUnits = holding.units * userOwnershipPercent;
     symbolCell.textContent = holding.symbol;
     unitsCell.textContent = `${ownerUnits.toFixed(2)}`;
   });

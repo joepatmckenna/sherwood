@@ -20,7 +20,6 @@ main
 integration_test
 
 
-SHERWOOD_DIR='/root/sherwood'
-git -C "${SHERWOOD_DIR}" pull
+git -C /root/sherwood pull
 source /root/sherwood/main.sh
 main
