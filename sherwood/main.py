@@ -14,6 +14,7 @@ import os
 from sherwood import errors
 from sherwood.auth import decode_access_token, validate_password
 from sherwood.broker import (
+    create_leaderboard,
     sign_up_user,
     sign_in_user,
     buy_portfolio_holding,
@@ -24,11 +25,21 @@ from sherwood.broker import (
 from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_PASSWORD_ENV_VAR_NAME
 from sherwood.errors import error_handler
 from sherwood.messages import *
-from sherwood.models import to_dict, BaseModel as Base, User
+from sherwood.models import (
+    has_expired,
+    to_dict,
+    BaseModel as Base,
+    Blob,
+    User,
+)
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session as SqlAlchemyOrmSession
 from typing import Annotated
+
+
+LEADERBOARD_LATENCY = 60
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -233,54 +244,21 @@ async def post_divest(
         ) from exc
 
 
-from concurrent.futures import ProcessPoolExecutor, as_completed
-from pydantic import BaseModel
-from sherwood.broker import market_data_provider
-from sherwood.models import to_dict, Portfolio
-from typing import Any
-
-
-class LeaderboardRequest(BaseModel):
-    sort_by: str
-
-
-class LeaderboardResponse(BaseModel):
-    users: list[dict[str, Any]]
-
-
-def _process_user(user):
-    user = to_dict(user)
-    portfolio = user["portfolio"]
-    user_ownership = [
-        ownership
-        for ownership in portfolio["ownership"]
-        if ownership["owner_id"] == portfolio["id"]
-    ][0]
-    portfolio["cost"] = portfolio["cash"]
-    portfolio["value"] = portfolio["cash"]
-    for holding in portfolio["holdings"]:
-        holding["value"] = (
-            user_ownership["percent"]
-            * holding["units"]
-            * market_data_provider.get_price(holding["symbol"])
-        )
-        portfolio["cost"] += holding["cost"]
-        portfolio["value"] += holding["value"]
-    portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
-    user["portfolio"] = portfolio
-    return user
-
-
 @router.post("/leaderboard")
-async def get_leaderboard(request: LeaderboardRequest, db: Database):
-    users = db.query(User).all()
-    users = [_process_user(user) for user in users]
-    if any(user["portfolio"].get(request.sort_by) is None for user in users):
+async def get_leaderboard(
+    request: LeaderboardRequest, db: Database
+) -> LeaderboardResponse:
+    try:
+        blob = db.get(Blob, repr(request))
+        if blob is None or has_expired(blob, LEADERBOARD_LATENCY):
+            blob = create_leaderboard(db, request)
+        return LeaderboardResponse.model_validate_json(blob.value)
+    except errors.InternalServerError:
+        raise
+    except Exception as exc:
         raise errors.InternalServerError(
-            f"at least one portfolio missing sort key: {request.sort_by}"
-        )
-    users = sorted(users, key=lambda user: user["portfolio"][request.sort_by])
-    return LeaderboardResponse(users=users)
+            f"Failed to get leaderboard. Request: {request}. Error: {exc}."
+        ) from exc
 
 
 def create_app(*args, **kwargs):

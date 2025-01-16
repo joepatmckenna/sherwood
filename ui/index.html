@@ -50,8 +50,8 @@
           const valueCell = leaderboardRow.insertCell(1);
           const gainOrLossCell = leaderboardRow.insertCell(2);
           userCell.textContent = `${user.display_name}`;
-          valueCell.textContent = `${user.portfolio.value.toFixed(2)}`;
-          gainOrLossCell.textContent = `${user.portfolio.gain_or_loss.toFixed(
+          valueCell.textContent = `$${user.portfolio.value.toFixed(2)}`;
+          gainOrLossCell.textContent = `$${user.portfolio.gain_or_loss.toFixed(
             2
           )}`;
         });

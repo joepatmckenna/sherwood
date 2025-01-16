@@ -259,17 +259,17 @@ def test_sell_portfolio_holding_insufficient_holdings(
 
 
 def test_invest_in_portfolio_success(
-    client, valid_emails, valid_display_name, valid_password
+    client, valid_emails, valid_display_names, valid_password
 ):
     sign_up_requests = [
         {
             "email": valid_emails[0],
-            "display_name": valid_display_name + "1",
+            "display_name": valid_display_names[0],
             "password": valid_password,
         },
         {
             "email": valid_emails[1],
-            "display_name": valid_display_name + "2",
+            "display_name": valid_display_names[1],
             "password": valid_password,
         },
     ]
@@ -313,7 +313,7 @@ def test_invest_in_portfolio_success(
     assert users[0] == {
         "id": 1,
         "email": "user0@web.com",
-        "display_name": valid_display_name + "1",
+        "display_name": valid_display_names[0],
         "is_verified": False,
         "portfolio": {
             "id": 1,
@@ -332,7 +332,7 @@ def test_invest_in_portfolio_success(
     assert users[1] == {
         "id": 2,
         "email": "user1@web.com",
-        "display_name": valid_display_name + "2",
+        "display_name": valid_display_names[1],
         "is_verified": False,
         "portfolio": {
             "id": 2,
@@ -369,17 +369,17 @@ def test_self_invest_in_portfolio(
 
 
 def test_invest_in_portfolio_insufficient_cash(
-    client, valid_emails, valid_display_name, valid_password
+    client, valid_emails, valid_display_names, valid_password
 ):
     sign_up_requests = [
         {
             "email": valid_emails[0],
-            "display_name": valid_display_name + "1",
+            "display_name": valid_display_names[0],
             "password": valid_password,
         },
         {
             "email": valid_emails[1],
-            "display_name": valid_display_name + "2",
+            "display_name": valid_display_names[1],
             "password": valid_password,
         },
     ]
@@ -413,17 +413,17 @@ def test_invest_in_portfolio_insufficient_cash(
 
 
 def test_invest_in_portfolio_insufficient_investee_holdings(
-    client, valid_emails, valid_display_name, valid_password
+    client, valid_emails, valid_display_names, valid_password
 ):
     sign_up_requests = [
         {
             "email": valid_emails[0],
-            "display_name": valid_display_name + "1",
+            "display_name": valid_display_names[0],
             "password": valid_password,
         },
         {
             "email": valid_emails[1],
-            "display_name": valid_display_name + "2",
+            "display_name": valid_display_names[1],
             "password": valid_password,
         },
     ]
@@ -455,17 +455,17 @@ def test_invest_in_portfolio_insufficient_investee_holdings(
 
 
 def test_invest_in_portfolio_missing_investee_ownership(
-    client, valid_emails, valid_display_name, valid_password
+    client, valid_emails, valid_display_names, valid_password
 ):
     sign_up_requests = [
         {
             "email": valid_emails[0],
-            "display_name": valid_display_name + "1",
+            "display_name": valid_display_names[0],
             "password": valid_password,
         },
         {
             "email": valid_emails[1],
-            "display_name": valid_display_name + "2",
+            "display_name": valid_display_names[1],
             "password": valid_password,
         },
     ]
@@ -493,17 +493,17 @@ def test_invest_in_portfolio_missing_investee_ownership(
 
 
 def test_divest_from_portfolio_success(
-    client, valid_emails, valid_display_name, valid_password
+    client, valid_emails, valid_display_names, valid_password
 ):
     sign_up_requests = [
         {
             "email": valid_emails[0],
-            "display_name": valid_display_name + "1",
+            "display_name": valid_display_names[0],
             "password": valid_password,
         },
         {
             "email": valid_emails[1],
-            "display_name": valid_display_name + "2",
+            "display_name": valid_display_names[1],
             "password": valid_password,
         },
     ]
@@ -551,7 +551,7 @@ def test_divest_from_portfolio_success(
     assert users[0] == {
         "id": 1,
         "email": "user0@web.com",
-        "display_name": valid_display_name + "1",
+        "display_name": valid_display_names[0],
         "is_verified": False,
         "portfolio": {
             "id": 1,
@@ -570,7 +570,7 @@ def test_divest_from_portfolio_success(
     assert users[1] == {
         "id": 2,
         "email": "user1@web.com",
-        "display_name": valid_display_name + "2",
+        "display_name": valid_display_names[1],
         "is_verified": False,
         "portfolio": {
             "id": 2,
@@ -581,11 +581,9 @@ def test_divest_from_portfolio_success(
     }
 
 
-# python -m pytest tests/test_main.py::test_get_leaderboard_success --capture=no
 def test_get_leaderboard_success(
     client, valid_email, valid_display_name, valid_password
 ):
-
     sign_up_response = client.post(
         "/sign-up",
         json={
@@ -604,9 +602,5 @@ def test_get_leaderboard_success(
         "X-Sherwood-Authorization": f"Bearer {sign_in_response.json()['access_token']}"
     }
     client.post("/buy", headers=headers, json={"symbol": "AAA", "dollars": 1000})
-
     leaderboard_response = client.post("/leaderboard", json={"sort_by": "gain_or_loss"})
-    print(leaderboard_response)
-    import json
-
-    print(json.dumps(leaderboard_response.json(), indent=2))
+    assert leaderboard_response.status_code == 200

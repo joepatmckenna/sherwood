@@ -21,13 +21,6 @@ engine = create_engine(
         drivername="sqlite",
         database=":memory:",
     ),
-    # URL.create(
-    #     drivername="postgresql",
-    #     username="joe",
-    #     host="localhost",
-    #     port=5432,
-    #     database="db",
-    # )
     connect_args={"check_same_thread": False},
 )
 Session.configure(bind=engine)
@@ -76,6 +69,11 @@ def valid_emails(scope="session"):
 @pytest.fixture
 def valid_display_name(scope="session"):
     return "user"
+
+
+@pytest.fixture
+def valid_display_names(scope="session"):
+    return [f"user{i}" for i in range(10)]
 
 
 @pytest.fixture

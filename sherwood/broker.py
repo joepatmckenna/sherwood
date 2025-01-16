@@ -1,12 +1,21 @@
-import logging
+import json
 from sherwood import errors
 from sherwood.auth import generate_access_token, password_context
 from sherwood.market_data_provider import MarketDataProvider
-from sherwood.models import create_user, Holding, Ownership, Portfolio, User
+from sherwood.messages import LeaderboardRequest, LeaderboardResponse, LeaderboardSortBy
+from sherwood.models import (
+    create_user,
+    get_current_time,
+    to_dict,
+    Blob,
+    Holding,
+    Ownership,
+    Portfolio,
+    User,
+)
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import MultipleResultsFound
-
 
 market_data_provider = MarketDataProvider()
 
@@ -258,3 +267,45 @@ def divest_from_portfolio(
         investee_portfolio_ownership_by_owner_id.values()
     )
     _try_db_commit(db, "Failed to divest from portfolio.")
+
+
+def _create_leaderboard__process_user(user):
+    user = to_dict(user)
+    portfolio = user["portfolio"]
+    user_ownership = [
+        ownership
+        for ownership in portfolio["ownership"]
+        if ownership["owner_id"] == portfolio["id"]
+    ][0]
+    portfolio["cost"] = portfolio["cash"]
+    portfolio["value"] = portfolio["cash"]
+    for holding in portfolio["holdings"]:
+        holding["value"] = (
+            user_ownership["percent"]
+            * holding["units"]
+            * market_data_provider.get_price(holding["symbol"])
+        )
+        portfolio["cost"] += holding["cost"]
+        portfolio["value"] += holding["value"]
+    portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
+    user["portfolio"] = portfolio
+    return user
+
+
+def create_leaderboard(db, request):
+    users = [_create_leaderboard__process_user(user) for user in db.query(User).all()]
+    if request.sort_by == LeaderboardSortBy.GAIN_OR_LOSS:
+        sort_fn = lambda user: user["portfolio"]["gain_or_loss"]
+    else:
+        raise errors.InternalServerError(f"Unrecognized sort_by={request.sort_by}")
+    response = LeaderboardResponse(users=sorted(users, key=sort_fn))
+    blob = Blob(key=repr(request), value=response.model_dump_json())
+    db.add(blob)
+    try:
+        db.commit()
+        return blob
+    except Exception as exc:
+        db.rollback()
+        raise errors.InternalServerError(
+            detail=f"Failed to create leaderboard. Error: {exc}"
+        ) from exc

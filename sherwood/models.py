@@ -104,6 +104,53 @@ class User(BaseModel):
     )
 
 
+class ReasonDisplayNameInvalid(Enum):
+    TOO_SHORT = (
+        f"Display name must be at least {_MIN_DISPLAY_NAME_LENGTH} characters long."
+    )
+    TOO_Long = (
+        f"Display name must not be longer than {_MAX_DISPLAY_NAME_LENGTH} characters."
+    )
+    CONTAINS_SPECIAL = "Display name must only use letters (a-z or A-Z), numbers (0-9), underscores (_), hyphens (-), or periods (.)."
+    STARTS_WITH_SPECIAL = "Display name must begin with a letter (a-z or A-Z)."
+
+
+def validate_display_name(display_name: str) -> list[str]:
+    reasons = []
+    if len(display_name) < _MIN_DISPLAY_NAME_LENGTH:
+        reasons.append(ReasonDisplayNameInvalid.TOO_SHORT.value)
+    if len(display_name) > _MAX_DISPLAY_NAME_LENGTH:
+        reasons.append(ReasonDisplayNameInvalid.TOO_LONG.value)
+    if not re.match(r"^[a-zA-Z0-9._\-]+$", display_name):
+        reasons.append(ReasonDisplayNameInvalid.CONTAINS_SPECIAL.value)
+    if not re.match(r"^[a-zA-Z]", display_name):
+        reasons.append(ReasonDisplayNameInvalid.STARTS_WITH_SPECIAL.value)
+    return reasons
+
+
+@listens_for(User, "before_insert")
+def validate_user(mapper, connection, target):
+    if reasons := validate_display_name(target.display_name):
+        raise errors.InvalidDisplayNameError(reasons)
+    if reasons := validate_password(target.password):
+        raise errors.InvalidPasswordError(reasons)
+    target.password = password_context.hash(target.password)
+
+
+def create_user(
+    db: Session, email: str, display_name: str, password: str, cash: float = 0
+) -> User:
+    user = User(email=email, display_name=display_name, password=password)
+    user.portfolio = Portfolio(cash=cash)
+    db.add(user)
+    try:
+        db.commit()
+        return user
+    except Exception as exc:
+        db.rollback()
+        raise errors.InternalServerError(detail="Failed to create user.") from exc
+
+
 class Portfolio(BaseModel):
     __tablename__ = "portfolios"
 
@@ -220,53 +267,25 @@ class Ownership(BaseModel):
     )
 
 
-class ReasonDisplayNameInvalid(Enum):
-    TOO_SHORT = (
-        f"Display name must be at least {_MIN_DISPLAY_NAME_LENGTH} characters long."
+class Blob(BaseModel):
+    __tablename__ = "blobs"
+
+    key: Mapped[str] = mapped_column(
+        init=True,
+        primary_key=True,
+        compare=True,
+        repr=True,
+        unique=False,
+        nullable=False,
     )
-    TOO_Long = (
-        f"Display name must not be longer than {_MAX_DISPLAY_NAME_LENGTH} characters."
+
+    value: Mapped[str] = mapped_column(
+        init=True,
+        compare=True,
+        repr=True,
+        unique=False,
+        nullable=False,
     )
-    CONTAINS_SPECIAL = "Display name must only use letters (a-z or A-Z), numbers (0-9), underscores (_), hyphens (-), or periods (.)."
-    STARTS_WITH_SPECIAL = "Display name must begin with a letter (a-z or A-Z)."
-
-
-def validate_display_name(display_name: str) -> list[str]:
-    reasons = []
-    if len(display_name) < _MIN_DISPLAY_NAME_LENGTH:
-        reasons.append(ReasonDisplayNameInvalid.TOO_SHORT.value)
-    if len(display_name) > _MAX_DISPLAY_NAME_LENGTH:
-        reasons.append(ReasonDisplayNameInvalid.TOO_LONG.value)
-    if not re.match(r"^[a-zA-Z0-9._\-]+$", display_name):
-        reasons.append(ReasonDisplayNameInvalid.CONTAINS_SPECIAL.value)
-    if not re.match(r"^[a-zA-Z]", display_name):
-        reasons.append(ReasonDisplayNameInvalid.STARTS_WITH_SPECIAL.value)
-    return reasons
-
-
-@listens_for(User, "before_insert")
-def validate_user(mapper, connection, target):
-    reasons = validate_display_name(target.display_name)
-    if reasons:
-        raise errors.InvalidDisplayNameError(target.display_name)
-    reasons = validate_password(target.password)
-    if reasons:
-        raise errors.InvalidPasswordError(reasons)
-    target.password = password_context.hash(target.password)
-
-
-def create_user(
-    db: Session, email: str, display_name: str, password: str, cash: float = 0
-) -> User:
-    user = User(email=email, display_name=display_name, password=password)
-    user.portfolio = Portfolio(cash=cash)
-    db.add(user)
-    try:
-        db.commit()
-        return user
-    except Exception as exc:
-        db.rollback()
-        raise errors.InternalServerError(detail="Failed to create user.") from exc
 
 
 def to_dict(obj: Any) -> dict[str, Any]:
@@ -279,3 +298,7 @@ def to_dict(obj: Any) -> dict[str, Any]:
             if field.repr
         }
     return obj
+
+
+def has_expired(model: BaseModel, lifetime: int):
+    return (get_current_time() - model.created_at).total_seconds() > lifetime
