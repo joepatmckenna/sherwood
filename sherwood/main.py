@@ -1,277 +1,38 @@
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from fastapi import (
-    APIRouter,
-    Depends,
-    FastAPI,
-    Header,
-    WebSocket,
-    WebSocketDisconnect,
-)
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 import gunicorn.app.base
 import logging
 import os
 from sherwood import errors
-from sherwood.auth import decode_access_token, validate_password
-from sherwood.broker import (
-    create_leaderboard,
-    enrich_user_with_price_info,
-    sign_up_user,
-    sign_in_user,
-    buy_portfolio_holding,
-    sell_portfolio_holding,
-    invest_in_portfolio,
-    divest_from_portfolio,
-)
-from sherwood.db import get_db, Session, POSTGRESQL_DATABASE_PASSWORD_ENV_VAR_NAME
-from sherwood.errors import error_handler
-from sherwood.messages import *
-from sherwood.models import (
-    has_expired,
-    to_dict,
-    BaseModel as Base,
-    Blob,
-    User,
-)
+from sherwood.api import api_router
+from sherwood.db import Session, POSTGRESQL_DATABASE_PASSWORD_ENV_VAR_NAME
+from sherwood.errors import SherwoodError
+from sherwood.models import BaseModel as Base
+from sherwood.ui import ui_router
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
-from sqlalchemy.orm import Session as SqlAlchemyOrmSession
-from typing import Annotated
 
 logging.basicConfig(level=logging.DEBUG)
 
-ACCESS_TOKEN_DURATION_HOURS = 4
-LEADERBOARD_REFRESH_RATE_SECONDS = 60
 
-Database = Annotated[SqlAlchemyOrmSession, Depends(get_db)]
-
-
-async def authorized_user(
-    db: Database, x_sherwood_authorization: Annotated[str | None, Header()] = None
-) -> User:
-    if x_sherwood_authorization is None:
-        raise errors.InvalidAccessToken(
-            detail="Missing X-Sherwood-Authorization header."
+async def error_handler(request: Request, exc: SherwoodError) -> JSONResponse:
+    if request.url.path.startswith("/api"):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"error": {"status_code": exc.status_code, "detail": exc.detail}},
+            headers=exc.headers,
         )
-
-    token_type, _, access_token = x_sherwood_authorization.partition(" ")
-    if token_type.strip().lower() != "bearer":
-        raise errors.InvalidAccessToken(detail=f"Token type '{token_type}' != 'Bearer'")
-
-    try:
-        payload = decode_access_token(access_token)
-    except Exception as exc:
-        raise errors.InvalidAccessToken(
-            detail=f"Failed to decode access token, error: {exc}"
-        ) from exc
-
-    user_id = payload["sub"]
-    user = db.get(User, user_id)
-    if user is None:
-        logging.error(f"Access token for missing user, ID: {user_id}")
-        raise errors.MissingUserError(user_id=user_id)
-
-    return user
-
-
-AuthorizedUser = Annotated[User, Depends(authorized_user)]
-
-
-router = APIRouter(prefix="")
-
-
-@router.websocket("/validate-password")
-async def validate_password_websocket(ws: WebSocket):
-    await ws.accept()
-    try:
-        while True:
-            password = await ws.receive_text()
-            reasons = validate_password(password)
-            await ws.send_json({"reasons": reasons})
-    except WebSocketDisconnect:
-        logging.info("validate password websocket client disconnected")
-
-
-@router.post("/sign-up")
-async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
-    try:
-        sign_up_user(db, request.email, request.display_name, request.password)
-        return SignUpResponse(redirect_url="/sherwood/sign-in.html")
-    except (
-        errors.DuplicateUserError,
-        errors.InternalServerError,
-    ):
-        raise
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to sign up user. Request: {request}. Error: {exc}."
-        )
-
-
-@router.post("/sign-in")
-async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
-    try:
-        token_type = "Bearer"
-        access_token = sign_in_user(
-            db,
-            request.email,
-            request.password,
-            access_token_duration_hours=ACCESS_TOKEN_DURATION_HOURS,
-        )
-        response = SignInResponse(
-            token_type=token_type,
-            access_token=access_token,
-            redirect_url="/sherwood/profile.html",
-        )
-        return response
-
-    except (
-        errors.DuplicateUserError,
-        errors.IncorrectPasswordError,
-        errors.InternalServerError,
-        errors.MissingUserError,
-    ):
-        raise
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to sign in user. Request: {request}. Error: {exc}."
-        )
-
-
-@router.get("/user")
-async def get_user(user: AuthorizedUser):
-    try:
-        return enrich_user_with_price_info(user)
-    except (
-        errors.InvalidAccessToken,
-        errors.MissingUserError,
-    ):
-        raise
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."
-        )
-
-
-@router.get("/user/{user_id}")
-async def get_user_by_id(user_id: int, db: Database):
-    try:
-        return enrich_user_with_price_info(db.get(User, user_id))
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."
-        )
-
-
-@router.post("/buy")
-async def post_buy(
-    request: BuyRequest, db: Database, user: AuthorizedUser
-) -> BuyResponse:
-    try:
-        buy_portfolio_holding(db, user.portfolio.id, request.symbol, request.dollars)
-        return BuyResponse()
-    except (
-        errors.InternalServerError,
-        errors.MissingPortfolioError,
-        errors.DuplicatePortfolioError,
-        errors.InsufficientCashError,
-    ):
-        raise
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to buy holding. Request: {request}. Error: {exc}."
-        ) from exc
-
-
-@router.post("/sell")
-async def post_sell(
-    request: SellRequest, db: Database, user: AuthorizedUser
-) -> BuyResponse:
-    try:
-        sell_portfolio_holding(db, user.portfolio.id, request.symbol, request.dollars)
-        return SellResponse()
-    except (
-        errors.InternalServerError,
-        errors.MissingPortfolioError,
-        errors.DuplicatePortfolioError,
-        errors.InsufficientHoldingsError,
-    ):
-        raise
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to sell holding. Request: {request}. Error: {exc}."
-        ) from exc
-
-
-@router.post("/invest")
-async def post_invest(
-    request: InvestRequest, db: Database, user: AuthorizedUser
-) -> InvestResponse:
-    try:
-        invest_in_portfolio(
-            db,
-            request.investee_portfolio_id,
-            user.portfolio.id,
-            request.dollars,
-        )
-        return InvestResponse()
-    except (
-        errors.RequestValueError,
-        errors.InternalServerError,
-        errors.InsufficientCashError,
-        errors.InsufficientHoldingsError,
-    ):
-        raise
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to invest in portfolio. Request: {request}. Error: {exc}."
-        ) from exc
-
-
-@router.post("/divest")
-async def post_divest(
-    request: DivestRequest, db: Database, user: AuthorizedUser
-) -> DivestResponse:
-    try:
-        divest_from_portfolio(
-            db,
-            request.investee_portfolio_id,
-            user.portfolio.id,
-            request.dollars,
-        )
-        return DivestResponse()
-    except (
-        errors.RequestValueError,
-        errors.InternalServerError,
-        errors.InsufficientHoldingsError,
-    ):
-        raise
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to divest from portfolio. Request: {request}. Error: {exc}."
-        ) from exc
-
-
-@router.post("/leaderboard")
-async def get_leaderboard(
-    request: LeaderboardRequest, db: Database
-) -> LeaderboardResponse:
-    try:
-        blob = db.get(Blob, repr(request))
-        if blob is None or has_expired(blob, LEADERBOARD_REFRESH_RATE_SECONDS):
-            blob = create_leaderboard(db, request)
-        return LeaderboardResponse.model_validate_json(blob.value)
-    except errors.InternalServerError:
-        raise
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to get leaderboard. Request: {request}. Error: {exc}."
-        ) from exc
+    return RedirectResponse(request.url_for("public_home"))
 
 
 def create_app(*args, **kwargs):
     app = FastAPI(*args, **kwargs)
-    app.include_router(router)
+    app.mount("/static", StaticFiles(directory="ui/static"), name="static")
+    app.include_router(api_router)
+    app.include_router(ui_router)
     for error in errors.SherwoodError.__subclasses__():
         app.add_exception_handler(error, error_handler)
     return app

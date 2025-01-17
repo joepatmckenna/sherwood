@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}sherwood | sign up{% endblock %}
+
+{% block style %}
+<style>
+  .error {
+    color: red;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>sign up</h1>
+<form id="sign-up-form" onsubmit="handleSignUp(event)">
+  <label>email:</label><br /> <input type="email" name="email" required /><br /><br />
+  <label>display name:</label><br /> <input type="text" name="display_name" required /><br /><br />
+  <label>password:</label><br /> <input type="password" id="password" name="password" required /><br /><br />
+  <button type="submit">sign up</button><br />
+</form>
+
+<ul id="password-requirements"></ul>
+
+<p class="error" id="error-message"></p>
+{% endblock %}
+
+
+{% block script %}
+<script>
+  const passwordInput = document.getElementById("password");
+
+  passwordInput.addEventListener("input", (event) => {
+    const password = event.target.value;
+    if (validatePasswordWebSocket.readyState === WebSocket.OPEN) {
+      validatePasswordWebSocket.send(password);
+    }
+  });
+
+  const passwordRequirements = document.getElementById(
+    "password-requirements"
+  );
+  function updatePasswordRequirements(reasons) {
+    passwordRequirements.innerHTML = "";
+    reasons.forEach((reason) => {
+      const li = document.createElement("li");
+      li.textContent = reason;
+      li.className = "error";
+      passwordRequirements.appendChild(li);
+    });
+  }
+
+  let validatePasswordWebSocket;
+  function connectToValidatePasswordWebSocket() {
+    validatePasswordWebSocket = new WebSocket(
+      "/sherwood/api/validate-password"
+    );
+    validatePasswordWebSocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      updatePasswordRequirements(data.reasons);
+    };
+    validatePasswordWebSocket.onclose = () => {
+      setTimeout(connectToValidatePasswordWebSocket, 1000);
+    };
+  }
+
+  connectToValidatePasswordWebSocket();
+
+  const errorMessageElement = document.getElementById("error-message");
+  const unknownErrorMessage =
+    "An unexpected error occurred. Please try again later.";
+
+  async function handleSignUp(event) {
+    event.preventDefault();
+    try {
+      errorMessageElement.textContent = "";
+      const signUpForm = document.getElementById("sign-up-form");
+      const signUpFormData = new FormData(signUpForm);
+      const json = Object.fromEntries(signUpFormData.entries());
+      const response = await fetch("/sherwood/api/sign-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(json),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        window.location.href = data.redirect_url;
+      } else {
+        errorMessageElement.textContent = `Error: ${data?.error?.detail || UNEXPECTED_ERROR}`;
+      }
+    } catch (error) {
+      console.error(error);
+      errorMessageElement.textContent = error.message || UNEXPECTED_ERROR;
+    }
+  }
+</script>
+{% endblock %}

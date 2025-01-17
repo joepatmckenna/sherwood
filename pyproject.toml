@@ -13,6 +13,7 @@ dependencies = [
     "fastapi",
     "gunicorn",
     "httpx",
+    "jinja2",
     "passlib",
     "psycopg2-binary",    
     "pydantic[email]",

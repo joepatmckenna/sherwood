@@ -1,5 +1,4 @@
-from fastapi import status, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import status, HTTPException
 
 
 class SherwoodError(HTTPException):
@@ -153,11 +152,3 @@ class MarketDataProviderError(SherwoodError):
             detail=detail,
             headers=headers,
         )
-
-
-async def error_handler(_: Request, exc: SherwoodError) -> JSONResponse:
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"error": {"status_code": exc.status_code, "detail": exc.detail}},
-        headers=exc.headers,
-    )

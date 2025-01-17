@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}sherwood | sign in{% endblock %}
+
+{% block style %}
+<style>
+  .error {
+    color: red;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>sign in</h1>
+<form id="signInForm" onsubmit="handleSignIn(event)">
+  <label>email:</label><br />
+  <input type="email" name="email" required /><br /><br />
+  <label>password:</label><br />
+  <input type="password" name="password" required /><br /><br />
+  <button type="submit">sign in</button><br />
+</form>
+<p class="error" id="errorMessage"></p>
+{% endblock %}
+
+{% block script %}
+<script>
+  const signInForm = document.getElementById("signInForm");
+  const errorMessage = document.getElementById("errorMessage");
+  async function handleSignIn(event) {
+    event.preventDefault();
+    errorMessage.textContent = "";
+    const signInFormData = new FormData(signInForm);
+    const body = Object.fromEntries(signInFormData.entries());
+    const response = await signIn(body)
+    if (response?.error) {
+      errorMessage.textContent = response.error.detail;
+    } else {
+      window.location.href = response.redirect_url;
+    }
+  }
+</script>
+{% endblock %}

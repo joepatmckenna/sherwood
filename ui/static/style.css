@@ -1,11 +1,10 @@
-.banner {
-  padding: 4px;
+.sherwood-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.banner .links {
+.sherwood-header .links {
   display: flex;
   gap: 8px;
 }

@@ -1,0 +1,15 @@
+<header>
+  <nav class="sherwood-header">
+    <div class="links">
+      <a href="/sherwood">home</a>
+    </div>
+    <div class="links" id="right-links">
+      {% if user %}
+      <a href="/sherwood/sign-out">sign out</a>
+      {% else %}
+      <a href="/sherwood/sign-up">sign up</a>
+      <a href="/sherwood/sign-in">sign in</a>
+      {% endif %}
+    </div>
+  </nav>
+</header>

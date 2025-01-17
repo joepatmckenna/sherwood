@@ -15,7 +15,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
 
-load_dotenv(".env.dev", override=True)
+load_dotenv(".env", override=True)
 engine = create_engine(
     URL.create(
         drivername="sqlite",

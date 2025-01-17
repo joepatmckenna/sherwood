@@ -98,8 +98,6 @@ class SignUpResponse(BaseModel):
 
 
 class SignInResponse(BaseModel):
-    token_type: str
-    access_token: str
     redirect_url: str
 
 
