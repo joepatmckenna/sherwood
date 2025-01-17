@@ -1,22 +1,31 @@
 from calendar import timegm
 import datetime
 from enum import Enum
+from fastapi import Cookie, Depends
 import jose.jwt
 import logging
 import os
 from passlib.context import CryptContext
 import re
+from sherwood import errors
+from sherwood.auth import decode_access_token
+from sherwood.db import Database
+from sherwood.models import User
+from typing import Annotated
 from uuid import uuid4
 
+AUTHORIZATION_COOKIE_NAME = "x_sherwood_authorization"
+
 JWT_SECRET_KEY_ENV_VAR_NAME = "JWT_SECRET_KEY"
+
 _JWT_ISSUER = "sherwood"
 _JWT_ALGORITHM = "HS256"
 _JWT_DURATION_HOURS = 4
 
-password_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
-
 _MIN_PASSWORD_LENGTH = 8
 _MAX_PASSWORD_LENGTH = 32
+
+password_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
 
 class ReasonPasswordInvalid(Enum):
@@ -48,14 +57,14 @@ def validate_password(password: str) -> list[str]:
     return reasons
 
 
-def _validate_env():
+def _validate_env() -> None:
     if os.environ.get(JWT_SECRET_KEY_ENV_VAR_NAME) is None:
-        raise RuntimeError(
+        raise errors.InternalServerError(
             f"Missing environment variable {JWT_SECRET_KEY_ENV_VAR_NAME}"
         )
 
 
-def generate_access_token(user, hours: float = _JWT_DURATION_HOURS) -> str:
+def generate_access_token(user: User, hours: float = _JWT_DURATION_HOURS) -> str:
     _validate_env()
     issued_at = datetime.datetime.now(datetime.timezone.utc)
     expiration = issued_at + datetime.timedelta(hours=hours)
@@ -72,11 +81,12 @@ def generate_access_token(user, hours: float = _JWT_DURATION_HOURS) -> str:
             algorithm=_JWT_ALGORITHM,
         )
     except jose.jwt.JWTError as exc:
-        logging.error(f"General token error: {exc}")
-        raise
+        raise errors.InternalServerError(f"Failed to generate access token. Error: {exc}") from exc
+    except Exception as exc:
+        raise errors.InternalServerError(f"Failed to generate access token. Unexpected Error: {exc}") from exc
 
 
-def decode_access_token(access_token: str) -> dict[str, str]:
+def _decode_access_token(access_token: str) -> dict[str, str]:
     _validate_env()
     try:
         return jose.jwt.decode(
@@ -90,5 +100,29 @@ def decode_access_token(access_token: str) -> dict[str, str]:
         jose.jwt.JWTClaimsError,
         jose.jwt.JWTError,
     ) as exc:
-        logging.error(f"Error decoding access_token: {exc}.")
-        raise
+        raise errors.InvalidAccessToken(f"Failed to decode access_token. Error: {exc}.)
+    except Exception as exc:
+        raise errors.InternalServerError(f"Failed to decode access_token. Unexpected Error: {exc}.)
+
+
+async def _authorized_user(
+    db: Database, x_sherwood_authorization: Annotated[str | None, Cookie()] = None
+) -> User:
+    if x_sherwood_authorization is None:
+        raise errors.InvalidAccessToken(detail="Missing X-Sherwood-Authorization.")
+
+    token_type, _, access_token = x_sherwood_authorization.partition(" ")
+    if token_type.strip().lower() != "bearer":
+        raise errors.InvalidAccessToken(detail=f"Token type '{token_type}' != 'Bearer'")
+
+    payload = _decode_access_token(access_token)
+
+    user_id = payload["sub"]
+    if (user := db.get(User, user_id)) is None:
+        raise errors.MissingUserError(user_id=user_id)
+
+    return user
+
+
+AuthorizedUser = Annotated[User, Depends(_authorized_user)]
+
