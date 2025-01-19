@@ -9,6 +9,7 @@ from sherwood.broker import (
     sell_portfolio_holding,
     invest_in_portfolio,
     divest_from_portfolio,
+    upsert_leaderboard,
 )
 from sherwood.db import Database
 from sherwood.errors import *
@@ -198,15 +199,12 @@ async def post_divest(
         ) from exc
 
 
-from sherwood.broker import upsert_leaderboard
-
-
 def _upsert_blob(db, request, latency) -> Blob:
     key = repr(request)
     blob = db.get(Blob, key)
-    if blob is not None and not has_expired(blob, latency):
+    if not (blob is None or has_expired(blob, latency)):
         return blob
-    if isinstance(request, GetLeaderboardBlobRequest):
+    if isinstance(request, LeaderboardBlobRequest):
         return upsert_leaderboard(db, request)
     else:
         raise InternalServerError(f"Unrecognized blob request type {request}")
@@ -214,11 +212,16 @@ def _upsert_blob(db, request, latency) -> Blob:
 
 @api_router.post("/blob")
 async def upsert_blob(
-    request: GetBlobRequest, db: Database, latency: int = 10
-) -> GetBlobResponse:
+    request: BlobRequest, db: Database, latency: int = 10
+) -> BlobResponse:
     try:
-        blob = _upsert_blob(db, request.request, latency)
-        return GetBlobResponse(key=blob.key, value=blob.value)
+        blob = _upsert_blob(db, request.oneof(), latency)
+        return BlobResponse(key=blob.key, value=blob.value)
+    except (
+        RequestValueError,
+        InternalServerError,
+    ):
+        raise
     except Exception as exc:
         raise InternalServerError(
             f"Failed to get blob. Request: {request}. Error: {exc}."

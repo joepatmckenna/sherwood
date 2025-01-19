@@ -4,8 +4,8 @@ from sherwood.db import maybe_commit
 from sherwood.errors import InternalServerError
 from sherwood.market_data import get_price, get_prices
 from sherwood.messages import (
-    GetLeaderboardBlobRequest,
-    GetLeaderboardBlobResponse,
+    LeaderboardBlobRequest,
+    LeaderboardBlobResponse,
     LeaderboardSortBy,
 )
 from sherwood.models import (
@@ -298,7 +298,7 @@ def enrich_user_with_price_info(db, user):
     return user
 
 
-def upsert_leaderboard(db, request: GetLeaderboardBlobRequest):
+def upsert_leaderboard(db, request: LeaderboardBlobRequest):
     key = repr(request)
     users = db.query(User).all()
     users = [enrich_user_with_price_info(db, user) for user in users]
@@ -306,7 +306,8 @@ def upsert_leaderboard(db, request: GetLeaderboardBlobRequest):
         sort_fn = lambda user: user["portfolio"]["gain_or_loss"]
     else:
         raise InternalServerError(f"Unrecognized sort_by={request.sort_by}")
-    response = GetLeaderboardBlobResponse(users=sorted(users, key=sort_fn))
+    users = sorted(users, key=sort_fn)[: request.top_k]
+    response = LeaderboardBlobResponse(users=users)
     return upsert_blob(db, key, response.model_dump_json())
 
 

@@ -1,8 +1,26 @@
 from enum import Enum
-from pydantic import field_validator, BaseModel, EmailStr
-from sherwood import errors
+from pydantic import field_validator, model_validator, BaseModel, EmailStr
+from sherwood.errors import (
+    InvalidDisplayNameError,
+    InvalidPasswordError,
+    RequestValueError,
+)
 from sherwood.auth import validate_display_name, validate_password
 from typing import Any
+from typing_extensions import Self
+
+
+class OneOfMixin:
+    def oneof(self):
+        for k, v in self.model_dump().items():
+            if v is not None:
+                return getattr(self, k)
+
+    @model_validator(mode="after")
+    def validate_one_of(self) -> Self:
+        if len([v for v in self.model_dump().values() if v is not None]) != 1:
+            raise RequestValueError("More than one blob requested.")
+        return self
 
 
 class ModelWithEmail(BaseModel):
@@ -16,7 +34,7 @@ class EmailValidatorMixin:
             ModelWithEmail(email=email)
             return email
         except ValueError as exc:
-            raise errors.RequestValueError(
+            raise RequestValueError(
                 f"Invalid email: {email}. Error: {exc.errors()[0]['msg']}",
             ) from exc
 
@@ -26,7 +44,7 @@ class DisplayNameValidatorMixin:
     def validate_display_name_format(cls, password):
         reasons = validate_display_name(password)
         if reasons:
-            raise errors.InvalidDisplayNameError(reasons)
+            raise InvalidDisplayNameError(reasons)
         return password
 
 
@@ -35,7 +53,7 @@ class PasswordValidatorMixin:
     def validate_password_format(cls, password):
         reasons = validate_password(password)
         if reasons:
-            raise errors.InvalidPasswordError(reasons)
+            raise InvalidPasswordError(reasons)
         return password
 
 
@@ -43,7 +61,7 @@ class DollarsArePositiveValidatorMixin:
     @field_validator("dollars")
     def validate_dollars_are_positive(cls, dollars):
         if dollars <= 0:
-            raise errors.RequestValueError("Dollars must be positive.")
+            raise RequestValueError("Dollars must be positive.")
         return dollars
 
 
@@ -108,29 +126,20 @@ class LeaderboardSortBy(Enum):
     GAIN_OR_LOSS = "gain_or_loss"
 
 
-class GetLeaderboardBlobRequest(BaseModel):
+class LeaderboardBlobRequest(BaseModel):
+    top_k: int
     sort_by: LeaderboardSortBy
 
 
-class GetLeaderboardBlobResponse(BaseModel):
+class LeaderboardBlobResponse(BaseModel):
     users: list[dict[str, Any]]
 
 
-from pydantic import model_validator
-from sherwood.errors import RequestValueError
+class BlobRequest(BaseModel, OneOfMixin):
+    leaderboard: LeaderboardBlobRequest | None = None
 
 
-class GetBlobRequest(BaseModel):
-    leaderboard: GetLeaderboardBlobRequest | None = None
-
-    @model_validator
-    def validate_only_one_non_null(cls, values):
-        if len([v for v in values.items() if v is not None]) != 1:
-            raise RequestValueError("More than one blob requested.")
-        return values
-
-
-class GetBlobResponse(BaseModel):
+class BlobResponse(BaseModel):
     key: str
     value: str
 
@@ -148,8 +157,8 @@ __all__ = [
     "InvestResponse",
     "DivestRequest",
     "DivestResponse",
-    "GetBlobRequest",
-    "GetBlobResponse",
-    "GetLeaderboardBlobRequest",
-    "GetLeaderboardBlobResponse",
+    "BlobRequest",
+    "BlobResponse",
+    "LeaderboardBlobRequest",
+    "LeaderboardBlobResponse",
 ]

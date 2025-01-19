@@ -462,6 +462,6 @@ def test_get_leaderboard_success(
 
     get_blob_response = client.post(
         "/api/blob",
-        json={"leaderboard": {"sort_by": "gain_or_loss"}},
+        json={"leaderboard": {"top_k": 10, "sort_by": "gain_or_loss"}},
     )
-    get_blob_response.status_code == 200
+    assert get_blob_response.status_code == 200
