@@ -1,15 +1,8 @@
-from fastapi import (
-    APIRouter,
-    WebSocket,
-    WebSocketDisconnect,
-)
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 import logging
-from sherwood import errors
-from sherwood.auth import validate_password
+from sherwood.auth import validate_password, AuthorizedUser, AUTHORIZATION_COOKIE_NAME
 from sherwood.broker import (
-    create_leaderboard,
-    enrich_user_with_price_info,
     sign_up_user,
     sign_in_user,
     buy_portfolio_holding,
@@ -17,18 +10,12 @@ from sherwood.broker import (
     invest_in_portfolio,
     divest_from_portfolio,
 )
-from sherwood.dependencies import AuthorizedUser, Database, AUTHORIZATION_COOKIE_NAME
+from sherwood.db import Database
+from sherwood.errors import *
 from sherwood.messages import *
-from sherwood.models import (
-    has_expired,
-    to_dict,
-    Blob,
-    User,
-)
-
+from sherwood.models import has_expired, to_dict, Blob, User
 
 ACCESS_TOKEN_DURATION_HOURS = 4
-LEADERBOARD_REFRESH_RATE_SECONDS = 60
 
 api_router = APIRouter(prefix="/api")
 
@@ -49,14 +36,14 @@ async def validate_password_websocket(ws: WebSocket):
 async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
     try:
         sign_up_user(db, request.email, request.display_name, request.password)
-        return SignUpResponse(redirect_url="/sherwood/sign-in.html")
+        return SignUpResponse(redirect_url="/sherwood/sign-in")
     except (
-        errors.DuplicateUserError,
-        errors.InternalServerError,
+        DuplicateUserError,
+        InternalServerError,
     ):
         raise
     except Exception as exc:
-        raise errors.InternalServerError(
+        raise InternalServerError(
             f"Failed to sign up user. Request: {request}. Error: {exc}."
         )
 
@@ -85,14 +72,14 @@ async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
         )
         return response
     except (
-        errors.DuplicateUserError,
-        errors.IncorrectPasswordError,
-        errors.InternalServerError,
-        errors.MissingUserError,
+        DuplicateUserError,
+        IncorrectPasswordError,
+        InternalServerError,
+        MissingUserError,
     ):
         raise
     except Exception as exc:
-        raise errors.InternalServerError(
+        raise InternalServerError(
             f"Failed to sign in user. Request: {request}. Error: {exc}."
         )
 
@@ -102,12 +89,12 @@ async def get_user(user: AuthorizedUser):
     try:
         return to_dict(user)
     except (
-        errors.InvalidAccessToken,
-        errors.MissingUserError,
+        InvalidAccessTokenError,
+        MissingUserError,
     ):
         raise
     except Exception as exc:
-        raise errors.InternalServerError(
+        raise InternalServerError(
             f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."
         )
 
@@ -115,9 +102,9 @@ async def get_user(user: AuthorizedUser):
 @api_router.get("/user/{user_id}")
 async def get_user_by_id(user_id: int, db: Database):
     try:
-        return enrich_user_with_price_info(db.get(User, user_id))
+        return to_dict(db.get(User, user_id))
     except Exception as exc:
-        raise errors.InternalServerError(
+        raise InternalServerError(
             f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."
         )
 
@@ -130,14 +117,14 @@ async def post_buy(
         buy_portfolio_holding(db, user.portfolio.id, request.symbol, request.dollars)
         return BuyResponse()
     except (
-        errors.InternalServerError,
-        errors.MissingPortfolioError,
-        errors.DuplicatePortfolioError,
-        errors.InsufficientCashError,
+        InternalServerError,
+        MissingPortfolioError,
+        DuplicatePortfolioError,
+        InsufficientCashError,
     ):
         raise
     except Exception as exc:
-        raise errors.InternalServerError(
+        raise InternalServerError(
             f"Failed to buy holding. Request: {request}. Error: {exc}."
         ) from exc
 
@@ -150,14 +137,14 @@ async def post_sell(
         sell_portfolio_holding(db, user.portfolio.id, request.symbol, request.dollars)
         return SellResponse()
     except (
-        errors.InternalServerError,
-        errors.MissingPortfolioError,
-        errors.DuplicatePortfolioError,
-        errors.InsufficientHoldingsError,
+        InternalServerError,
+        MissingPortfolioError,
+        DuplicatePortfolioError,
+        InsufficientHoldingsError,
     ):
         raise
     except Exception as exc:
-        raise errors.InternalServerError(
+        raise InternalServerError(
             f"Failed to sell holding. Request: {request}. Error: {exc}."
         ) from exc
 
@@ -175,14 +162,14 @@ async def post_invest(
         )
         return InvestResponse()
     except (
-        errors.RequestValueError,
-        errors.InternalServerError,
-        errors.InsufficientCashError,
-        errors.InsufficientHoldingsError,
+        RequestValueError,
+        InternalServerError,
+        InsufficientCashError,
+        InsufficientHoldingsError,
     ):
         raise
     except Exception as exc:
-        raise errors.InternalServerError(
+        raise InternalServerError(
             f"Failed to invest in portfolio. Request: {request}. Error: {exc}."
         ) from exc
 
@@ -200,29 +187,39 @@ async def post_divest(
         )
         return DivestResponse()
     except (
-        errors.RequestValueError,
-        errors.InternalServerError,
-        errors.InsufficientHoldingsError,
+        RequestValueError,
+        InternalServerError,
+        InsufficientHoldingsError,
     ):
         raise
     except Exception as exc:
-        raise errors.InternalServerError(
+        raise InternalServerError(
             f"Failed to divest from portfolio. Request: {request}. Error: {exc}."
         ) from exc
 
 
-@api_router.post("/leaderboard")
-async def get_leaderboard(
-    request: LeaderboardRequest, db: Database
-) -> LeaderboardResponse:
+from sherwood.broker import upsert_leaderboard
+
+
+def _upsert_blob(db, request, latency) -> Blob:
+    key = repr(request)
+    blob = db.get(Blob, key)
+    if blob is not None and not has_expired(blob, latency):
+        return blob
+    if isinstance(request, GetLeaderboardBlobRequest):
+        return upsert_leaderboard(db, request)
+    else:
+        raise InternalServerError(f"Unrecognized blob request type {request}")
+
+
+@api_router.post("/blob")
+async def upsert_blob(
+    request: GetBlobRequest, db: Database, latency: int = 10
+) -> GetBlobResponse:
     try:
-        blob = db.get(Blob, repr(request))
-        if blob is None or has_expired(blob, LEADERBOARD_REFRESH_RATE_SECONDS):
-            blob = create_leaderboard(db, request)
-        return LeaderboardResponse.model_validate_json(blob.value)
-    except errors.InternalServerError:
-        raise
+        blob = _upsert_blob(db, request.request, latency)
+        return GetBlobResponse(key=blob.key, value=blob.value)
     except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to get leaderboard. Request: {request}. Error: {exc}."
+        raise InternalServerError(
+            f"Failed to get blob. Request: {request}. Error: {exc}."
         ) from exc

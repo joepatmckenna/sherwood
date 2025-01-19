@@ -1,12 +1,17 @@
-import json
 from sherwood import errors
 from sherwood.auth import generate_access_token, password_context
-from sherwood.market_data_provider import MarketDataProvider
-from sherwood.messages import LeaderboardRequest, LeaderboardResponse, LeaderboardSortBy
+from sherwood.db import maybe_commit
+from sherwood.errors import InternalServerError
+from sherwood.market_data import get_price, get_prices
+from sherwood.messages import (
+    GetLeaderboardBlobRequest,
+    GetLeaderboardBlobResponse,
+    LeaderboardSortBy,
+)
 from sherwood.models import (
     create_user,
     to_dict,
-    Blob,
+    upsert_blob,
     Holding,
     Ownership,
     Portfolio,
@@ -16,35 +21,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import MultipleResultsFound
 
-market_data_provider = MarketDataProvider()
 
 STARTING_BALANCE = 100_000
-
-
-def _try_db_commit(db, error_message: str):
-    try:
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        raise errors.InternalServerError(f"{error_message} Error: {exc}") from exc
-
-
-def _upsert_blob(db: Session, key: str, value: str):
-    blob = db.get(Blob, key)
-    if blob is None:
-        blob = Blob(key=key, value=value)
-        db.add(blob)
-    else:
-        blob.value = value
-    try:
-        db.commit()
-        db.refresh(blob)
-        return blob
-    except Exception as exc:
-        db.rollback()
-        raise errors.InternalServerError(
-            detail=f"Failed to upsert blob. Error: {exc}"
-        ) from exc
 
 
 def sign_up_user(
@@ -113,8 +91,8 @@ def _lock_portfolios(db: Session, portfolio_ids: list[int]) -> dict[int, Portfol
     return portfolio_by_id
 
 
-def _convert_dollars_to_units(symbol: str, dollars: float) -> float:
-    return dollars / market_data_provider.get_price(symbol)
+def _convert_dollars_to_units(db, symbol: str, dollars: float) -> float:
+    return dollars / get_price(db, symbol)
 
 
 def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float):
@@ -130,12 +108,13 @@ def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float
     if ownership is None:
         portfolio.ownership.append(Ownership(portfolio_id, portfolio_id, 0, 0))
         ownership = portfolio.ownership[-1]
+    price_by_symbol = get_prices(db, [holding.symbol for holding in portfolio.holdings])
     portfolio_value = sum(
-        holding.units * market_data_provider.get_price(holding.symbol)
+        holding.units * price_by_symbol[holding.symbol]
         for holding in portfolio.holdings
     )
     portfolio.cash -= dollars
-    holding.units += _convert_dollars_to_units(symbol, dollars)
+    holding.units += _convert_dollars_to_units(db, symbol, dollars)
     holding.cost += dollars
     ownership.cost += dollars
     if portfolio_value > 0:
@@ -145,13 +124,13 @@ def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float
             ownership.percent /= 1 + percent
     else:
         ownership.percent = 1
-    _try_db_commit(db, "Failed to buy holding.")
+    maybe_commit(db, "Failed to buy holding.")
 
 
 def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars: float):
     """Sells holding in owner's portfolio."""
     portfolio = _lock_portfolios(db, [portfolio_id])[portfolio_id]
-    units = _convert_dollars_to_units(symbol, dollars)
+    units = _convert_dollars_to_units(db, symbol, dollars)
     holding = db.get(Holding, (portfolio_id, symbol))
     if holding is None:
         raise errors.InsufficientHoldingsError(symbol, needed=units, actual=0)
@@ -159,9 +138,9 @@ def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars:
     if ownership is None:
         raise errors.InternalServerError("Portfolio missing owner's ownership.")
     holding_by_symbol = {h.symbol: h for h in portfolio.holdings}
+    price_by_symbol = get_prices(db, list(holding_by_symbol))
     holding_value_by_symbol = {
-        s: h.units * market_data_provider.get_price(h.symbol)
-        for s, h in holding_by_symbol.items()
+        s: h.units * price_by_symbol[h.symbol] for s, h in holding_by_symbol.items()
     }
     if dollars > holding_value_by_symbol[symbol] * ownership.percent:
         raise errors.InsufficientHoldingsError(
@@ -179,7 +158,7 @@ def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars:
         ownership.percent -= percent
         for ownership in portfolio.ownership:
             ownership.percent /= 1 - percent
-    _try_db_commit(db, "Failed to sell holding.")
+    maybe_commit(db, "Failed to sell holding.")
 
 
 def invest_in_portfolio(
@@ -202,8 +181,9 @@ def invest_in_portfolio(
     investee_portfolio_units_by_symbol = {
         holding.symbol: holding.units for holding in investee_portfolio.holdings
     }
+    price_by_symbol = get_prices(db, list(investee_portfolio_units_by_symbol))
     investee_portfolio_value_by_symbol = {
-        symbol: units * market_data_provider.get_price(symbol)
+        symbol: units * price_by_symbol[symbol]
         for symbol, units in investee_portfolio_units_by_symbol.items()
     }
     investee_portfolio_value = sum(investee_portfolio_value_by_symbol.values())
@@ -231,7 +211,7 @@ def invest_in_portfolio(
     investee_portfolio.ownership = list(
         investee_portfolio_ownership_by_owner_id.values()
     )
-    _try_db_commit(db, "Failed to invest in portfolio.")
+    maybe_commit(db, "Failed to invest in portfolio.")
 
 
 def divest_from_portfolio(
@@ -254,8 +234,9 @@ def divest_from_portfolio(
     investee_portfolio_units_by_symbol = {
         holding.symbol: holding.units for holding in investee_portfolio.holdings
     }
+    price_by_symbol = get_prices(db, list(investee_portfolio_units_by_symbol))
     investee_portfolio_value_by_symbol = {
-        symbol: units * market_data_provider.get_price(symbol)
+        symbol: units * price_by_symbol[symbol]
         for symbol, units in investee_portfolio_units_by_symbol.items()
     }
     investee_portfolio_value = sum(investee_portfolio_value_by_symbol.values())
@@ -283,10 +264,10 @@ def divest_from_portfolio(
     investee_portfolio.ownership = list(
         investee_portfolio_ownership_by_owner_id.values()
     )
-    _try_db_commit(db, "Failed to divest from portfolio.")
+    maybe_commit(db, "Failed to divest from portfolio.")
 
 
-def enrich_user_with_price_info(user):
+def enrich_user_with_price_info(db, user):
     user = to_dict(user)
     portfolio = user["portfolio"]
     user_ownership = [
@@ -300,11 +281,14 @@ def enrich_user_with_price_info(user):
         user_ownership = user_ownership[0]
         portfolio["cost"] = portfolio["cash"]
         portfolio["value"] = portfolio["cash"]
+        price_by_symbol = get_prices(
+            db, [holding["symbol"] for holding in portfolio["holdings"]]
+        )
         for holding in portfolio["holdings"]:
             holding["value"] = (
                 user_ownership["percent"]
                 * holding["units"]
-                * market_data_provider.get_price(holding["symbol"])
+                * price_by_symbol[holding["symbol"]]
             )
             holding["gain_or_loss"] = holding["value"] - holding["cost"]
             portfolio["cost"] += holding["cost"]
@@ -314,11 +298,18 @@ def enrich_user_with_price_info(user):
     return user
 
 
-def create_leaderboard(db, request):
-    users = [enrich_user_with_price_info(user) for user in db.query(User).all()]
+def upsert_leaderboard(db, request: GetLeaderboardBlobRequest):
+    key = repr(request)
+    users = db.query(User).all()
+    users = [enrich_user_with_price_info(db, user) for user in users]
     if request.sort_by == LeaderboardSortBy.GAIN_OR_LOSS:
-        sort_fn = lambda user: user["portfolio"].get(request.sort_by, 0)
+        sort_fn = lambda user: user["portfolio"]["gain_or_loss"]
     else:
-        raise errors.InternalServerError(f"Unrecognized sort_by={request.sort_by}")
-    response = LeaderboardResponse(users=sorted(users, key=sort_fn))
-    return _upsert_blob(db, repr(request), response.model_dump_json())
+        raise InternalServerError(f"Unrecognized sort_by={request.sort_by}")
+    response = GetLeaderboardBlobResponse(users=sorted(users, key=sort_fn))
+    return upsert_blob(db, key, response.model_dump_json())
+
+
+# def create_blob(db, request):
+#     if isinstance(request, GetLeaderboardBlobRequest):
+#         pass

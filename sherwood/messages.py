@@ -1,8 +1,7 @@
 from enum import Enum
 from pydantic import field_validator, BaseModel, EmailStr
 from sherwood import errors
-from sherwood.auth import validate_password
-from sherwood.models import validate_display_name
+from sherwood.auth import validate_display_name, validate_password
 from typing import Any
 
 
@@ -56,21 +55,17 @@ class SignUpRequest(
     password: str
 
 
+class SignUpResponse(BaseModel):
+    redirect_url: str
+
+
 class SignInRequest(BaseModel, EmailValidatorMixin):
     email: str
     password: str
 
 
-class LeaderboardSortBy(Enum):
-    GAIN_OR_LOSS = "gain_or_loss"
-
-
-class LeaderboardRequest(BaseModel):
-    sort_by: LeaderboardSortBy
-
-
-class LeaderboardResponse(BaseModel):
-    users: list[dict[str, Any]]
+class SignInResponse(BaseModel):
+    redirect_url: str
 
 
 class BuyRequest(BaseModel, DollarsArePositiveValidatorMixin):
@@ -78,9 +73,17 @@ class BuyRequest(BaseModel, DollarsArePositiveValidatorMixin):
     dollars: float
 
 
+class BuyResponse(BaseModel):
+    pass
+
+
 class SellRequest(BaseModel, DollarsArePositiveValidatorMixin):
     symbol: str
     dollars: float
+
+
+class SellResponse(BaseModel):
+    pass
 
 
 class InvestRequest(BaseModel, DollarsArePositiveValidatorMixin):
@@ -88,48 +91,65 @@ class InvestRequest(BaseModel, DollarsArePositiveValidatorMixin):
     dollars: float
 
 
+class InvestResponse(BaseModel):
+    pass
+
+
 class DivestRequest(BaseModel, DollarsArePositiveValidatorMixin):
     investee_portfolio_id: int
     dollars: float
-
-
-class SignUpResponse(BaseModel):
-    redirect_url: str
-
-
-class SignInResponse(BaseModel):
-    redirect_url: str
-
-
-class BuyResponse(BaseModel):
-    pass
-
-
-class SellResponse(BaseModel):
-    pass
-
-
-class InvestResponse(BaseModel):
-    pass
 
 
 class DivestResponse(BaseModel):
     pass
 
 
+class LeaderboardSortBy(Enum):
+    GAIN_OR_LOSS = "gain_or_loss"
+
+
+class GetLeaderboardBlobRequest(BaseModel):
+    sort_by: LeaderboardSortBy
+
+
+class GetLeaderboardBlobResponse(BaseModel):
+    users: list[dict[str, Any]]
+
+
+from pydantic import model_validator
+from sherwood.errors import RequestValueError
+
+
+class GetBlobRequest(BaseModel):
+    leaderboard: GetLeaderboardBlobRequest | None = None
+
+    @model_validator
+    def validate_only_one_non_null(cls, values):
+        if len([v for v in values.items() if v is not None]) != 1:
+            raise RequestValueError("More than one blob requested.")
+        return values
+
+
+class GetBlobResponse(BaseModel):
+    key: str
+    value: str
+
+
 __all__ = [
     "SignUpRequest",
-    "SignInRequest",
-    "LeaderboardRequest",
-    "LeaderboardResponse",
-    "BuyRequest",
-    "SellRequest",
-    "InvestRequest",
-    "DivestRequest",
     "SignUpResponse",
+    "SignInRequest",
     "SignInResponse",
+    "BuyRequest",
     "BuyResponse",
+    "SellRequest",
     "SellResponse",
+    "InvestRequest",
     "InvestResponse",
+    "DivestRequest",
     "DivestResponse",
+    "GetBlobRequest",
+    "GetBlobResponse",
+    "GetLeaderboardBlobRequest",
+    "GetLeaderboardBlobResponse",
 ]

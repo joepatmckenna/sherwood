@@ -3,9 +3,8 @@
 lsof -t -i :8000 | xargs kill -9
 venv/bin/python -m pip install -e . --no-cache-dir
 source .env
-# extra_files=($( find sherwood -type f ))
-venv/bin/python sherwood/main.py --bind="127.0.0.1:8000" --reload
-# "${extra_files[@]/#/--reload-extra-file=}"
+extra_files=($( find sherwood -type f ))
+venv/bin/python sherwood/main.py --bind="127.0.0.1:8000" --reload "${extra_files[@]/#/--reload-extra-file=}"
 
 # Run `nginx -t` to get location of nginx config file
 #   nginx: the configuration file /opt/homebrew/etc/nginx/nginx.conf syntax is ok

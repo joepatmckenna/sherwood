@@ -1,7 +1,15 @@
 import pytest
 import sqlalchemy
+import time
 
-from sherwood.models import Holding, Portfolio, User
+from sherwood.models import (
+    create_quote,
+    has_expired,
+    update_quote,
+    Holding,
+    Portfolio,
+    User,
+)
 
 
 def test_user_add_success(db, valid_emails, valid_display_name, valid_password):
@@ -48,3 +56,18 @@ def test_add_holdings_to_portfolio(db, valid_email, valid_display_name, valid_pa
     db.add(user.portfolio)
     db.commit()
     assert db.get(Portfolio, 1).holdings == [holding_1, holding_2]
+
+
+def test_last_updated_at_changes_on_quote_update(db):
+    quote = create_quote(db, symbol="AAA", price=1)
+    t = quote.last_updated_at
+    time.sleep(0.1)
+    update_quote(db, quote, 2)
+    assert t < quote.last_updated_at
+
+
+def test_has_expired(db):
+    quote = create_quote(db, symbol="AAA", price=1)
+    time.sleep(0.1)
+    assert has_expired(quote, 0.05)
+    assert not has_expired(quote, 0.2)

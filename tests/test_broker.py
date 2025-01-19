@@ -1,5 +1,5 @@
 import pytest
-from sherwood.auth import decode_access_token
+from sherwood.auth import _decode_access_token
 from sherwood.broker import (
     sign_up_user,
     sign_in_user,
@@ -47,7 +47,7 @@ def test_sign_in_user(db, valid_email, valid_display_name, valid_password):
     expected.portfolio.id = 1
     sign_up_user(db, valid_email, valid_display_name, valid_password)
     access_token = sign_in_user(db, valid_email, valid_password)
-    payload = decode_access_token(access_token)
+    payload = _decode_access_token(access_token)
     assert payload["sub"] == str(expected.id)
 
 

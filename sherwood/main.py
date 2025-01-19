@@ -19,13 +19,13 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 async def error_handler(request: Request, exc: SherwoodError) -> JSONResponse:
-    if request.url.path.startswith("/api"):
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"error": {"status_code": exc.status_code, "detail": exc.detail}},
-            headers=exc.headers,
-        )
-    return RedirectResponse(request.url_for("public_home"))
+    # if request.url.path.startswith("/api"):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"status_code": exc.status_code, "detail": exc.detail}},
+        headers=exc.headers,
+    )
+    # return RedirectResponse(request.url_for("home"))
 
 
 def create_app(*args, **kwargs):

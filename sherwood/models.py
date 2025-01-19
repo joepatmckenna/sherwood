@@ -1,13 +1,9 @@
 from collections.abc import Iterable
 from dataclasses import fields
-from datetime import datetime, timezone
-from enum import Enum
-import re
-from sherwood import errors
-from sherwood.auth import password_context, validate_password
+from datetime import datetime
+from sherwood.db import maybe_commit
 from six import string_types
 from sqlalchemy import func, ForeignKey, Index
-from sqlalchemy.event import listens_for
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -16,12 +12,8 @@ from sqlalchemy.orm import (
     relationship,
     Session,
 )
+from sqlalchemy.orm.attributes import flag_modified
 from typing import Any
-
-_MIN_DISPLAY_NAME_LENGTH = 3
-_MAX_DISPLAY_NAME_LENGTH = 32
-
-get_current_time = lambda: datetime.now(timezone.utc)
 
 
 class BaseModel(DeclarativeBase, MappedAsDataclass):
@@ -30,7 +22,7 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
     created_at: Mapped[datetime] = mapped_column(
         init=False,
         repr=False,
-        default_factory=get_current_time,
+        default_factory=datetime.now,
         nullable=False,
         compare=False,
     )
@@ -38,10 +30,10 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
     last_updated_at: Mapped[datetime] = mapped_column(
         init=False,
         repr=False,
-        default_factory=get_current_time,
-        nullable=False,
-        onupdate=get_current_time,
+        default_factory=datetime.now,
         compare=False,
+        nullable=False,
+        onupdate=datetime.now,
     )
 
 
@@ -50,10 +42,10 @@ class User(BaseModel):
 
     id: Mapped[int] = mapped_column(
         init=False,
+        repr=True,
         primary_key=True,
         autoincrement=True,
         compare=True,
-        repr=True,
     )
 
     email: Mapped[str] = mapped_column(
@@ -102,53 +94,6 @@ class User(BaseModel):
             unique=True,
         ),
     )
-
-
-class ReasonDisplayNameInvalid(Enum):
-    TOO_SHORT = (
-        f"Display name must be at least {_MIN_DISPLAY_NAME_LENGTH} characters long."
-    )
-    TOO_Long = (
-        f"Display name must not be longer than {_MAX_DISPLAY_NAME_LENGTH} characters."
-    )
-    CONTAINS_SPECIAL = "Display name must only use letters (a-z or A-Z), numbers (0-9), underscores (_), hyphens (-), or periods (.)."
-    STARTS_WITH_SPECIAL = "Display name must begin with a letter (a-z or A-Z)."
-
-
-def validate_display_name(display_name: str) -> list[str]:
-    reasons = []
-    if len(display_name) < _MIN_DISPLAY_NAME_LENGTH:
-        reasons.append(ReasonDisplayNameInvalid.TOO_SHORT.value)
-    if len(display_name) > _MAX_DISPLAY_NAME_LENGTH:
-        reasons.append(ReasonDisplayNameInvalid.TOO_LONG.value)
-    if not re.match(r"^[a-zA-Z0-9._\-]+$", display_name):
-        reasons.append(ReasonDisplayNameInvalid.CONTAINS_SPECIAL.value)
-    if not re.match(r"^[a-zA-Z]", display_name):
-        reasons.append(ReasonDisplayNameInvalid.STARTS_WITH_SPECIAL.value)
-    return reasons
-
-
-@listens_for(User, "before_insert")
-def validate_user(mapper, connection, target):
-    if reasons := validate_display_name(target.display_name):
-        raise errors.InvalidDisplayNameError(reasons)
-    if reasons := validate_password(target.password):
-        raise errors.InvalidPasswordError(reasons)
-    target.password = password_context.hash(target.password)
-
-
-def create_user(
-    db: Session, email: str, display_name: str, password: str, cash: float = 0
-) -> User:
-    user = User(email=email, display_name=display_name, password=password)
-    user.portfolio = Portfolio(cash=cash)
-    db.add(user)
-    try:
-        db.commit()
-        return user
-    except Exception as exc:
-        db.rollback()
-        raise errors.InternalServerError(detail="Failed to create user.") from exc
 
 
 class Portfolio(BaseModel):
@@ -267,6 +212,26 @@ class Ownership(BaseModel):
     )
 
 
+class Quote(BaseModel):
+    __tablename__ = "quotes"
+
+    symbol: Mapped[str] = mapped_column(
+        primary_key=True,
+        init=True,
+        repr=True,
+        compare=True,
+        nullable=False,
+        unique=True,
+    )
+
+    price: Mapped[float] = mapped_column(
+        init=True,
+        repr=True,
+        compare=True,
+        nullable=False,
+    )
+
+
 class Blob(BaseModel):
     __tablename__ = "blobs"
 
@@ -288,10 +253,64 @@ class Blob(BaseModel):
     )
 
 
+def create_user(
+    db: Session, email: str, display_name: str, password: str, cash: float = 0
+) -> User:
+    user = User(email=email, display_name=display_name, password=password)
+    user.portfolio = Portfolio(cash=cash)
+    db.add(user)
+    maybe_commit(db, "Failed to create user.")
+    return user
+
+
+def create_quote(db: Session, symbol: str, price: float) -> Quote:
+    quote = Quote(symbol=symbol, price=price)
+    db.add(quote)
+    maybe_commit(db, "Failed to create quote.")
+    return quote
+
+
+def update_quote(db: Session, quote: Quote, price: float) -> Quote:
+    quote.price = price
+    flag_modified(quote, "price")
+    maybe_commit(db, "Failed to update quote.")
+    return quote
+
+
+def upsert_quote(db: Session, symbol: str, price: float) -> Quote:
+    quote = db.get(Quote, symbol)
+    if quote is None:
+        return create_quote(db, symbol, price)
+    else:
+        return update_quote(db, quote, price)
+
+
+def create_blob(db: Session, key: str, value: str) -> Blob:
+    blob = Blob(key=key, value=value)
+    db.add(blob)
+    maybe_commit(db, "Failed to create blob.")
+    return blob
+
+
+def update_blob(db: Session, blob: Blob, value: str) -> Blob:
+    blob.value = value
+    flag_modified(blob, "value")
+    maybe_commit(db, "Failed to update blob.")
+    return blob
+
+
+def upsert_blob(db: Session, key: str, value: str) -> Blob:
+    blob = db.get(Blob, key)
+    if blob is None:
+        return create_blob(db, key, value)
+    else:
+        return update_blob(db, blob, value)
+
+
 def to_dict(obj: Any) -> dict[str, Any]:
     if isinstance(obj, Iterable) and not isinstance(obj, string_types):
         obj = [to_dict(x) for x in obj]
-    if isinstance(obj, (User, Portfolio, Holding, Ownership)):
+    if isinstance(obj, BaseModel):
         obj = {
             field.name: to_dict(getattr(obj, field.name))
             for field in fields(obj)
@@ -301,6 +320,4 @@ def to_dict(obj: Any) -> dict[str, Any]:
 
 
 def has_expired(model: BaseModel, seconds: int):
-    return (
-        get_current_time() - model.created_at.replace(tzinfo=timezone.utc)
-    ).total_seconds() > seconds
+    return (datetime.now() - model.last_updated_at).total_seconds() > seconds

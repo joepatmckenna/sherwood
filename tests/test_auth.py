@@ -1,6 +1,6 @@
 import pytest
 from sherwood.auth import (
-    decode_access_token,
+    _decode_access_token,
     generate_access_token,
     validate_password,
     ReasonPasswordInvalid,
@@ -14,7 +14,7 @@ def test_encode_and_decode_jwt_for_user(
 ):
     user = create_user(db, valid_email, valid_display_name, valid_password)
     access_token = generate_access_token(user)
-    payload = decode_access_token(access_token)
+    payload = _decode_access_token(access_token)
     assert payload["iss"] == _JWT_ISSUER
     assert payload["sub"] == str(user.id)
 

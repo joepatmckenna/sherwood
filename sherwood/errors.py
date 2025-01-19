@@ -55,7 +55,7 @@ class IncorrectPasswordError(SherwoodError):
         )
 
 
-class InvalidAccessToken(SherwoodError):
+class InvalidAccessTokenError(SherwoodError):
     def __init__(self, detail: str) -> None:
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -143,12 +143,27 @@ class InsufficientHoldingsError(SherwoodError):
 
 
 class MarketDataProviderError(SherwoodError):
-    def __init__(self, symbol: str, exceptions: list[Exception], headers=None) -> None:
-        detail = f"Failed to get current price for symbol: {symbol}."
-        for i, exc in enumerate(exceptions):
-            detail += f" Error {i}: {exc}."
+    def __init__(self, detail: str, headers=None) -> None:
         super().__init__(
             status_code=status.HTTP_418_IM_A_TEAPOT,
             detail=detail,
             headers=headers,
         )
+
+
+__all__ = [
+    "SherwoodError",
+    "InternalServerError",
+    "RequestValueError",
+    "InvalidDisplayNameError",
+    "InvalidPasswordError",
+    "IncorrectPasswordError",
+    "InvalidAccessTokenError",
+    "MissingUserError",
+    "DuplicateUserError",
+    "MissingPortfolioError",
+    "DuplicatePortfolioError",
+    "InsufficientCashError",
+    "InsufficientHoldingsError",
+    "MarketDataProviderError",
+]
