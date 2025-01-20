@@ -267,37 +267,6 @@ def divest_from_portfolio(
     maybe_commit(db, "Failed to divest from portfolio.")
 
 
-# def enrich_user_with_price_info(db, user):
-#     user = to_dict(user)
-#     portfolio = user["portfolio"]
-#     user_ownership = [
-#         ownership
-#         for ownership in portfolio["ownership"]
-#         if ownership["owner_id"] == portfolio["id"]
-#     ]
-#     if not user_ownership:
-#         portfolio["gain_or_loss"] = 0
-#     else:
-#         user_ownership = user_ownership[0]
-#         portfolio["cost"] = portfolio["cash"]
-#         portfolio["value"] = portfolio["cash"]
-#         price_by_symbol = get_prices(
-#             db, [holding["symbol"] for holding in portfolio["holdings"]]
-#         )
-#         for holding in portfolio["holdings"]:
-#             holding["value"] = (
-#                 user_ownership["percent"]
-#                 * holding["units"]
-#                 * price_by_symbol[holding["symbol"]]
-#             )
-#             holding["gain_or_loss"] = holding["value"] - holding["cost"]
-#             portfolio["cost"] += holding["cost"]
-#             portfolio["value"] += holding["value"]
-#         portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
-#     user["portfolio"] = portfolio
-#     return user
-
-
 def _enrich_portfolio_with_price_info(db, portfolio):
     owner_ids = [ownership["owner_id"] for ownership in portfolio["ownership"]]
     owners = db.query(User).filter(User.id.in_(owner_ids)).all()
