@@ -267,66 +267,47 @@ def divest_from_portfolio(
     maybe_commit(db, "Failed to divest from portfolio.")
 
 
-def enrich_user_with_price_info(db, user):
-    user = to_dict(user)
-    portfolio = user["portfolio"]
-    user_ownership = [
-        ownership
-        for ownership in portfolio["ownership"]
-        if ownership["owner_id"] == portfolio["id"]
-    ]
-    if not user_ownership:
-        portfolio["gain_or_loss"] = 0
-    else:
-        user_ownership = user_ownership[0]
-        portfolio["cost"] = portfolio["cash"]
-        portfolio["value"] = portfolio["cash"]
-        price_by_symbol = get_prices(
-            db, [holding["symbol"] for holding in portfolio["holdings"]]
-        )
-        for holding in portfolio["holdings"]:
-            holding["value"] = (
-                user_ownership["percent"]
-                * holding["units"]
-                * price_by_symbol[holding["symbol"]]
-            )
-            holding["gain_or_loss"] = holding["value"] - holding["cost"]
-            portfolio["cost"] += holding["cost"]
-            portfolio["value"] += holding["value"]
-        portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
-    user["portfolio"] = portfolio
-    return user
+# def enrich_user_with_price_info(db, user):
+#     user = to_dict(user)
+#     portfolio = user["portfolio"]
+#     user_ownership = [
+#         ownership
+#         for ownership in portfolio["ownership"]
+#         if ownership["owner_id"] == portfolio["id"]
+#     ]
+#     if not user_ownership:
+#         portfolio["gain_or_loss"] = 0
+#     else:
+#         user_ownership = user_ownership[0]
+#         portfolio["cost"] = portfolio["cash"]
+#         portfolio["value"] = portfolio["cash"]
+#         price_by_symbol = get_prices(
+#             db, [holding["symbol"] for holding in portfolio["holdings"]]
+#         )
+#         for holding in portfolio["holdings"]:
+#             holding["value"] = (
+#                 user_ownership["percent"]
+#                 * holding["units"]
+#                 * price_by_symbol[holding["symbol"]]
+#             )
+#             holding["gain_or_loss"] = holding["value"] - holding["cost"]
+#             portfolio["cost"] += holding["cost"]
+#             portfolio["value"] += holding["value"]
+#         portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
+#     user["portfolio"] = portfolio
+#     return user
 
 
-def upsert_leaderboard(db, request: LeaderboardBlobRequest):
-    key = repr(request)
-    users = db.query(User).all()
-    users = [enrich_user_with_price_info(db, user) for user in users]
-    if request.sort_by == LeaderboardSortBy.GAIN_OR_LOSS:
-        sort_fn = lambda user: user["portfolio"]["gain_or_loss"]
-    else:
-        raise InternalServerError(f"Unrecognized sort_by={request.sort_by}")
-    users = sorted(users, key=sort_fn)[: request.top_k]
-    response = LeaderboardBlobResponse(users=users)
-    return upsert_blob(db, key, response.model_dump_json())
-
-
-def get_portfolio(db, portfolio_id):
-    portfolio = db.get(Portfolio, portfolio_id)
-    if portfolio is None:
-        raise MissingPortfolioError(portfolio_id)
-
-    owner_ids = [ownership.owner_id for ownership in portfolio.ownership]
+def _enrich_portfolio_with_price_info(db, portfolio):
+    owner_ids = [ownership["owner_id"] for ownership in portfolio["ownership"]]
     owners = db.query(User).filter(User.id.in_(owner_ids)).all()
     owner_display_name_by_id = {owner.id: owner.display_name for owner in owners}
-
-    portfolio = to_dict(portfolio)
 
     portfolio["cost"] = portfolio["cash"]
     portfolio["value"] = portfolio["cash"]
 
     if portfolio["holdings"]:
-        self_ownership = db.get(Ownership, (portfolio_id, portfolio_id))
+        self_ownership = db.get(Ownership, (portfolio["id"], portfolio["id"]))
         if self_ownership is None:
             raise InternalServerError("Invalid portfolio ownership info.")
 
@@ -351,3 +332,26 @@ def get_portfolio(db, portfolio_id):
 
     portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
     return portfolio
+
+
+def get_portfolio(db, portfolio_id):
+    portfolio = db.get(Portfolio, portfolio_id)
+    if portfolio is None:
+        raise MissingPortfolioError(portfolio_id)
+    portfolio = to_dict(portfolio)
+    return _enrich_portfolio_with_price_info(db, portfolio)
+
+
+def upsert_leaderboard(db, request: LeaderboardBlobRequest):
+    key = repr(request)
+    users = db.query(User).all()
+    users = [to_dict(user) for user in users]
+    for user in users:
+        user["portfolio"] = _enrich_portfolio_with_price_info(db, user["portfolio"])
+    if request.sort_by == LeaderboardSortBy.GAIN_OR_LOSS:
+        sort_fn = lambda user: -user["portfolio"]["gain_or_loss"]
+    else:
+        raise InternalServerError(f"Unrecognized sort_by={request.sort_by}")
+    users = sorted(users, key=sort_fn)[: request.top_k]
+    response = LeaderboardBlobResponse(users=users)
+    return upsert_blob(db, key, response.model_dump_json())

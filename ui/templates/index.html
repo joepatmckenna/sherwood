@@ -2,14 +2,12 @@
 
 {% block title %}sherwood{% endblock %}
 
-{% block content %}landing page{% endblock %}
-
 {% block script %}
 <script>
   sherwood.addEventListener('user', ({ detail: user }) => {
-    if (user) {
-      window.location.href = '/sherwood/profile';
-    }
+    if (!user.error) { window.location.href = '/sherwood/profile'; }
   });
+
+  window.onload = getUser;
 </script>
 {% endblock %}

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
+import json
 import logging
 from sherwood.auth import validate_password, AuthorizedUser, AUTHORIZATION_COOKIE_NAME
 from sherwood.broker import (
@@ -69,7 +70,7 @@ async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
             value=f"{token_type} {access_token}",
             max_age=ACCESS_TOKEN_DURATION_HOURS * 3600,
             httponly=True,
-            # secure=True,
+            secure=True,
         )
         return response
     except (
@@ -96,8 +97,16 @@ async def get_user(user: AuthorizedUser):
         raise
     except Exception as exc:
         raise InternalServerError(
-            f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."
+            f"Failed to get user from X-Sherwood-Authorization header. Error: {exc}."
         )
+
+
+@api_router.get("/user/{user_id}")
+async def get_user_by_id(db: Database, user_id: int):
+    try:
+        return to_dict(db.get(User, user_id))
+    except Exception as exc:
+        raise InternalServerError(f"Failed to get user by ID. Error: {exc}.")
 
 
 from typing import Any
@@ -241,7 +250,7 @@ async def upsert_blob(
 ) -> BlobResponse:
     try:
         blob = _upsert_blob(db, request.oneof(), latency)
-        return BlobResponse(key=blob.key, value=blob.value)
+        return BlobResponse(blob=json.loads(blob.value))
     except (
         RequestValueError,
         InternalServerError,

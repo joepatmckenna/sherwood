@@ -25,7 +25,7 @@
   const rightLinks = document.getElementById('sherwood-header-right-links');
 
   const displayRightLinks = ({ detail: user }) => {
-    if (user) {
+    if (!user?.error) {
       signOutLink = document.createElement('a');
       signOutLink.textContent = "sign out";
       signOutLink.href = "/sherwood/sign-out";

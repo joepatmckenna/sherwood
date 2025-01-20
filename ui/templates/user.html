@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}sherwood | user{% endblock %}
+
+{% block style %}
+{% endblock %}
+
+{% block content %}
+<div id="user-id-data-container" data-user-id="{{ user_id }}"></div>
+
+<div>
+  <table id="user-summary-table"></table>
+</div>
+
+{% include "portfolio.html" %}
+{% endblock %}
+
+{% block script %}
+<script>
+  const userSummaryTable = document.getElementById("user-summary-table");
+
+  sherwood.addEventListener('user', async ({ detail: user }) => {
+    console.log(user);
+
+    const userSummaryTableBody = document.createElement('tbody');
+    userSummaryTable.appendChild(userSummaryTableBody);
+    let row;
+
+    row = document.createElement('tr');
+    row.insertCell(0).textContent = 'display name:';
+    row.insertCell(1).textContent = `${user.display_name}`;
+    userSummaryTableBody.appendChild(row);
+
+    row = document.createElement('tr');
+    row.insertCell(0).textContent = 'member since:';
+    row.insertCell(1).textContent = `${user.created_at}`;
+    userSummaryTableBody.appendChild(row);
+
+    await getPortfolio({ portfolio_id: user.portfolio.id });
+  });
+
+  window.onload = async () => {
+    await getUserById(document.getElementById("user-id-data-container").getAttribute("data-user-id"));
+  };
+</script>
+{% endblock %}

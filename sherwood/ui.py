@@ -1,17 +1,7 @@
-from fastapi import APIRouter, Cookie, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-import json
-from sherwood.auth import authorized_user, AUTHORIZATION_COOKIE_NAME
-from sherwood.broker import enrich_user_with_price_info
-from sherwood.db import Database
-from sherwood.errors import (
-    InternalServerError,
-    InvalidAccessTokenError,
-    MissingUserError,
-)
-from sherwood.models import to_dict
-from typing import Annotated
+from sherwood.auth import AUTHORIZATION_COOKIE_NAME
 
 ui_router = APIRouter(prefix="")
 
@@ -40,6 +30,18 @@ async def sign_out(request: Request):
     return response
 
 
+# @ui_router.get("/landing", response_class=HTMLResponse)
+# async def profile(request: Request):
+#     return templates.TemplateResponse(request=request, name="landing.html")
+
+
 @ui_router.get("/profile", response_class=HTMLResponse)
 async def profile(request: Request):
     return templates.TemplateResponse(request=request, name="profile.html")
+
+
+@ui_router.get("/user/{user_id}", response_class=HTMLResponse)
+async def user_page(request: Request, user_id: int):
+    return templates.TemplateResponse(
+        request=request, name="user.html", context={"user_id": user_id}
+    )

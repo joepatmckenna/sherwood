@@ -35,8 +35,6 @@ def get_prices(db: Session, symbols: list[str]) -> dict[str, float]:
             symbols_by_status["current"].add(quote.symbol)
             price_by_symbol[quote.symbol] = quote.price
 
-    print(symbols_by_status, 128 * "!")
-
     if s := set.union(symbols_by_status["expired"], symbols_by_status["missing"]):
         price_by_symbol.update(_fetch_prices(list(s)))
         for symbol in symbols_by_status["missing"]:
