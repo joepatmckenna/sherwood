@@ -1,10 +1,8 @@
 # sherwood
 
 # TODO
-- leaderboard on home page
+- leaderboard cols: username, age, value, number investors, dollars invested, gain, average daily return
 - buy/sell in units or dollars
-- profile websocket, include price+value of things+usernames of investors
-- no deposit/withdraw button, users start with $100,000
 - inactivate buttons while awaiting response
 - symbol price endpoint/socket, price quote on buy/sell form
 - email verfication (smtplib, sendgrid)
