@@ -8,6 +8,8 @@
 {% block content %}
 <div id="user-id-data-container" data-user-id="{{ user_id }}"></div>
 
+<h1>User Profile</h1>
+
 <div>
   <table id="user-summary-table"></table>
 </div>
@@ -17,11 +19,8 @@
 
 {% block script %}
 <script>
-  const userSummaryTable = document.getElementById("user-summary-table");
-
-  sherwood.addEventListener('user', async ({ detail: user }) => {
-    console.log(user);
-
+  function populateUserSummaryTable(user) {
+    const userSummaryTable = document.getElementById("user-summary-table");
     const userSummaryTableBody = document.createElement('tbody');
     userSummaryTable.appendChild(userSummaryTableBody);
     let row;
@@ -35,12 +34,18 @@
     row.insertCell(0).textContent = 'member since:';
     row.insertCell(1).textContent = `${user.created_at}`;
     userSummaryTableBody.appendChild(row);
+  }
 
-    await getPortfolio({ portfolio_id: user.portfolio.id });
+  sherwood.addEventListener(USER_EVENT_NAME, async ({ detail: user }) => {
+    console.log(user);
+    emitPortfolio({ portfolio_id: user.portfolio.id });
+    populateUserSummaryTable(user);
   });
 
   window.onload = async () => {
-    await getUserById(document.getElementById("user-id-data-container").getAttribute("data-user-id"));
+    const userId = document.getElementById("user-id-data-container").getAttribute("data-user-id");
+    emitAuthorizedUser();
+    emitUser(userId);
   };
 </script>
 {% endblock %}

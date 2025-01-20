@@ -1,0 +1,22 @@
+<button id="invest-button">invest</button>
+
+<!-- invest modal -->
+<div class="modal-overlay" id="invest-modal-overlay">
+  <div class="modal">
+    <button class="close-button" id="invest-close-button"> &times; </button>
+    <h2>invest</h2>
+    <form id="invest-form">
+      <label>portfolio id:</label><br />
+      <input type="number" step="1" min="1" name="investee_portfolio_id" required /><br /><br />
+      <label>dollars:</label><br />
+      <input type="number" name="dollars" required /><br /><br />
+      <button type="submit">submit</button><br />
+    </form>
+    <p class="error" id="invest-error-message"></p>
+  </div>
+</div>
+
+<script>
+  setupForm("invest-form", "invest-error-message", "invest-modal-overlay", "/sherwood/api/invest");
+  setupModal("invest-button", "invest-close-button", "invest-modal-overlay");
+</script>

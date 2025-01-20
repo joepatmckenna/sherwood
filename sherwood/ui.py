@@ -36,7 +36,7 @@ async def sign_out(request: Request):
 
 
 @ui_router.get("/profile", response_class=HTMLResponse)
-async def profile(request: Request):
+async def authorized_user_profile(request: Request):
     return templates.TemplateResponse(request=request, name="profile.html")
 
 

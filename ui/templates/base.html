@@ -8,17 +8,19 @@
   <title>{% block title %}{% endblock %}</title>
 
   <link rel="stylesheet" href="/sherwood/static/style.css" />
+
   {% block style %}{% endblock %}
 </head>
 
 <body id="sherwood">
+  <script src="/sherwood/static/script.js"></script>
+
   {% include "header.html" %}
 
   <main>
     {% block content %}{% endblock %}
   </main>
 
-  <script src="/sherwood/static/script.js"></script>
   {% block script %}{% endblock %}
 </body>
 

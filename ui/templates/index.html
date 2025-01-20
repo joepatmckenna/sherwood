@@ -2,12 +2,17 @@
 
 {% block title %}sherwood{% endblock %}
 
+{% block style %}{% endblock %}
+
+{% block content %}
+{% include "leaderboard.html" %}
+{% endblock %}
+
 {% block script %}
 <script>
-  sherwood.addEventListener('user', ({ detail: user }) => {
-    if (!user.error) { window.location.href = '/sherwood/profile'; }
-  });
-
-  window.onload = getUser;
+  window.onload = () => {
+    emitAuthorizedUser();
+    emitLeaderboard();
+  };
 </script>
 {% endblock %}

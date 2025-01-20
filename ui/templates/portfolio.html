@@ -1,10 +1,11 @@
 <h2>portfolio</h2>
 
 <div>
-  <table id="portfolio-summary-table"></table><br />
+  <table id="portfolio-summary-table"></table>
 </div>
 
 <div>
+  <h3>holdings</h3>
   <table id="portfolio-holdings-table" border="1"> </table>
 </div>
 
@@ -13,13 +14,15 @@
   <table id="portfolio-investors-table" border="1"> </table>
 </div>
 
+<div>
+  <h2>investees</h2>
+  <table id="portfolio-investees-table" border="1"> </table>
+</div>
+
 <script>
 
-  const portfolioSummaryTable = document.getElementById("portfolio-summary-table");
-  const portfolioHoldingsTable = document.getElementById("portfolio-holdings-table");
-  const portfolioInvestorsTable = document.getElementById("portfolio-investors-table");
-
   async function populatePortfolioSummary(portfolio) {
+    const portfolioSummaryTable = document.getElementById("portfolio-summary-table");
     const portfolioSummaryTableBody = document.createElement('tbody');
     portfolioSummaryTable.appendChild(portfolioSummaryTableBody);
     let row;
@@ -41,7 +44,8 @@
   }
 
   async function populatePortfolioHoldingsTable({ holdings }) {
-    if (!holdings) {
+    const portfolioHoldingsTable = document.getElementById("portfolio-holdings-table");
+    if (holdings.length === 0) {
       portfolioHoldingsTable.innerHTML = "(no holdings yet)";
       return;
     }
@@ -68,8 +72,9 @@
     })
   }
 
-  async function populatePortfolioInvestorsTable({ ownership }) {
-    if (ownership.length <= 1) {
+  async function populatePortfolioInvestorsTable(portfolio) {
+    const portfolioInvestorsTable = document.getElementById("portfolio-investors-table");
+    if (portfolio.ownership.length <= 1) {
       portfolioInvestorsTable.textContent = "(no investors yet)";
       return;
     }
@@ -86,7 +91,7 @@
 
     const portfolioInvestorsTableBody = document.createElement('tbody');
     portfolioInvestorsTable.appendChild(portfolioInvestorsTableBody);
-    ownership.forEach(investor => {
+    portfolio.ownership.forEach(investor => {
       if (investor.owner_id !== portfolio.id) {
         const row = document.createElement('tr');
         row.insertCell(0).textContent = investor.display_name;
@@ -98,10 +103,15 @@
     })
   }
 
+  async function populatePortfolioInvesteesTable() {
+    const portfolioInvesteesTable = document.getElementById("portfolio-investees-table");
+  }
+
   const populateProfile = async ({ detail: portfolio }) => {
     populatePortfolioSummary(portfolio);
     populatePortfolioHoldingsTable(portfolio);
     populatePortfolioInvestorsTable(portfolio);
+    populatePortfolioInvesteesTable();
   }
 
   sherwood.addEventListener('portfolio', populateProfile);

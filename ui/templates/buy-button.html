@@ -1,0 +1,20 @@
+<button id="buy-button">buy</button>
+
+<!-- buy modal -->
+<div class="modal-overlay" id="buy-modal-overlay">
+  <div class="modal">
+    <button class="close-button" id="buy-close-button">&times;</button>
+    <h2>buy</h2>
+    <form id="buy-form">
+      <label>symbol:</label><br /> <input type="text" name="symbol" required /><br /><br />
+      <label>dollars:</label><br /> <input type="number" name="dollars" required /><br /><br />
+      <button type="submit">submit</button><br />
+    </form>
+    <p class="error" id="buy-error-message"></p>
+  </div>
+</div>
+
+<script>
+  setupModal("buy-button", "buy-close-button", "buy-modal-overlay");
+  setupForm("buy-form", "buy-error-message", "buy-modal-overlay", "/sherwood/api/buy");
+</script>

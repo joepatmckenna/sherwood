@@ -1,7 +1,7 @@
 <h2>leaderboard</h2>
 
 <div>
-  <table id="leaderboard-table" border="1"></table><br />
+  <table id="leaderboard-table" border="1"></table>
 </div>
 
 <script>
@@ -34,13 +34,11 @@
       row.insertCell(2).textContent = `$${user.portfolio.gain_or_loss.toFixed(2)} (${(100 * user.portfolio.gain_or_loss / user.portfolio.cost).toFixed(1)}%)`;
       leaderboardTableBody.appendChild(row);
     })
-
-
   }
 
   const populateLeaderboard = async ({ detail: leaderboard }) => {
     populateLeaderboardTable(leaderboard);
   }
 
-  sherwood.addEventListener('leaderboard', populateLeaderboard);
+  sherwood.addEventListener(LEADERBOARD_EVENT_NAME, populateLeaderboard);
 </script>

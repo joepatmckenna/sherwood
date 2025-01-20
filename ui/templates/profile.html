@@ -5,23 +5,25 @@
 {% block style %}{% endblock %}
 
 {% block content %}
-{% include "leaderboard.html" %}
+<h1>Your Profile</h1>
+
+{% include "buy-button.html" %}
+{% include "sell-button.html" %}
+{% include "invest-button.html" %}
+{% include "divest-button.html" %}
+
 {% include "portfolio.html" %}
+
 {% endblock %}
 
 {% block script %}
 <script>
-
-  const fetchProfile = async ({ detail: user }) => {
-    if (user.error) { window.location.href = '/sherwood/'; }
-    await getPortfolio({ portfolio_id: user.portfolio.id });
-  }
-
-  sherwood.addEventListener('user', fetchProfile);
+  sherwood.addEventListener(AUTHORIZED_USER_EVENT_NAME, ({ detail: user }) => {
+    emitPortfolio({ portfolio_id: user.portfolio.id });
+  });
 
   window.onload = () => {
-    getLeaderboard()
-    getUser();
+    emitAuthorizedUser();
   };
 
 </script>

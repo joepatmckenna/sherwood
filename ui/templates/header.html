@@ -1,47 +1,42 @@
-<style>
-  .sherwood-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .sherwood-header .links {
-    display: flex;
-    gap: 8px;
-  }
-</style>
-
 <header>
+  <style>
+    .sherwood-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sherwood-header .links {
+      display: flex;
+      gap: 8px;
+    }
+  </style>
+
   <nav class="sherwood-header">
     <div class="links">
-      <a href="/sherwood/">home</a>
+      <a href="/sherwood">home</a>
     </div>
-    <div class="links" id="sherwood-header-right-links"></div>
+    <div class="links" id="sherwood-header-right-links">
+      <a href="/sherwood/sign-up">sign up</a>
+      <a href="/sherwood/sign-in">sign in</a>
+    </div>
   </nav>
-</header>
 
+  <script>
+    const rightLinks = document.getElementById('sherwood-header-right-links');
+    const displayRightLinks = ({ detail: user }) => {
+      rightLinks.innerHTML = '';
 
-<script>
-  const rightLinks = document.getElementById('sherwood-header-right-links');
+      profileLink = document.createElement('a');
+      profileLink.textContent = "profile";
+      profileLink.href = "/sherwood/profile";
+      rightLinks.appendChild(profileLink);
 
-  const displayRightLinks = ({ detail: user }) => {
-    if (!user?.error) {
       signOutLink = document.createElement('a');
       signOutLink.textContent = "sign out";
       signOutLink.href = "/sherwood/sign-out";
       rightLinks.appendChild(signOutLink);
-    } else {
-      signUpLink = document.createElement('a');
-      signUpLink.textContent = "sign up";
-      signUpLink.href = "/sherwood/sign-up";
-      rightLinks.appendChild(signUpLink);
-
-      signInLink = document.createElement('a');
-      signInLink.textContent = "sign in";
-      signInLink.href = "/sherwood/sign-in";
-      rightLinks.appendChild(signInLink);
     }
-  }
-
-  sherwood.addEventListener('user', displayRightLinks);
-</script>
+    sherwood.addEventListener(AUTHORIZED_USER_EVENT_NAME, displayRightLinks);
+  </script>
+</header>
