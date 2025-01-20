@@ -1,15 +1,47 @@
+<style>
+  .sherwood-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .sherwood-header .links {
+    display: flex;
+    gap: 8px;
+  }
+</style>
+
 <header>
   <nav class="sherwood-header">
     <div class="links">
-      <a href="/sherwood">home</a>
+      <a href="/sherwood/">home</a>
     </div>
-    <div class="links" id="right-links">
-      {% if user %}
-      <a href="/sherwood/sign-out">sign out</a>
-      {% else %}
-      <a href="/sherwood/sign-up">sign up</a>
-      <a href="/sherwood/sign-in">sign in</a>
-      {% endif %}
-    </div>
+    <div class="links" id="sherwood-header-right-links"></div>
   </nav>
 </header>
+
+
+<script>
+  const rightLinks = document.getElementById('sherwood-header-right-links');
+
+  const displayRightLinks = ({ detail: user }) => {
+    if (user) {
+      signOutLink = document.createElement('a');
+      signOutLink.textContent = "sign out";
+      signOutLink.href = "/sherwood/sign-out";
+      rightLinks.appendChild(signOutLink);
+    } else {
+      signUpLink = document.createElement('a');
+      signUpLink.textContent = "sign up";
+      signUpLink.href = "/sherwood/sign-up";
+      rightLinks.appendChild(signUpLink);
+
+      signInLink = document.createElement('a');
+      signInLink.textContent = "sign in";
+      signInLink.href = "/sherwood/sign-in";
+      rightLinks.appendChild(signInLink);
+    }
+  }
+
+  sherwood.addEventListener('user', displayRightLinks);
+</script>

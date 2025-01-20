@@ -1,6 +1,15 @@
 {% extends "base.html" %}
-{% block title %}sherwood | home{% endblock %}
 
-{% block content %}
-public landing page for sherwood
+{% block title %}sherwood{% endblock %}
+
+{% block content %}landing page{% endblock %}
+
+{% block script %}
+<script>
+  sherwood.addEventListener('user', ({ detail: user }) => {
+    if (user) {
+      window.location.href = '/sherwood/profile';
+    }
+  });
+</script>
 {% endblock %}

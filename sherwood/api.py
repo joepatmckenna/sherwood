@@ -61,7 +61,7 @@ async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
         )
         response = JSONResponse(
             content=SignInResponse(
-                redirect_url="/sherwood/",
+                redirect_url="/sherwood/profile",
             ).model_dump(),
         )
         response.set_cookie(
@@ -94,6 +94,31 @@ async def get_user(user: AuthorizedUser):
         MissingUserError,
     ):
         raise
+    except Exception as exc:
+        raise InternalServerError(
+            f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."
+        )
+
+
+from typing import Any
+from pydantic import BaseModel
+from sherwood.broker import get_portfolio
+
+
+class PortfolioRequest(BaseModel):
+    portfolio_id: int
+
+
+class PortfolioResponse(BaseModel):
+    portfolio: dict[str, Any]
+
+
+@api_router.post("/portfolio")
+async def post_api_portfolio(
+    db: Database, request: PortfolioRequest
+) -> PortfolioResponse:
+    try:
+        return PortfolioResponse(portfolio=get_portfolio(db, request.portfolio_id))
     except Exception as exc:
         raise InternalServerError(
             f"Failed to detect user from X-Sherwood-Authorization header. Error: {exc}."

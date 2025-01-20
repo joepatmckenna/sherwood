@@ -2,38 +2,41 @@
 
 {% block title %}sherwood | sign in{% endblock %}
 
-{% block style %}
-<style>
-  .error {
-    color: red;
-  }
-</style>
-{% endblock %}
+{% block style %}{% endblock %}
 
 {% block content %}
 <h1>sign in</h1>
-<form id="signInForm" onsubmit="handleSignIn(event)">
+<form id="sign-in-form" onsubmit="handleSignIn(event)">
   <label>email:</label><br />
   <input type="email" name="email" required /><br /><br />
   <label>password:</label><br />
   <input type="password" name="password" required /><br /><br />
   <button type="submit">sign in</button><br />
 </form>
-<p class="error" id="errorMessage"></p>
+<p class="error" id="sign-in-error-message"></p>
 {% endblock %}
 
 {% block script %}
 <script>
-  const signInForm = document.getElementById("signInForm");
-  const errorMessage = document.getElementById("errorMessage");
+  async function signIn({ email, password }) {
+    return callApi("/sign-in", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  const signInForm = document.getElementById("sign-in-form");
+  const signInErrorMessage = document.getElementById("sign-in-error-message");
+
   async function handleSignIn(event) {
     event.preventDefault();
-    errorMessage.textContent = "";
+    signInErrorMessage.textContent = "";
     const signInFormData = new FormData(signInForm);
     const body = Object.fromEntries(signInFormData.entries());
     const response = await signIn(body)
     if (response?.error) {
-      errorMessage.textContent = response.error.detail;
+      signInErrorMessage.textContent = response.error.detail;
     } else {
       window.location.href = response.redirect_url;
     }

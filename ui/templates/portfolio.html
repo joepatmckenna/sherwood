@@ -1,0 +1,120 @@
+<h2>portfolio</h2>
+
+<div>
+  <table id="portfolio-summary-table"></table><br />
+</div>
+
+<div>
+  <table id="portfolio-holdings-table" border="1"> </table>
+</div>
+
+<div>
+  <h3>investors</h3>
+  <table id="portfolio-investors-table" border="1"> </table>
+</div>
+
+<script>
+
+  const portfolioSummaryTable = document.getElementById("portfolio-summary-table");
+  const portfolioHoldingsTable = document.getElementById("portfolio-holdings-table");
+  const portfolioInvestorsTable = document.getElementById("portfolio-investors-table");
+
+  async function getPortfolio({ portfolio_id }) {
+    return callApi("/portfolio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ portfolio_id }),
+    });
+  }
+
+  async function populatePortfolioSummary(portfolio) {
+    const portfolioSummaryTableBody = document.createElement('tbody');
+    portfolioSummaryTable.appendChild(portfolioSummaryTableBody);
+    let row;
+
+    row = document.createElement('tr');
+    row.insertCell(0).textContent = 'value:';
+    row.insertCell(1).textContent = `$${portfolio.value.toFixed(2)}`;
+    portfolioSummaryTableBody.appendChild(row);
+
+    row = document.createElement('tr');
+    row.insertCell(0).textContent = 'gain or loss:';
+    row.insertCell(1).textContent = `$${portfolio.gain_or_loss.toFixed(2)} (${(100 * portfolio.gain_or_loss / portfolio.cost).toFixed(1)}%)`;
+    portfolioSummaryTableBody.appendChild(row);
+
+    row = document.createElement('tr');
+    row.insertCell(0).textContent = 'cash:';
+    row.insertCell(1).textContent = `$${portfolio.cash.toFixed(2)}`;
+    portfolioSummaryTableBody.appendChild(row);
+  }
+
+  async function populatePortfolioHoldingsTable({ holdings }) {
+    if (!holdings) {
+      portfolioHoldingsTable.innerHTML = "(no holdings yet)";
+      return;
+    }
+
+    const portfolioHoldingsTableHead = document.createElement('thead');
+    const portfolioHoldingsTableHeadRow = document.createElement('tr');
+    ["symbol", "units", "cost", "value", "gain or loss"].forEach(col => {
+      const th = document.createElement('th');
+      th.textContent = col;
+      portfolioHoldingsTableHeadRow.appendChild(th);
+    });
+    portfolioHoldingsTableHead.appendChild(portfolioHoldingsTableHeadRow);
+    portfolioHoldingsTable.appendChild(portfolioHoldingsTableHead);
+
+    const portfolioHoldingsTableBody = document.createElement('tbody');
+    portfolioHoldingsTable.appendChild(portfolioHoldingsTableBody);
+    holdings.forEach(holding => {
+      const row = document.createElement('tr');
+      row.insertCell(0).textContent = holding.symbol;
+      row.insertCell(1).textContent = `${holding.units.toFixed(2)}`;
+      row.insertCell(2).textContent = `$${holding.cost.toFixed(2)}`;
+      row.insertCell(3).textContent = `$${holding.value.toFixed(2)}`;
+      row.insertCell(4).textContent = `$${holding.gain_or_loss.toFixed(2)} (${(100 * holding.gain_or_loss / holding.cost).toFixed(1)}%)`;
+      portfolioHoldingsTableBody.appendChild(row);
+    })
+  }
+
+  async function populatePortfolioInvestorsTable({ ownership }) {
+    if (ownership.length <= 1) {
+      portfolioInvestorsTable.textContent = "(no investors yet)";
+      return;
+    }
+
+    const portfolioInvestorsTableHead = document.createElement('thead');
+    const portfolioInvestorsTableHeadRow = document.createElement('tr');
+    ["user", "cost", "value", "gain or loss"].forEach(col => {
+      const th = document.createElement('th');
+      th.textContent = col;
+      portfolioInvestorsTableHeadRow.appendChild(th);
+    });
+    portfolioInvestorsTableHead.appendChild(portfolioInvestorsTableHeadRow);
+    portfolioInvestorsTable.appendChild(portfolioInvestorsTableHead);
+
+    const portfolioInvestorsTableBody = document.createElement('tbody');
+    portfolioInvestorsTable.appendChild(portfolioInvestorsTableBody);
+    ownership.forEach(investor => {
+      if (investor.owner_id !== portfolio.id) {
+        const row = document.createElement('tr');
+        row.insertCell(0).textContent = investor.display_name;
+        row.insertCell(1).textContent = `$${investor.cost.toFixed(2)}`;
+        row.insertCell(2).textContent = `$${investor.value.toFixed(2)}`;
+        row.insertCell(3).textContent = `$${investor.gain_or_loss.toFixed(2)} (${(100 * investor.gain_or_loss / investor.cost).toFixed(1)}%)`;
+        portfolioInvestorsTableBody.appendChild(row);
+      }
+    })
+  }
+
+  const populateProfile = async ({ detail: user }) => {
+    const response = await getPortfolio({ portfolio_id: user.portfolio.id });
+    if (response?.error) { return; }
+    const { portfolio } = response;
+    populatePortfolioSummary(portfolio);
+    populatePortfolioHoldingsTable(portfolio);
+    populatePortfolioInvestorsTable(portfolio);
+  }
+
+  sherwood.addEventListener('user', populateProfile);
+</script>

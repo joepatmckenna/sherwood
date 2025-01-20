@@ -1,28 +1,3 @@
-const UNEXPECTED_ERROR =
-  "An unexpected error occurred. Please try again later.";
-
-async function maybeFetch(url, options = {}) {
-  try {
-    const response = await fetch(url, options);
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    return { error: { detail: error.message || UNEXPECTED_ERROR } };
-  }
-}
-
-async function getUser() {
-  return maybeFetch("/sherwood/api/user");
-}
-
-async function signIn({ email, password }) {
-  return maybeFetch("/sherwood/api/sign-in", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-}
-
 // async function maybeMakeBanner(user) {
 //   const bannerContainer = document.getElementById("bannerContainer");
 //   if (bannerContainer) {
