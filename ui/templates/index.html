@@ -2,17 +2,16 @@
 
 {% block title %}sherwood{% endblock %}
 
-{% block style %}{% endblock %}
-
 {% block content %}
-{% include "leaderboard.html" %}
+<portfolio-leaderboard />
+<!-- {% include "leaderboard.html" %} -->
 {% endblock %}
 
-{% block script %}
+<!-- {% block script %}
 <script>
   window.onload = () => {
     emitAuthorizedUser();
     emitLeaderboard();
   };
 </script>
-{% endblock %}
+{% endblock %} -->

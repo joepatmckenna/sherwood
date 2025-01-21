@@ -250,7 +250,7 @@ async def upsert_blob(
 ) -> BlobResponse:
     try:
         blob = _upsert_blob(db, request.oneof(), latency)
-        return BlobResponse(blob=json.loads(blob.value))
+        return BlobResponse(value=json.loads(blob.value))
     except (
         RequestValueError,
         InternalServerError,
@@ -260,3 +260,97 @@ async def upsert_blob(
         raise InternalServerError(
             f"Failed to get blob. Request: {request}. Error: {exc}."
         ) from exc
+
+
+from enum import Enum
+
+
+class LeaderboardSortBy(Enum):
+    LIFETIME_RETURN = "lifetime_return"
+    AVERAGE_DAILY_RETURN = "average_daily_return"
+    ASSETS_UNDER_MANAGEMENT = "assets_under_management"
+
+
+class LeaderboardRequest(BaseModel):
+    top_k: int
+    sort_by: LeaderboardSortBy
+
+
+class LeaderboardRow(BaseModel):
+    user_id: int
+    user_display_name: str
+    lifetime_return: float | None = None
+    average_daily_return: float | None = None
+    assets_under_management: float | None = None
+
+
+class LeaderboardResponse(BaseModel):
+    rows: list[LeaderboardRow]
+
+
+from sherwood.models import Ownership
+from sherwood.market_data import get_prices
+
+
+def _lifetime_return(db, user):
+    self_ownership = db.get(Ownership, (user.portfolio.id, user.id))
+    if self_ownership is None:
+        raise InternalServerError("Invalid portfolio ownership info.")
+    price_by_symbol = get_prices(
+        db, [holding.symbol for holding in user.portfolio.holdings]
+    )
+    # should add up to STARTING_BALANCE
+    cost = user.portfolio.cash + sum(
+        holding.cost for holding in user.portfolio.holdings
+    )
+    value = user.portfolio.cash + self_ownership.percent * sum(
+        holding.units * price_by_symbol[holding.symbol]
+        for holding in user.portfolio.holdings
+    )
+    return value - cost
+
+
+from datetime import datetime
+
+
+def _average_daily_return(db, user):
+    lifetime_return = _lifetime_return(db, user)
+    days = max(1, (datetime.now() - user.created_at).days)
+    return lifetime_return / days
+
+
+def _assets_under_management(db, user):
+    price_by_symbol = get_prices(
+        db, [holding.symbol for holding in user.portfolio.holdings]
+    )
+    return user.portfolio.cash + sum(
+        holding.units * price_by_symbol[holding.symbol]
+        for holding in user.portfolio.holdings
+    )
+
+
+@api_router.post("/leaderboard")
+async def api_post_leaderboard(
+    request: LeaderboardRequest,
+    db: Database,
+) -> LeaderboardResponse:
+    users = db.query(User).all()
+    if request.sort_by == LeaderboardSortBy.LIFETIME_RETURN:
+        key_fn = _lifetime_return
+    elif request.sort_by == LeaderboardSortBy.AVERAGE_DAILY_RETURN:
+        key_fn = _average_daily_return
+    elif request.sort_by == LeaderboardSortBy.ASSETS_UNDER_MANAGEMENT:
+        key_fn = _assets_under_management
+    else:
+        raise InternalServerError("unrecognized sort by")
+
+    users = [(key_fn(db, user), user) for user in users]
+    users.sort(key=lambda x: x[0], reverse=True)
+
+    response = LeaderboardResponse(rows=[])
+    for key, user in users:
+        row = LeaderboardRow(user_id=user.id, user_display_name=user.display_name)
+        setattr(row, request.sort_by.value, key)
+        response.rows.append(row)
+
+    return response

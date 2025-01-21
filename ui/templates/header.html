@@ -23,8 +23,9 @@
   </nav>
 
   <script>
-    const rightLinks = document.getElementById('sherwood-header-right-links');
-    const displayRightLinks = ({ detail: user }) => {
+    const displaySignedInUserLinks = ({ detail: user }) => {
+      const rightLinks = document.getElementById('sherwood-header-right-links');
+
       rightLinks.innerHTML = '';
 
       profileLink = document.createElement('a');
@@ -37,6 +38,7 @@
       signOutLink.href = "/sherwood/sign-out";
       rightLinks.appendChild(signOutLink);
     }
-    sherwood.addEventListener(AUTHORIZED_USER_EVENT_NAME, displayRightLinks);
+
+    sherwood.addEventListener(AUTHORIZED_USER_EVENT_NAME, displaySignedInUserLinks);
   </script>
 </header>

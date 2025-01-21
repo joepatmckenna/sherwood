@@ -128,7 +128,7 @@ setup_sherwood() {
   python3 -m venv "${VENV_DIR}"
 
   SHERWOOD_REPO='https://github.com/joepatmckenna/sherwood.git'
-  if [[ -f "${SHERWOOD_DIR}/.git" ]]; then
+  if [[ -d "${SHERWOOD_DIR}/.git" ]]; then
     git -C "${SHERWOOD_DIR}" pull
   else
     git clone "${SHERWOOD_REPO}" "${SHERWOOD_DIR}"

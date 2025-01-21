@@ -7,21 +7,22 @@
 
   <title>{% block title %}{% endblock %}</title>
 
-  <link rel="stylesheet" href="/sherwood/static/style.css" />
+  <!-- <link rel="stylesheet" href="/sherwood/static/style.css" /> -->
 
-  {% block style %}{% endblock %}
+  <!-- {% block style %}{% endblock %} -->
 </head>
 
 <body id="sherwood">
-  <script src="/sherwood/static/script.js"></script>
+  <!-- <script src="/sherwood/static/script.js"></script> -->
+  <script src="/sherwood/static/leaderboard.js"></script>
 
-  {% include "header.html" %}
+  <!-- {% include "header.html" %} -->
 
   <main>
     {% block content %}{% endblock %}
   </main>
 
-  {% block script %}{% endblock %}
+  <!-- {% block script %}{% endblock %} -->
 </body>
 
 </html>

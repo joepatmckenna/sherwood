@@ -140,7 +140,7 @@ class BlobRequest(BaseModel, OneOfMixin):
 
 
 class BlobResponse(BaseModel):
-    blob: dict[str, Any]
+    value: dict[str, Any]
 
 
 __all__ = [
