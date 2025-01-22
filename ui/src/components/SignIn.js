@@ -1,9 +1,9 @@
-export const SIGN_IN_ELEMENT_NAME = "sherwood-sign-in";
+export const SIGN_IN_TAG_NAME = "sherwood-sign-in";
 export const SIGN_IN_TEMPLATE_NAME = "sherwood-sign-in-template";
 
-import { BaseElement } from "./BaseElement.js";
+import BaseElement from "./BaseElement.js";
 
-export class SignIn extends BaseElement {
+export default class SignIn extends BaseElement {
   constructor() {
     super(SIGN_IN_TEMPLATE_NAME);
   }
@@ -34,8 +34,8 @@ export class SignIn extends BaseElement {
         this.navigateTo(response.redirect_url);
       }
     });
-    this.shadowRoot.appendChild(element);
+    this.shadowRoot.replaceChildren(element);
   }
 }
 
-customElements.define(SIGN_IN_ELEMENT_NAME, SignIn);
+customElements.define(SIGN_IN_TAG_NAME, SignIn);

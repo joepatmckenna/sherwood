@@ -1,9 +1,9 @@
-export class BaseElement extends HTMLElement {
+export default class BaseElement extends HTMLElement {
   constructor(templateName) {
     super();
     this.templateName = templateName;
     this.attachShadow({ mode: "open" });
-    this.handleLinks();
+    this.interceptSherwoodLinks();
   }
 
   loadTemplate() {
@@ -11,19 +11,41 @@ export class BaseElement extends HTMLElement {
     return template.content.cloneNode(true);
   }
 
-  handleLinks() {
-    this.shadowRoot.addEventListener("click", (event) => {
-      const link = event.target.closest("a[data-link]");
-      if (!link) return;
+  interceptSherwoodLinks() {
+    this.shadowRoot.addEventListener("click", async (event) => {
+      const target = event.target.closest("a");
+      if (!target) return;
+      const href = target.getAttribute("href");
+      const isInternal =
+        href.startsWith("/") || !href.startsWith(window.location.origin);
+      if (!isInternal) return;
       event.preventDefault();
-      const href = link.getAttribute("href");
-      this.navigateTo(href);
+
+      if (href === "/sherwood/sign-out") {
+        const response = await this.callApi("/sign-out", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        if (!response?.error) {
+          this.dispatchEvent(
+            new CustomEvent("sherwood-sign-out", {
+              bubbles: true,
+              composed: true,
+              detail: {},
+            })
+          );
+          this.navigateTo("/sherwood/");
+        }
+      } else {
+        this.navigateTo(href);
+      }
     });
   }
 
   navigateTo(href) {
     this.dispatchEvent(
-      new CustomEvent("router-link", {
+      new CustomEvent("sherwood-navigate-to", {
         bubbles: true,
         composed: true,
         detail: { href },

@@ -1,19 +1,19 @@
-export const HEADER_ELEMENT_NAME = "sherwood-header";
+export const HEADER_TAG_NAME = "sherwood-header";
 export const HEADER_TEMPLATE_NAME = "sherwood-header-template";
 
-import { BaseElement } from "./BaseElement.js";
+import BaseElement from "./BaseElement.js";
 
 const SIGNED_IN_LINKS = `
-<a href="/sherwood/profile" data-link>profile</a>
-<a href="/sherwood/sign-out" data-link>sign out</a>
+<a href="/sherwood/profile">profile</a>
+<a href="/sherwood/sign-out">sign out</a>
 `;
 
 const SIGNED_OUT_LINKS = `
-<a href="/sherwood/sign-up" data-link>sign up</a>
-<a href="/sherwood/sign-in" data-link>sign in</a>
+<a href="/sherwood/sign-up">sign up</a>
+<a href="/sherwood/sign-in">sign in</a>
 `;
 
-export class Header extends BaseElement {
+export default class Header extends BaseElement {
   constructor() {
     super(HEADER_TEMPLATE_NAME);
   }
@@ -41,4 +41,4 @@ export class Header extends BaseElement {
   }
 }
 
-customElements.define(HEADER_ELEMENT_NAME, Header);
+customElements.define(HEADER_TAG_NAME, Header);

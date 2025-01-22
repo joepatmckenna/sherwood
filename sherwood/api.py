@@ -86,6 +86,15 @@ async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
         )
 
 
+from fastapi import Response
+
+
+@api_router.post("/sign-out")
+async def api_sign_out(response: Response):
+    response.delete_cookie(AUTHORIZATION_COOKIE_NAME)
+    return {}
+
+
 @api_router.get("/user")
 async def get_user(user: AuthorizedUser):
     try:

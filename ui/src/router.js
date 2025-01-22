@@ -7,7 +7,7 @@ export default class Router {
   }
 
   handleLinks() {
-    document.body.addEventListener("router-link", (event) => {
+    document.body.addEventListener("sherwood-navigate-to", (event) => {
       const { href } = event.detail;
       if (!href) return;
       event.preventDefault();
@@ -27,10 +27,9 @@ export default class Router {
   }
 
   loadRoute(path) {
-    const matchedComponent = this.routes[path] || this.routes["/404"];
-    const appDiv = document.getElementById("app");
-    appDiv.innerHTML = "";
-    const component = document.createElement(matchedComponent);
-    appDiv.appendChild(component);
+    const component = this.routes[path];
+    const sherwood = document.getElementById("sherwood");
+    sherwood.innerHTML = "";
+    sherwood.appendChild(component);
   }
 }
