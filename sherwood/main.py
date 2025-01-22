@@ -30,7 +30,8 @@ async def error_handler(request: Request, exc: SherwoodError) -> JSONResponse:
 
 def create_app(*args, **kwargs):
     app = FastAPI(*args, **kwargs)
-    app.mount("/static", StaticFiles(directory="ui/static"), name="static")
+    # app.mount("/static", StaticFiles(directory="ui/static"), name="static")
+    app.mount("/ui", StaticFiles(directory="ui"), name="ui")
     app.include_router(api_router)
     app.include_router(ui_router)
     for error in errors.SherwoodError.__subclasses__():

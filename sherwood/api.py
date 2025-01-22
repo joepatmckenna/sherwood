@@ -262,7 +262,13 @@ async def upsert_blob(
         ) from exc
 
 
+### leaderboard endpoing ###
+# todo: blob_caching decorator
+
+from datetime import datetime
 from enum import Enum
+from sherwood.models import Ownership
+from sherwood.market_data import get_prices
 
 
 class LeaderboardSortBy(Enum):
@@ -288,10 +294,6 @@ class LeaderboardResponse(BaseModel):
     rows: list[LeaderboardRow]
 
 
-from sherwood.models import Ownership
-from sherwood.market_data import get_prices
-
-
 def _lifetime_return(db, user):
     self_ownership = db.get(Ownership, (user.portfolio.id, user.id))
     if self_ownership is None:
@@ -308,9 +310,6 @@ def _lifetime_return(db, user):
         for holding in user.portfolio.holdings
     )
     return value - cost
-
-
-from datetime import datetime
 
 
 def _average_daily_return(db, user):

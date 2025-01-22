@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sherwood</title>
+</head>
+
+<body>
+  {% for template in templates %} {% include template %} {% endfor %}
+  <script src="/sherwood/ui/src/components/Header.js" type="module"> </script>
+  <sherwood-header> </sherwood-header>
+
+  <div id="app"></div>
+  <script src="/sherwood/ui/src/app.js" type="module"></script>
+</body>
+
+</html>
