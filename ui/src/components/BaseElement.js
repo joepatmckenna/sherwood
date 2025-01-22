@@ -3,7 +3,7 @@ export default class BaseElement extends HTMLElement {
     super();
     this.templateName = templateName;
     this.attachShadow({ mode: "open" });
-    this.interceptSherwoodLinks();
+    this.handleInternalLinks();
   }
 
   loadTemplate() {
@@ -11,35 +11,19 @@ export default class BaseElement extends HTMLElement {
     return template.content.cloneNode(true);
   }
 
-  interceptSherwoodLinks() {
+  async handleInternalLinks() {
     this.shadowRoot.addEventListener("click", async (event) => {
       const target = event.target.closest("a");
       if (!target) return;
-      const href = target.getAttribute("href");
-      const isInternal =
-        href.startsWith("/") || !href.startsWith(window.location.origin);
+      let href = target.getAttribute("href");
+      const isInternal = href.startsWith("/sherwood");
       if (!isInternal) return;
       event.preventDefault();
-
       if (href === "/sherwood/sign-out") {
-        const response = await this.callApi("/sign-out", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
-        if (!response?.error) {
-          this.dispatchEvent(
-            new CustomEvent("sherwood-sign-out", {
-              bubbles: true,
-              composed: true,
-              detail: {},
-            })
-          );
-          this.navigateTo("/sherwood/");
-        }
-      } else {
-        this.navigateTo(href);
+        await this.signOut();
+        href = "/sherwood/";
       }
+      this.navigateTo(href);
     });
   }
 
@@ -51,6 +35,23 @@ export default class BaseElement extends HTMLElement {
         detail: { href },
       })
     );
+  }
+
+  async signOut() {
+    const response = await this.callApi("/sign-out", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (!response?.error) {
+      this.dispatchEvent(
+        new CustomEvent("sherwood-sign-out", {
+          bubbles: true,
+          composed: true,
+          detail: {},
+        })
+      );
+    }
   }
 
   async callApi(route, options = {}) {

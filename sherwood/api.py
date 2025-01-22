@@ -304,20 +304,21 @@ class LeaderboardResponse(BaseModel):
 
 
 def _lifetime_return(db, user):
-    self_ownership = db.get(Ownership, (user.portfolio.id, user.id))
-    if self_ownership is None:
-        raise InternalServerError("Invalid portfolio ownership info.")
     price_by_symbol = get_prices(
         db, [holding.symbol for holding in user.portfolio.holdings]
     )
-    # should add up to STARTING_BALANCE
-    cost = user.portfolio.cash + sum(
-        holding.cost for holding in user.portfolio.holdings
-    )
-    value = user.portfolio.cash + self_ownership.percent * sum(
-        holding.units * price_by_symbol[holding.symbol]
-        for holding in user.portfolio.holdings
-    )
+    value = cost = user.portfolio.cash
+    if user.portfolio.holdings:
+        self_ownership = db.get(Ownership, (user.portfolio.id, user.id))
+        if self_ownership is None:
+            raise InternalServerError("Invalid portfolio ownership info.")
+        value += self_ownership.percent * sum(
+            holding.units * price_by_symbol[holding.symbol]
+            for holding in user.portfolio.holdings
+        )
+        cost += sum(
+            holding.cost for holding in user.portfolio.holdings
+        )  # should add up to STARTING_BALANCE
     return value - cost
 
 

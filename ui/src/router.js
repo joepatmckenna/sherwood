@@ -2,16 +2,14 @@ export default class Router {
   constructor(routes) {
     this.routes = routes;
     this.loadRoute(window.location.pathname);
-    this.handleLinks();
+    this.handleInternalLinks();
     this.handleBackAndForward();
   }
 
-  handleLinks() {
+  handleInternalLinks() {
     document.body.addEventListener("sherwood-navigate-to", (event) => {
-      const { href } = event.detail;
-      if (!href) return;
       event.preventDefault();
-      this.navigateTo(href);
+      this.navigateTo(event.detail.href);
     });
   }
 
@@ -28,8 +26,6 @@ export default class Router {
 
   loadRoute(path) {
     const component = this.routes[path];
-    const sherwood = document.getElementById("sherwood");
-    sherwood.innerHTML = "";
-    sherwood.appendChild(component);
+    document.getElementById("sherwood").replaceChildren(component);
   }
 }
