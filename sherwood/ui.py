@@ -9,8 +9,8 @@ ui_router = APIRouter(prefix="")
 templates = Jinja2Templates(directory="ui")
 
 
-@ui_router.get("/", response_class=HTMLResponse)
-async def home(request: Request):
+@ui_router.get("{path:path}", response_class=HTMLResponse)
+async def home(request: Request, path: str):
     return templates.TemplateResponse(
         request=request,
         name="index.html",
