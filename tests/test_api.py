@@ -1,4 +1,3 @@
-from sherwood.auth import AUTHORIZATION_COOKIE_NAME
 from sherwood.broker import STARTING_BALANCE
 
 
@@ -47,14 +46,14 @@ def test_sign_in_success(client, valid_email, valid_display_name, valid_password
 
 def test_sign_in_invalid_email(client, valid_password):
     response = client.post(
-        "/api/sign-in/", json={"email": "user", "password": valid_password}
+        "/api/sign-in", json={"email": "user", "password": valid_password}
     )
     assert response.status_code == 422
 
 
 def test_sign_in_user_not_found(client, valid_email, valid_password):
     response = client.post(
-        "/api/sign-in/", json={"email": valid_email, "password": valid_password}
+        "/api/sign-in", json={"email": valid_email, "password": valid_password}
     )
     assert response.status_code == 404
 
@@ -92,6 +91,7 @@ def test_get_user_success(client, valid_email, valid_display_name, valid_passwor
     )
     assert sign_in_response.status_code == 200
     get_user_response = client.get("/api/user")
+    print(get_user_response.json())
     assert get_user_response.status_code == 200
 
 
@@ -460,8 +460,12 @@ def test_get_leaderboard_success(
     buy_response = client.post("/api/buy", json={"symbol": "AAA", "dollars": 50})
     assert buy_response.status_code == 200
 
-    get_blob_response = client.post(
-        "/api/blob",
-        json={"leaderboard": {"top_k": 10, "sort_by": "gain_or_loss"}},
+    leaderboard_response = client.post(
+        "/api/leaderboard",
+        json={"top_k": 10, "sort_by": "lifetime_return"},
     )
-    assert get_blob_response.status_code == 200
+    print(leaderboard_response.json())
+    assert leaderboard_response.status_code == 200
+
+
+# python -m pytest tests/test_api.py::test_get_leaderboard_success --capture=no

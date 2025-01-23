@@ -6,24 +6,10 @@ from sherwood.errors import (
     RequestValueError,
 )
 from sherwood.auth import validate_display_name, validate_password
-from typing import Any
 from typing_extensions import Self
 
 
-class OneOfMixin:
-    def oneof(self):
-        for k, v in self.model_dump().items():
-            if v is not None:
-                return getattr(self, k)
-
-    @model_validator(mode="after")
-    def validate_one_of(self) -> Self:
-        if len([v for v in self.model_dump().values() if v is not None]) != 1:
-            raise RequestValueError("More than one blob requested.")
-        return self
-
-
-class ModelWithEmail(BaseModel):
+class _ModelWithEmail(BaseModel):
     email: EmailStr
 
 
@@ -31,7 +17,7 @@ class EmailValidatorMixin:
     @field_validator("email")
     def validate_email(cls, email):
         try:
-            ModelWithEmail(email=email)
+            _ModelWithEmail(email=email)
             return email
         except ValueError as exc:
             raise RequestValueError(
@@ -123,24 +109,26 @@ class DivestResponse(BaseModel):
 
 
 class LeaderboardSortBy(Enum):
-    GAIN_OR_LOSS = "gain_or_loss"
+    LIFETIME_RETURN = "lifetime_return"
+    AVERAGE_DAILY_RETURN = "average_daily_return"
+    ASSETS_UNDER_MANAGEMENT = "assets_under_management"
 
 
-class LeaderboardBlobRequest(BaseModel):
+class LeaderboardRequest(BaseModel):
     top_k: int
     sort_by: LeaderboardSortBy
 
 
-class LeaderboardBlobResponse(BaseModel):
-    users: list[dict[str, Any]]
+class LeaderboardRow(BaseModel):
+    user_id: int
+    user_display_name: str
+    lifetime_return: float | None = None
+    average_daily_return: float | None = None
+    assets_under_management: float | None = None
 
 
-class BlobRequest(BaseModel, OneOfMixin):
-    leaderboard: LeaderboardBlobRequest | None = None
-
-
-class BlobResponse(BaseModel):
-    value: dict[str, Any]
+class LeaderboardResponse(BaseModel):
+    rows: list[LeaderboardRow]
 
 
 __all__ = [
@@ -156,8 +144,8 @@ __all__ = [
     "InvestResponse",
     "DivestRequest",
     "DivestResponse",
-    "BlobRequest",
-    "BlobResponse",
-    "LeaderboardBlobRequest",
-    "LeaderboardBlobResponse",
+    "LeaderboardSortBy",
+    "LeaderboardRow",
+    "LeaderboardRequest",
+    "LeaderboardResponse",
 ]

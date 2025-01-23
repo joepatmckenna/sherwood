@@ -3,15 +3,9 @@ from sherwood.auth import generate_access_token, password_context
 from sherwood.db import maybe_commit
 from sherwood.errors import InternalServerError, MissingPortfolioError
 from sherwood.market_data import get_price, get_prices
-from sherwood.messages import (
-    LeaderboardBlobRequest,
-    LeaderboardBlobResponse,
-    LeaderboardSortBy,
-)
 from sherwood.models import (
     create_user,
     to_dict,
-    upsert_blob,
     Holding,
     Ownership,
     Portfolio,
@@ -309,18 +303,3 @@ def get_portfolio(db, portfolio_id):
         raise MissingPortfolioError(portfolio_id)
     portfolio = to_dict(portfolio)
     return _enrich_portfolio_with_price_info(db, portfolio)
-
-
-def upsert_leaderboard(db, request: LeaderboardBlobRequest):
-    key = repr(request)
-    users = db.query(User).all()
-    users = [to_dict(user) for user in users]
-    for user in users:
-        user["portfolio"] = _enrich_portfolio_with_price_info(db, user["portfolio"])
-    if request.sort_by == LeaderboardSortBy.GAIN_OR_LOSS:
-        sort_fn = lambda user: -user["portfolio"]["gain_or_loss"]
-    else:
-        raise InternalServerError(f"Unrecognized sort_by={request.sort_by}")
-    users = sorted(users, key=sort_fn)[: request.top_k]
-    response = LeaderboardBlobResponse(users=users)
-    return upsert_blob(db, key, response.model_dump_json())

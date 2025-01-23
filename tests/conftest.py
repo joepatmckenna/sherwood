@@ -6,7 +6,12 @@ from fastapi.testclient import TestClient
 import jose.jwt
 import os
 import pytest
-from sherwood.auth import _JWT_ALGORITHM, _JWT_ISSUER, JWT_SECRET_KEY_ENV_VAR_NAME
+from sherwood.auth import (
+    get_cookie_security,
+    _JWT_ALGORITHM,
+    _JWT_ISSUER,
+    JWT_SECRET_KEY_ENV_VAR_NAME,
+)
 from sherwood.db import get_db, Session
 from sherwood.main import create_app
 from sherwood import market_data
@@ -35,6 +40,7 @@ def db():
 
 @pytest.fixture(scope="function")
 def client():
+
     @asynccontextmanager
     async def lifespan(_):
         BaseModel.metadata.create_all(engine)
@@ -42,6 +48,8 @@ def client():
         BaseModel.metadata.drop_all(engine)
 
     app = create_app(lifespan=lifespan)
+    app.dependency_overrides[get_cookie_security] = lambda: False
+
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

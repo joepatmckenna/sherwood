@@ -171,3 +171,10 @@ async def authorized_user(
 
 
 AuthorizedUser = Annotated[User, Depends(authorized_user)]
+
+
+def get_cookie_security() -> bool:
+    return True
+
+
+CookieSecurity = Annotated[bool, Depends(get_cookie_security)]

@@ -1,25 +1,86 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from datetime import datetime
+from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
+from functools import wraps
 import json
 import logging
-from sherwood.auth import validate_password, AuthorizedUser, AUTHORIZATION_COOKIE_NAME
+from pydantic import BaseModel
+from sherwood.auth import (
+    validate_password,
+    AuthorizedUser,
+    CookieSecurity,
+    AUTHORIZATION_COOKIE_NAME,
+)
 from sherwood.broker import (
+    get_portfolio,
     sign_up_user,
     sign_in_user,
     buy_portfolio_holding,
     sell_portfolio_holding,
     invest_in_portfolio,
     divest_from_portfolio,
-    upsert_leaderboard,
 )
-from sherwood.db import Database
+from sherwood.db import maybe_commit, Database
 from sherwood.errors import *
+from sherwood.market_data import get_prices
 from sherwood.messages import *
-from sherwood.models import has_expired, to_dict, Blob, User
+from sherwood.models import has_expired, to_dict, upsert_blob, Blob, Ownership, User
+from sqlalchemy.orm import Session
+from typing import Any
 
-ACCESS_TOKEN_DURATION_HOURS = 4
+
+ACCESS_TOKEN_LIFESPAN_HOURS = 4
 
 api_router = APIRouter(prefix="/api")
+
+
+class Cache:
+    """Decorator for caching request/response pairs in the db.
+
+    Example usage:
+
+      @api_router.post("/fake")
+      @cache(lifetime_seconds=10)
+      async def api_fake(request: FakeRequest, db: Database) -> FakeResponse:
+          return FakeResponse(...)
+
+      where:
+       - FakeRequest / FakeResponse are descendents of BaseModel
+       - db is a sqlalchemy.orm.Session
+    """
+
+    def __init__(self, lifetime_seconds: int):
+        self._lifetime_seconds = lifetime_seconds
+
+    def __call__(self, func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs) -> BaseModel:
+            request = kwargs.get("request")
+            request_type = type(request)
+            if not BaseModel in request_type.__mro__:
+                raise InternalServerError(f"BaseModel not in request mro: {request}.")
+            if not isinstance(db := kwargs.get("db"), Session):
+                raise InternalServerError(f"db is not a sqlalchemy.orm.Session: {db}.")
+
+            key = f"{request_type}({request.model_dump_json()})"
+
+            blob = db.get(Blob, key)
+            if blob is None or has_expired(blob, self._lifetime_seconds):
+                result = await func(*args, **kwargs)
+                value = result.model_dump_json()
+                blob = upsert_blob(db, key, value)
+
+            return_type = func.__annotations__.get("return")
+            if isinstance(return_type, type) and BaseModel in return_type.__mro__:
+                return return_type.model_validate_json(blob.value)
+
+            logging.info("cache not validating response type")
+            return json.loads(blob.value)
+
+        return wrapper
+
+
+cache = Cache
 
 
 @api_router.websocket("/validate-password")
@@ -51,14 +112,16 @@ async def post_sign_up(request: SignUpRequest, db: Database) -> SignUpResponse:
 
 
 @api_router.post("/sign-in")
-async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
+async def post_sign_in(
+    request: SignInRequest, db: Database, secure: CookieSecurity
+) -> SignInResponse:
     try:
         token_type = "Bearer"
         access_token = sign_in_user(
             db,
             request.email,
             request.password,
-            access_token_duration_hours=ACCESS_TOKEN_DURATION_HOURS,
+            access_token_duration_hours=ACCESS_TOKEN_LIFESPAN_HOURS,
         )
         response = JSONResponse(
             content=SignInResponse(
@@ -68,9 +131,9 @@ async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
         response.set_cookie(
             key=AUTHORIZATION_COOKIE_NAME,
             value=f"{token_type} {access_token}",
-            max_age=ACCESS_TOKEN_DURATION_HOURS * 3600,
+            max_age=ACCESS_TOKEN_LIFESPAN_HOURS * 3600,
             httponly=True,
-            secure=True,
+            secure=secure,
         )
         return response
     except (
@@ -84,9 +147,6 @@ async def post_sign_in(db: Database, request: SignInRequest) -> SignInResponse:
         raise InternalServerError(
             f"Failed to sign in user. Request: {request}. Error: {exc}."
         )
-
-
-from fastapi import Response
 
 
 @api_router.post("/sign-out")
@@ -116,11 +176,6 @@ async def get_user_by_id(db: Database, user_id: int):
         return to_dict(db.get(User, user_id))
     except Exception as exc:
         raise InternalServerError(f"Failed to get user by ID. Error: {exc}.")
-
-
-from typing import Any
-from pydantic import BaseModel
-from sherwood.broker import get_portfolio
 
 
 class PortfolioRequest(BaseModel):
@@ -242,67 +297,6 @@ async def post_divest(
         ) from exc
 
 
-def _upsert_blob(db, request, latency) -> Blob:
-    key = repr(request)
-    blob = db.get(Blob, key)
-    if not (blob is None or has_expired(blob, latency)):
-        return blob
-    if isinstance(request, LeaderboardBlobRequest):
-        return upsert_leaderboard(db, request)
-    else:
-        raise InternalServerError(f"Unrecognized blob request type {request}")
-
-
-@api_router.post("/blob")
-async def upsert_blob(
-    request: BlobRequest, db: Database, latency: int = 10
-) -> BlobResponse:
-    try:
-        blob = _upsert_blob(db, request.oneof(), latency)
-        return BlobResponse(value=json.loads(blob.value))
-    except (
-        RequestValueError,
-        InternalServerError,
-    ):
-        raise
-    except Exception as exc:
-        raise InternalServerError(
-            f"Failed to get blob. Request: {request}. Error: {exc}."
-        ) from exc
-
-
-### leaderboard endpoing ###
-# todo: blob_caching decorator
-
-from datetime import datetime
-from enum import Enum
-from sherwood.models import Ownership
-from sherwood.market_data import get_prices
-
-
-class LeaderboardSortBy(Enum):
-    LIFETIME_RETURN = "lifetime_return"
-    AVERAGE_DAILY_RETURN = "average_daily_return"
-    ASSETS_UNDER_MANAGEMENT = "assets_under_management"
-
-
-class LeaderboardRequest(BaseModel):
-    top_k: int
-    sort_by: LeaderboardSortBy
-
-
-class LeaderboardRow(BaseModel):
-    user_id: int
-    user_display_name: str
-    lifetime_return: float | None = None
-    average_daily_return: float | None = None
-    assets_under_management: float | None = None
-
-
-class LeaderboardResponse(BaseModel):
-    rows: list[LeaderboardRow]
-
-
 def _lifetime_return(db, user):
     price_by_symbol = get_prices(
         db, [holding.symbol for holding in user.portfolio.holdings]
@@ -339,9 +333,9 @@ def _assets_under_management(db, user):
 
 
 @api_router.post("/leaderboard")
-async def api_post_leaderboard(
-    request: LeaderboardRequest,
-    db: Database,
+@cache(lifetime_seconds=10)
+async def api_leaderboard_post(
+    request: LeaderboardRequest, db: Database
 ) -> LeaderboardResponse:
     users = db.query(User).all()
     if request.sort_by == LeaderboardSortBy.LIFETIME_RETURN:
