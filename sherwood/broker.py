@@ -4,72 +4,16 @@ from sherwood.db import maybe_commit
 from sherwood.errors import InternalServerError, MissingPortfolioError
 from sherwood.market_data import get_price, get_prices
 from sherwood.models import (
-    create_user,
     to_dict,
     Holding,
     Ownership,
     Portfolio,
     User,
 )
-from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import MultipleResultsFound
 
 
 STARTING_BALANCE = 10_000
-
-
-def sign_up_user(
-    db: Session,
-    email: str,
-    display_name: str,
-    password: str,
-    starting_balance=STARTING_BALANCE,
-) -> None:
-    if db.query(User).filter_by(email=email).first() is not None:
-        raise errors.DuplicateUserError(email=email)
-    if (
-        db.query(User)
-        .filter(func.lower(User.display_name) == display_name.lower())
-        .first()
-        is not None
-    ):
-        raise errors.DuplicateUserError(display_name=display_name)
-    try:
-        create_user(
-            db=db,
-            email=email,
-            display_name=display_name,
-            password=password,
-            cash=starting_balance,
-        )
-    except Exception as exc:
-        raise errors.InternalServerError(detail="Failed to create user.") from exc
-
-
-def sign_in_user(
-    db: Session,
-    email: str,
-    password: str,
-    access_token_duration_hours: int = 4,
-) -> str:
-    try:
-        user = db.query(User).filter_by(email=email).one_or_none()
-    except MultipleResultsFound:
-        raise errors.DuplicateUserError(email=email)
-    if user is None:
-        raise errors.MissingUserError(email=email)
-    if not password_context.verify(password, user.password):
-        raise errors.IncorrectPasswordError()
-    if password_context.needs_update(user.password):
-        user.password = password_context.hash(user.password)
-    try:
-        access_token = generate_access_token(user, access_token_duration_hours)
-    except Exception as exc:
-        raise errors.InternalServerError(
-            f"Failed to generate access token. User: {user}. Error: {exc}"
-        )
-    return access_token
 
 
 def _lock_portfolios(db: Session, portfolio_ids: list[int]) -> dict[int, Portfolio]:

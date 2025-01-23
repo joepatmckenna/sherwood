@@ -6,7 +6,7 @@ from sherwood.errors import (
     RequestValueError,
 )
 from sherwood.auth import validate_display_name, validate_password
-from typing_extensions import Self
+from typing import Any
 
 
 class _ModelWithEmail(BaseModel):
@@ -108,27 +108,48 @@ class DivestResponse(BaseModel):
     pass
 
 
-class LeaderboardSortBy(Enum):
-    LIFETIME_RETURN = "lifetime_return"
-    AVERAGE_DAILY_RETURN = "average_daily_return"
-    ASSETS_UNDER_MANAGEMENT = "assets_under_management"
-
-
 class LeaderboardRequest(BaseModel):
+    class LeaderboardSortBy(Enum):
+        LIFETIME_RETURN = "lifetime_return"
+        AVERAGE_DAILY_RETURN = "average_daily_return"
+        ASSETS_UNDER_MANAGEMENT = "assets_under_management"
+
     top_k: int
     sort_by: LeaderboardSortBy
 
 
-class LeaderboardRow(BaseModel):
-    user_id: int
-    user_display_name: str
-    lifetime_return: float | None = None
-    average_daily_return: float | None = None
-    assets_under_management: float | None = None
-
-
 class LeaderboardResponse(BaseModel):
+    class LeaderboardRow(BaseModel):
+        user_id: int
+        user_display_name: str
+        lifetime_return: float | None = None
+        average_daily_return: float | None = None
+        assets_under_management: float | None = None
+
     rows: list[LeaderboardRow]
+
+
+class UserHoldingsRequest(BaseModel):
+    user_id: int
+
+
+class UserHoldingsResponse(BaseModel):
+    class UserHoldingsRow(BaseModel):
+        symbol: str
+        units: float
+        value: float
+        lifetime_return: float
+        lifetime_return_percent: float
+
+    rows: list[UserHoldingsRow]
+
+
+class PortfolioRequest(BaseModel):
+    portfolio_id: int
+
+
+class PortfolioResponse(BaseModel):
+    portfolio: dict[str, Any]
 
 
 __all__ = [
@@ -144,8 +165,10 @@ __all__ = [
     "InvestResponse",
     "DivestRequest",
     "DivestResponse",
-    "LeaderboardSortBy",
-    "LeaderboardRow",
     "LeaderboardRequest",
     "LeaderboardResponse",
+    "UserHoldingsRequest",
+    "UserHoldingsResponse",
+    "PortfolioRequest",
+    "PortfolioResponse",
 ]

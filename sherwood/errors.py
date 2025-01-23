@@ -66,13 +66,34 @@ class InvalidAccessTokenError(SherwoodError):
 
 class MissingUserError(SherwoodError):
     def __init__(
-        self, user_id: str | None = None, email: str | None = None, headers=None
+        self, user_id: int | None = None, email: str | None = None, headers=None
     ) -> None:
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Missing user"
             + ("" if user_id is None else f", user ID: {user_id}")
             + ("" if email is None else f", email: {email}")
+            + ".",
+            headers=headers,
+        )
+
+
+class MissingPortfolioError(SherwoodError):
+    def __init__(self, portfolio_id: int, headers=None) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Portfolio with ID {portfolio_id} missing.",
+            headers=headers,
+        )
+
+
+class MissingOwnershipError(SherwoodError):
+    def __init__(self, portfolio_id: int, owner_id: int, headers=None) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Missing ownership"
+            + ("" if portfolio_id is None else f", portfolio ID: {portfolio_id}")
+            + ("" if owner_id is None else f", owner ID: {owner_id}")
             + ".",
             headers=headers,
         )
@@ -93,15 +114,6 @@ class DuplicateUserError(SherwoodError):
             + ("" if email is None else f", email: {email}")
             + ("" if display_name is None else f", display_name: {display_name}")
             + ".",
-            headers=headers,
-        )
-
-
-class MissingPortfolioError(SherwoodError):
-    def __init__(self, portfolio_id: str, headers=None) -> None:
-        super().__init__(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Portfolio with ID {portfolio_id} missing.",
             headers=headers,
         )
 
@@ -160,8 +172,9 @@ __all__ = [
     "IncorrectPasswordError",
     "InvalidAccessTokenError",
     "MissingUserError",
-    "DuplicateUserError",
     "MissingPortfolioError",
+    "MissingOwnershipError",
+    "DuplicateUserError",
     "DuplicatePortfolioError",
     "InsufficientCashError",
     "InsufficientHoldingsError",

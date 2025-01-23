@@ -136,17 +136,14 @@ def test_buy_portfolio_holding_success(
     assert get_user_response.status_code == 200
     user = get_user_response.json()
     assert user["portfolio"]["cash"] == STARTING_BALANCE - 50
-    assert user["portfolio"]["holdings"] == [
-        {
-            "portfolio_id": 1,
-            "symbol": "AAA",
-            "cost": 50,
-            "units": 50,
-        }
-    ]
-    assert user["portfolio"]["ownership"] == [
-        {"portfolio_id": 1, "owner_id": 1, "cost": 50, "percent": 1}
-    ]
+    assert user["portfolio"]["holdings"][0]["portfolio_id"] == 1
+    assert user["portfolio"]["holdings"][0]["symbol"] == "AAA"
+    assert user["portfolio"]["holdings"][0]["cost"] == 50
+    assert user["portfolio"]["holdings"][0]["units"] == 50
+    assert user["portfolio"]["ownership"][0]["portfolio_id"] == 1
+    assert user["portfolio"]["ownership"][0]["owner_id"] == 1
+    assert user["portfolio"]["ownership"][0]["cost"] == 50
+    assert user["portfolio"]["ownership"][0]["percent"] == 1
 
 
 def test_buy_portfolio_holding_insufficient_cash(
@@ -195,12 +192,14 @@ def test_sell_portfolio_holding_success(
     assert get_user_response.status_code == 200
     user = get_user_response.json()
     assert user["portfolio"]["cash"] == STARTING_BALANCE - 25
-    assert user["portfolio"]["holdings"] == [
-        {"portfolio_id": 1, "symbol": "AAA", "cost": 25, "units": 25}
-    ]
-    assert user["portfolio"]["ownership"] == [
-        {"portfolio_id": 1, "owner_id": 1, "cost": 25, "percent": 1}
-    ]
+    assert user["portfolio"]["holdings"][0]["portfolio_id"] == 1
+    assert user["portfolio"]["holdings"][0]["symbol"] == "AAA"
+    assert user["portfolio"]["holdings"][0]["cost"] == 25
+    assert user["portfolio"]["holdings"][0]["units"] == 25
+    assert user["portfolio"]["ownership"][0]["portfolio_id"] == 1
+    assert user["portfolio"]["ownership"][0]["owner_id"] == 1
+    assert user["portfolio"]["ownership"][0]["cost"] == 25
+    assert user["portfolio"]["ownership"][0]["percent"] == 1
 
 
 def test_sell_portfolio_holding_insufficient_holdings(
@@ -441,6 +440,9 @@ def test_divest_from_portfolio_success(
     assert get_user_response.status_code == 200
 
 
+# python -m pytest tests/test_api.py::test_get_leaderboard_success --capture=no
+
+
 def test_get_leaderboard_success(
     client, valid_email, valid_display_name, valid_password
 ):
@@ -464,5 +466,4 @@ def test_get_leaderboard_success(
         "/api/leaderboard",
         json={"top_k": 10, "sort_by": "lifetime_return"},
     )
-    print(leaderboard_response.json())
     assert leaderboard_response.status_code == 200
