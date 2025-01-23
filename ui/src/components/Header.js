@@ -15,29 +15,27 @@ const SIGNED_OUT_LINKS = `
 
 export default class Header extends BaseElement {
   constructor() {
-    super(HEADER_TEMPLATE_NAME);
+    super();
   }
 
   async connectedCallback() {
-    const template = document.getElementById(this.templateName);
-    const node = template.content.cloneNode(true);
-    const rightLinks = node.getElementById("right-links");
+    const template = document.getElementById(HEADER_TEMPLATE_NAME);
+    const header = template.content.cloneNode(true);
+
+    const rightLinks = header.getElementById("right-links");
+
     const user = await this.callApi("/user");
-    if (!user?.error) {
+    rightLinks.innerHTML = user?.error ? SIGNED_OUT_LINKS : SIGNED_IN_LINKS;
+
+    document.body.addEventListener("sherwood-sign-in", () => {
       rightLinks.innerHTML = SIGNED_IN_LINKS;
-    } else {
+    });
+
+    document.body.addEventListener("sherwood-sign-out", () => {
       rightLinks.innerHTML = SIGNED_OUT_LINKS;
-    }
-    this.shadowRoot.appendChild(node);
-
-    document.body.addEventListener("sherwood-sign-in", (event) => {
-      this.shadowRoot.getElementById("right-links").innerHTML = SIGNED_IN_LINKS;
     });
 
-    document.body.addEventListener("sherwood-sign-out", (event) => {
-      this.shadowRoot.getElementById("right-links").innerHTML =
-        SIGNED_OUT_LINKS;
-    });
+    this.shadowRoot.appendChild(header);
   }
 }
 

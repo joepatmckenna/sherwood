@@ -466,6 +466,3 @@ def test_get_leaderboard_success(
     )
     print(leaderboard_response.json())
     assert leaderboard_response.status_code == 200
-
-
-# python -m pytest tests/test_api.py::test_get_leaderboard_success --capture=no

@@ -4,8 +4,8 @@ export const SIGN_IN_TEMPLATE_NAME = "sherwood-sign-in-template";
 import BaseElement from "./BaseElement.js";
 
 export default class SignIn extends BaseElement {
-  constructor() {
-    super(SIGN_IN_TEMPLATE_NAME);
+  constructor({}) {
+    super();
   }
 
   setupForm(signIn) {
@@ -40,7 +40,7 @@ export default class SignIn extends BaseElement {
   }
 
   async connectedCallback() {
-    const signIn = this.loadTemplate();
+    const signIn = this.loadTemplate(SIGN_IN_TEMPLATE_NAME);
     this.setupForm(signIn);
     this.shadowRoot.replaceChildren(signIn);
   }

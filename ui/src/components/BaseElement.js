@@ -1,13 +1,12 @@
 export default class BaseElement extends HTMLElement {
-  constructor(templateName) {
+  constructor() {
     super();
-    this.templateName = templateName;
     this.attachShadow({ mode: "open" });
     this.handleInternalLinks();
   }
 
-  loadTemplate() {
-    const template = document.getElementById(this.templateName);
+  loadTemplate(templateName) {
+    const template = document.getElementById(templateName);
     return template.content.cloneNode(true);
   }
 

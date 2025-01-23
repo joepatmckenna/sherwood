@@ -20,7 +20,7 @@ from sherwood.broker import (
     invest_in_portfolio,
     divest_from_portfolio,
 )
-from sherwood.db import maybe_commit, Database
+from sherwood.db import Database
 from sherwood.errors import *
 from sherwood.market_data import get_prices
 from sherwood.messages import *
@@ -333,7 +333,7 @@ def _assets_under_management(db, user):
 
 
 @api_router.post("/leaderboard")
-@cache(lifetime_seconds=10)
+@cache(lifetime_seconds=60)
 async def api_leaderboard_post(
     request: LeaderboardRequest, db: Database
 ) -> LeaderboardResponse:
@@ -354,6 +354,61 @@ async def api_leaderboard_post(
     for key, user in users:
         row = LeaderboardRow(user_id=user.id, user_display_name=user.display_name)
         setattr(row, request.sort_by.value, key)
+        response.rows.append(row)
+
+    return response
+
+
+class UserHoldingsRequest(BaseModel):
+    user_id: int
+
+
+class UserHoldingsResponse(BaseModel):
+    class UserHoldingsRow(BaseModel):
+        symbol: str
+        units: float
+        value: float
+        lifetime_return: float
+        lifetime_return_percent: float
+
+    rows: list[UserHoldingsRow]
+
+
+@api_router.post("/user-holdings")
+@cache(lifetime_seconds=10)
+async def api_user_holdings(
+    request: UserHoldingsRequest, db: Database
+) -> UserHoldingsResponse:
+    response = UserHoldingsResponse(rows=[])
+
+    user = db.get(User, request.user_id)
+    if user is None:
+        raise MissingUserError(request.user_id)
+
+    holdings = user.portfolio.holdings
+    if not holdings:
+        return response
+
+    self_ownership = db.get(Ownership, (user.portfolio.id, user.id))
+    if self_ownership is None:
+        raise InternalServerError("Invalid portfolio ownership info.")
+
+    price_by_symbol = get_prices(db, [holding.symbol for holding in holdings])
+
+    for holding in holdings:
+        symbol = holding.symbol
+        units = holding.units * self_ownership.percent
+        value = price_by_symbol[symbol] * units
+        cost = holding.cost
+        lifetime_return = value - cost
+        lifetime_return_percent = lifetime_return / cost
+        row = UserHoldingsResponse.UserHoldingsRow(
+            symbol=symbol,
+            units=units,
+            value=value,
+            lifetime_return=lifetime_return,
+            lifetime_return_percent=lifetime_return_percent,
+        )
         response.rows.append(row)
 
     return response

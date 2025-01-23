@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import MultipleResultsFound
 
 
-STARTING_BALANCE = 100_000
+STARTING_BALANCE = 10_000
 
 
 def sign_up_user(

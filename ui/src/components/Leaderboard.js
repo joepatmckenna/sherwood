@@ -5,20 +5,18 @@ import BaseElement from "./BaseElement.js";
 
 export default class Leaderboard extends BaseElement {
   constructor() {
-    super(LEADERBOARD_TEMPLATE_NAME);
+    super();
     this.sortBy = "lifetime_return"; // lifetime_return, average_daily_return, assets_under_management
     this.topK = 10;
   }
 
   async render() {
-    const leaderboard = this.loadTemplate();
+    const leaderboard = this.loadTemplate(LEADERBOARD_TEMPLATE_NAME);
     const tbody = leaderboard.querySelector("tbody");
-    // tbody.textContent = "";
 
     const selectElement = leaderboard.getElementById("sort-options");
     selectElement.value = this.sortBy;
 
-    leaderboard;
     selectElement.addEventListener("change", async (event) => {
       this.sortBy = event.target.value;
       tbody.textContent = "";
@@ -47,10 +45,7 @@ export default class Leaderboard extends BaseElement {
         `;
         tbody.appendChild(tr);
       });
-    } else {
-      console.error(response);
     }
-
     this.shadowRoot.replaceChildren(leaderboard);
   }
 
