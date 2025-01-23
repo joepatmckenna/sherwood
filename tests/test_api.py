@@ -21,11 +21,62 @@ def test_sign_up_invalid_email(client, valid_password):
     assert response.status_code == 422
 
 
-def test_sign_up_invalid_password(client, valid_email):
+def test_sign_up_invalid_password(client, valid_display_name, valid_email):
     response = client.post(
-        "/api/sign-up", json={"email": valid_email, "password": "weak"}
+        "/api/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name,
+            "password": "weak",
+        },
     )
     assert response.status_code == 422
+
+
+def test_sign_up_duplicate_email(
+    client, valid_email, valid_display_names, valid_password
+):
+    response = client.post(
+        "/api/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_names[0],
+            "password": valid_password,
+        },
+    )
+    assert response.status_code == 200
+    response = client.post(
+        "/api/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_names[1],
+            "password": valid_password,
+        },
+    )
+    assert response.status_code == 409
+
+
+def test_sign_up_duplicate_display_name(
+    client, valid_email, valid_display_name, valid_password
+):
+    response = client.post(
+        "/api/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name.lower(),
+            "password": valid_password,
+        },
+    )
+    assert response.status_code == 200
+    response = client.post(
+        "/api/sign-up",
+        json={
+            "email": valid_email,
+            "display_name": valid_display_name.upper(),
+            "password": valid_password,
+        },
+    )
+    assert response.status_code == 409
 
 
 def test_sign_in_success(client, valid_email, valid_display_name, valid_password):

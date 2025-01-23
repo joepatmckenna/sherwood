@@ -1,10 +1,8 @@
 from sherwood import errors
-from sherwood.auth import generate_access_token, password_context
 from sherwood.db import maybe_commit
-from sherwood.errors import InternalServerError, MissingPortfolioError
+from sherwood.errors import InternalServerError
 from sherwood.market_data import get_price, get_prices
 from sherwood.models import (
-    to_dict,
     Holding,
     Ownership,
     Portfolio,
@@ -239,11 +237,3 @@ def _enrich_portfolio_with_price_info(db, portfolio):
 
     portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
     return portfolio
-
-
-def get_portfolio(db, portfolio_id):
-    portfolio = db.get(Portfolio, portfolio_id)
-    if portfolio is None:
-        raise MissingPortfolioError(portfolio_id)
-    portfolio = to_dict(portfolio)
-    return _enrich_portfolio_with_price_info(db, portfolio)

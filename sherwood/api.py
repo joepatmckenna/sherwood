@@ -20,7 +20,7 @@ from sherwood.broker import (
     divest_from_portfolio,
     STARTING_BALANCE,
 )
-from sherwood.db import Database
+from sherwood.db import maybe_commit, Database
 from sherwood.errors import *
 from sherwood.market_data import get_prices
 from sherwood.messages import *
@@ -165,9 +165,10 @@ async def api_sign_in_post(
         raise IncorrectPasswordError()
     if password_context.needs_update(user.password):
         user.password = password_context.hash(user.password)
+        maybe_commit(db, "Failed to update password hash.")
     access_token = generate_access_token(user, ACCESS_TOKEN_LIFESPAN_HOURS)
-    response = SignInResponse(redirect_url="/sherwood/profile").model_dump()
-    response = JSONResponse(content=response)
+    response = SignInResponse(redirect_url="/sherwood/profile")
+    response = JSONResponse(content=response.model_dump())
     response.set_cookie(
         key=AUTHORIZATION_COOKIE_NAME,
         value=f"Bearer {access_token}",
@@ -209,10 +210,12 @@ async def api_user_user_id_get(db: Database, user_id: int):
 @api_router.post("/buy")
 @handle_errors(
     (
-        InternalServerError,
-        MissingPortfolioError,
         DuplicatePortfolioError,
         InsufficientCashError,
+        InternalServerError,
+        InvalidAccessTokenError,
+        MissingPortfolioError,
+        MissingUserError,
     )
 )
 async def api_buy_post(
@@ -225,10 +228,12 @@ async def api_buy_post(
 @api_router.post("/sell")
 @handle_errors(
     (
-        InternalServerError,
-        MissingPortfolioError,
         DuplicatePortfolioError,
         InsufficientHoldingsError,
+        InternalServerError,
+        InvalidAccessTokenError,
+        MissingPortfolioError,
+        MissingUserError,
     )
 )
 async def api_sell_post(
@@ -241,10 +246,12 @@ async def api_sell_post(
 @api_router.post("/invest")
 @handle_errors(
     (
-        RequestValueError,
-        InternalServerError,
         InsufficientCashError,
         InsufficientHoldingsError,
+        InternalServerError,
+        InvalidAccessTokenError,
+        MissingUserError,
+        RequestValueError,
     )
 )
 async def api_invest_post(
@@ -262,9 +269,11 @@ async def api_invest_post(
 @api_router.post("/divest")
 @handle_errors(
     (
-        RequestValueError,
-        InternalServerError,
         InsufficientHoldingsError,
+        InternalServerError,
+        InvalidAccessTokenError,
+        MissingUserError,
+        RequestValueError,
     )
 )
 async def api_divest_post(
@@ -369,8 +378,8 @@ async def api_leaderboard_post(
 @cache(lifetime_seconds=10)
 @handle_errors(
     (
-        MissingUserError,
         InternalServerError,
+        MissingUserError,
     )
 )
 async def api_user_holdings(

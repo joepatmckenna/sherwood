@@ -126,10 +126,6 @@ def generate_access_token(user, hours: float = _JWT_DURATION_HOURS) -> str:
         raise InternalServerError(
             f"Failed to generate access token. Error: {exc}"
         ) from exc
-    except Exception as exc:
-        raise InternalServerError(
-            f"Failed to generate access token. Unexpected Error: {exc}"
-        ) from exc
 
 
 def _decode_access_token(access_token: str) -> dict[str, str]:
