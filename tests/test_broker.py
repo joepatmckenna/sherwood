@@ -59,50 +59,21 @@ def test_sell_portfolio_holding(db, valid_email, valid_display_name, valid_passw
 
 def test_invest_in_portfolio(db, valid_emails, valid_display_names, valid_password):
     expected = [
-        User(
-            email="user0@web.com",
-            display_name="user0",
-            password=valid_password,
-        ),
-        User(
-            email="user1@web.com",
-            display_name="user1",
-            password=valid_password,
-        ),
+        User(email="user0@web.com", display_name="user0", password=valid_password),
+        User(email="user1@web.com", display_name="user1", password=valid_password),
     ]
     expected[0].id = 1
     expected[0].portfolio = Portfolio(
         cash=900.0,
-        holdings=[
-            Holding(
-                portfolio_id=1,
-                symbol="AAA",
-                cost=100.0,
-                units=200.0,
-            )
-        ],
+        holdings=[Holding(portfolio_id=1, symbol="AAA", cost=100.0, units=200.0)],
         ownership=[
-            Ownership(
-                portfolio_id=1,
-                owner_id=1,
-                cost=100.0,
-                percent=0.5,
-            ),
-            Ownership(
-                portfolio_id=1,
-                owner_id=2,
-                cost=100.0,
-                percent=0.5,
-            ),
+            Ownership(portfolio_id=1, owner_id=1, cost=100.0, percent=0.5),
+            Ownership(portfolio_id=1, owner_id=2, cost=100.0, percent=0.5),
         ],
     )
     expected[0].portfolio.id = 1
     expected[1].id = 2
-    expected[1].portfolio = Portfolio(
-        cash=900.0,
-        holdings=[],
-        ownership=[],
-    )
+    expected[1].portfolio = Portfolio(cash=900.0, holdings=[], ownership=[])
     expected[1].portfolio.id = 2
 
     users = [
@@ -119,6 +90,36 @@ def test_invest_in_portfolio(db, valid_emails, valid_display_names, valid_passwo
     assert users == expected
 
 
-# TODO
-def test_divest_from_portfolio():
-    pass
+def test_divest_from_portfolio(db, valid_emails, valid_display_names, valid_password):
+    expected = [
+        User(email="user0@web.com", display_name="user0", password=valid_password),
+        User(email="user1@web.com", display_name="user1", password=valid_password),
+    ]
+    expected[0].id = 1
+    expected[0].portfolio = Portfolio(
+        cash=900.0,
+        holdings=[Holding(portfolio_id=1, symbol="AAA", cost=100.0, units=125.0)],
+        ownership=[
+            Ownership(portfolio_id=1, owner_id=1, cost=100.0, percent=0.8),
+            Ownership(portfolio_id=1, owner_id=2, cost=25.0, percent=0.2),
+        ],
+    )
+
+    expected[0].portfolio.id = 1
+    expected[1].id = 2
+    expected[1].portfolio = Portfolio(cash=975.0, holdings=[], ownership=[])
+    expected[1].portfolio.id = 2
+
+    users = [
+        create_user(
+            db, valid_emails[0], valid_display_names[0], valid_password, cash=1000
+        ),
+        create_user(
+            db, valid_emails[1], valid_display_names[1], valid_password, cash=1000
+        ),
+    ]
+    buy_portfolio_holding(db, users[0].portfolio.id, "AAA", 100)
+    invest_in_portfolio(db, users[0].portfolio.id, users[1].portfolio.id, 100)
+    divest_from_portfolio(db, users[0].portfolio.id, users[1].portfolio.id, 75)
+
+    assert users == expected
