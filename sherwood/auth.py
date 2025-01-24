@@ -48,7 +48,7 @@ class ReasonDisplayNameInvalid(Enum):
     TOO_SHORT = (
         f"Display name must be at least {_MIN_DISPLAY_NAME_LENGTH} characters long."
     )
-    TOO_Long = (
+    TOO_LONG = (
         f"Display name must not be longer than {_MAX_DISPLAY_NAME_LENGTH} characters."
     )
     CONTAINS_SPECIAL = "Display name must only use letters (a-z or A-Z), numbers (0-9), underscores (_), hyphens (-), or periods (.)."
