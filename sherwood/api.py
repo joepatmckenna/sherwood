@@ -358,7 +358,7 @@ def _assets_under_management(db, user):
 
 
 @api_router.post("/leaderboard")
-@cache(lifetime_seconds=60)
+@cache(lifetime_seconds=300)
 @handle_errors(
     (
         InternalServerError,
@@ -399,7 +399,7 @@ async def api_leaderboard_post(
 
 
 @api_router.post("/portfolio-holdings")
-@cache(lifetime_seconds=10)
+@cache(lifetime_seconds=300)
 @handle_errors(
     (
         InternalServerError,
@@ -456,7 +456,7 @@ async def api_portfolio_holdings_post(
 
 
 @api_router.post("/portfolio-investors")
-@cache(lifetime_seconds=60)
+@cache(lifetime_seconds=300)
 @handle_errors(
     (
         InternalServerError,

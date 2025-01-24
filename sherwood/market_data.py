@@ -5,7 +5,7 @@ from sherwood.models import has_expired, Quote
 from sqlalchemy.orm.attributes import flag_modified
 import yfinance
 
-_PRICE_DELAY_SECONDS = 10
+_PRICE_DELAY_SECONDS = 300
 
 
 def _fetch_prices(symbols) -> dict[str, float]:
