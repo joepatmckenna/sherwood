@@ -46,13 +46,13 @@ def _validate_env() -> None:
 
 class ReasonDisplayNameInvalid(Enum):
     TOO_SHORT = (
-        f"Display name must be at least {_MIN_DISPLAY_NAME_LENGTH} characters long."
+        f"display name must be at least {_MIN_DISPLAY_NAME_LENGTH} characters long."
     )
     TOO_LONG = (
-        f"Display name must not be longer than {_MAX_DISPLAY_NAME_LENGTH} characters."
+        f"display name must not be longer than {_MAX_DISPLAY_NAME_LENGTH} characters."
     )
-    CONTAINS_SPECIAL = "Display name must only use letters (a-z or A-Z), numbers (0-9), underscores (_), hyphens (-), or periods (.)."
-    STARTS_WITH_SPECIAL = "Display name must begin with a letter (a-z or A-Z)."
+    CONTAINS_SPECIAL = "display name must only use letters (a-z or A-Z), numbers (0-9), underscores (_), hyphens (-), or periods (.)."
+    STARTS_WITH_SPECIAL = "display name must begin with a letter (a-z or A-Z)."
 
 
 def validate_display_name(display_name: str) -> list[str]:
@@ -69,13 +69,13 @@ def validate_display_name(display_name: str) -> list[str]:
 
 
 class ReasonPasswordInvalid(Enum):
-    TOO_SHORT = f"Password must be at least {_MIN_PASSWORD_LENGTH} characters long."
-    TOO_LONG = f"Password must not be longer than {_MAX_PASSWORD_LENGTH} characters."
-    CONTAINS_SPACE = "Password must not contain spaces."
-    MISSING_LOWERCASE = "Password must contain at least one lowercase letter."
-    MISSING_UPPERCASE = "Password must contain at least one uppercase letter."
-    MISSING_DIGIT = "Password must contain at least one digit."
-    MISSING_SPECIAL = "Password must contain at least one special character."
+    TOO_SHORT = f"password must be at least {_MIN_PASSWORD_LENGTH} characters long."
+    TOO_LONG = f"password must not be longer than {_MAX_PASSWORD_LENGTH} characters."
+    CONTAINS_SPACE = "password must not contain spaces."
+    MISSING_LOWERCASE = "password must contain at least one lowercase letter."
+    MISSING_UPPERCASE = "password must contain at least one uppercase letter."
+    MISSING_DIGIT = "password must contain at least one digit."
+    MISSING_SPECIAL = "password must contain at least one special character."
 
 
 def validate_password(password: str) -> list[str]:
