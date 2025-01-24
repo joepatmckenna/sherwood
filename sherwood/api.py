@@ -6,6 +6,7 @@ import json
 import logging
 from pydantic import BaseModel
 from sherwood.auth import (
+    validate_display_name,
     validate_password,
     AuthorizedUser,
     CookieSecurity,
@@ -293,8 +294,20 @@ async def api_divest_post(
 # websocket
 
 
+@api_router.websocket("/validate-display-name")
+async def api_validate_display_name_websocket(ws: WebSocket):
+    await ws.accept()
+    try:
+        while True:
+            display_name = await ws.receive_text()
+            reasons = validate_display_name(display_name)
+            await ws.send_json({"reasons": reasons})
+    except WebSocketDisconnect:
+        logging.info("validate display_name websocket client disconnected")
+
+
 @api_router.websocket("/validate-password")
-async def validate_password_websocket(ws: WebSocket):
+async def api_validate_password_websocket(ws: WebSocket):
     await ws.accept()
     try:
         while True:

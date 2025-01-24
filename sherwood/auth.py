@@ -26,7 +26,7 @@ JWT_SECRET_KEY_ENV_VAR_NAME = "JWT_SECRET_KEY"
 
 _JWT_ISSUER = "sherwood"
 _JWT_ALGORITHM = "HS256"
-_JWT_DURATION_HOURS = 4
+_JWT_LIFETIME_HOURS = 4
 
 _MIN_DISPLAY_NAME_LENGTH = 3
 _MAX_DISPLAY_NAME_LENGTH = 32
@@ -106,7 +106,7 @@ def validate_user(mapper, connection, target):
     target.password = password_context.hash(target.password)
 
 
-def generate_access_token(user, hours: float = _JWT_DURATION_HOURS) -> str:
+def generate_access_token(user, hours: float = _JWT_LIFETIME_HOURS) -> str:
     _validate_env()
     issued_at = datetime.datetime.now(datetime.timezone.utc)
     expiration = issued_at + datetime.timedelta(hours=hours)

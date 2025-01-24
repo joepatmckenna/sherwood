@@ -32,6 +32,43 @@ export default class SignUp extends BaseElement {
     });
   }
 
+  setupDisplayNameValidator(signUp) {
+    const displayNameInput = signUp.getElementById("display-name");
+    const displayNameRequirements = signUp.getElementById(
+      "display-name-requirements"
+    );
+    let socket;
+
+    displayNameInput.addEventListener("input", (event) => {
+      const displayName = event.target.value;
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(displayName);
+      }
+    });
+
+    function updateDisplayNameRequirements(reasons) {
+      displayNameRequirements.innerHTML = "";
+      reasons.forEach((reason) => {
+        const li = document.createElement("li");
+        li.textContent = reason;
+        li.className = "error";
+        displayNameRequirements.appendChild(li);
+      });
+    }
+
+    function connectToValidateDisplayNameWebSocket() {
+      socket = new WebSocket("/sherwood/api/validate-display-name");
+      socket.onmessage = (event) => {
+        updateDisplayNameRequirements(JSON.parse(event.data).reasons);
+      };
+      socket.onclose = () => {
+        setTimeout(connectToValidateDisplayNameWebSocket, 1000);
+      };
+    }
+
+    connectToValidateDisplayNameWebSocket();
+  }
+
   setupPasswordValidator(signUp) {
     const passwordInput = signUp.getElementById("password");
     const passwordRequirements = signUp.getElementById("password-requirements");
@@ -70,6 +107,7 @@ export default class SignUp extends BaseElement {
   async connectedCallback() {
     const signUp = this.loadTemplate(SIGN_UP_TEMPLATE_NAME);
     this.setupForm(signUp);
+    this.setupDisplayNameValidator(signUp);
     this.setupPasswordValidator(signUp);
     this.shadowRoot.replaceChildren(signUp);
   }
