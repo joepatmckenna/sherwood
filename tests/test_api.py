@@ -491,9 +491,6 @@ def test_divest_from_portfolio_success(
     assert get_user_response.status_code == 200
 
 
-# python -m pytest tests/test_api.py::test_get_leaderboard_success --capture=no
-
-
 def test_get_leaderboard_success(
     client, valid_email, valid_display_name, valid_password
 ):
@@ -515,6 +512,43 @@ def test_get_leaderboard_success(
 
     leaderboard_response = client.post(
         "/api/leaderboard",
-        json={"top_k": 10, "sort_by": "lifetime_return"},
+        json={
+            "columns": [
+                "lifetime_return",
+                "average_daily_return",
+                "assets_under_management",
+            ],
+            "sort_by": "lifetime_return",
+            "top_k": 10,
+        },
     )
     assert leaderboard_response.status_code == 200
+    assert leaderboard_response.json() == {
+        "rows": [
+            {
+                "user_id": 1,
+                "user_display_name": "user",
+                "portfolio_id": 1,
+                "columns": {
+                    "lifetime_return": 0.0,
+                    "average_daily_return": 0.0,
+                    "assets_under_management": 10000.0,
+                },
+            }
+        ]
+    }
+
+
+# TODO
+def test_get_portfolio_holdings_success():
+    pass
+
+
+# TODO
+def test_get_portfolio_investors_success():
+    pass
+
+
+# TODO
+def test_get_user_investments_success():
+    pass

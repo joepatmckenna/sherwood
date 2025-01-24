@@ -22,6 +22,7 @@ export default class User extends BaseElement {
   constructor({ userId }) {
     super();
     this.userId = userId;
+    this.portfolioId = userId;
   }
 
   formatTimestamp(timestamp) {
@@ -37,17 +38,24 @@ export default class User extends BaseElement {
 
     const response = await this.callApi(`/user/${this.userId}`);
     if (!response?.error) {
-      user.getElementById("display-name").innerText =
-        "User: " + response.display_name;
+      user.getElementById("display-name").innerText = response.display_name;
       user.getElementById("member-since").innerText =
         "joined " + this.formatTimestamp(response.created_at);
       user.getElementById("email-verified").innerText =
         "email " + (response.is_verified ? "verified" : "unverified");
     }
 
-    const userHoldings = document.createElement("sherwood-user-holdings");
-    userHoldings.setAttribute("user-id", this.userId);
-    user.getElementById("holdings").appendChild(userHoldings);
+    const holdings = document.createElement("sherwood-portfolio-holdings");
+    holdings.setAttribute("portfolio-id", this.portfolioId);
+    user.getElementById("holdings").appendChild(holdings);
+
+    const investors = document.createElement("sherwood-portfolio-investors");
+    investors.setAttribute("portfolio-id", this.portfolioId);
+    user.getElementById("investors").appendChild(investors);
+
+    const investments = document.createElement("sherwood-user-investments");
+    investments.setAttribute("user-id", this.userId);
+    user.getElementById("investments").appendChild(investments);
 
     this.shadowRoot.replaceChildren(user);
   }

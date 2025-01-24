@@ -201,39 +201,3 @@ def divest_from_portfolio(
         investee_portfolio_ownership_by_owner_id.values()
     )
     maybe_commit(db, "Failed to divest from portfolio.")
-
-
-def _enrich_portfolio_with_price_info(db, portfolio):
-    owner_ids = [ownership["owner_id"] for ownership in portfolio["ownership"]]
-    owners = db.query(User).filter(User.id.in_(owner_ids)).all()
-    owner_display_name_by_id = {owner.id: owner.display_name for owner in owners}
-
-    portfolio["cost"] = portfolio["cash"]
-    portfolio["value"] = portfolio["cash"]
-
-    if portfolio["holdings"]:
-        self_ownership = db.get(Ownership, (portfolio["id"], portfolio["id"]))
-        if self_ownership is None:
-            raise InternalServerError("Invalid portfolio ownership info.")
-
-        price_by_symbol = get_prices(
-            db, [holding["symbol"] for holding in portfolio["holdings"]]
-        )
-
-        portfolio_value = 0
-
-        for holding in portfolio["holdings"]:
-            holding_value = holding["units"] * price_by_symbol[holding["symbol"]]
-            portfolio_value += holding_value
-            holding["value"] = self_ownership.percent * holding_value
-            holding["gain_or_loss"] = holding["value"] - holding["cost"]
-            portfolio["cost"] += holding["cost"]
-            portfolio["value"] += holding["value"]
-
-        for ownership in portfolio["ownership"]:
-            ownership["display_name"] = owner_display_name_by_id[ownership["owner_id"]]
-            ownership["value"] = ownership["percent"] * portfolio_value
-            ownership["gain_or_loss"] = ownership["value"] - ownership["cost"]
-
-    portfolio["gain_or_loss"] = portfolio["value"] - portfolio["cost"]
-    return portfolio

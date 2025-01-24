@@ -31,6 +31,7 @@ from sherwood.models import (
     upsert_blob,
     Blob,
     Ownership,
+    Portfolio,
     User,
 )
 from sqlalchemy.exc import MultipleResultsFound
@@ -308,29 +309,29 @@ async def validate_password_websocket(ws: WebSocket):
 # in development
 
 
-def _lifetime_return(db, user):
-    price_by_symbol = get_prices(
-        db, [holding.symbol for holding in user.portfolio.holdings]
-    )
-    value = cost = user.portfolio.cash
-    if user.portfolio.holdings:
-        self_ownership = db.get(Ownership, (user.portfolio.id, user.id))
+def _portfolio_lifetime_return(db, portfolio):
+    price_by_symbol = get_prices(db, [holding.symbol for holding in portfolio.holdings])
+    cost = value = portfolio.cash
+    if portfolio.holdings:
+        self_ownership = db.get(Ownership, (portfolio.id, portfolio.id))
         if self_ownership is None:
-            raise MissingOwnershipError(user.portfolio.id, user.id)
+            raise MissingOwnershipError(portfolio.id, portfolio.id)
+        cost += sum(
+            holding.cost for holding in portfolio.holdings
+        )  # should add up to STARTING_BALANCE
         value += self_ownership.percent * sum(
             holding.units * price_by_symbol[holding.symbol]
-            for holding in user.portfolio.holdings
+            for holding in portfolio.holdings
         )
-        cost += sum(
-            holding.cost for holding in user.portfolio.holdings
-        )  # should add up to STARTING_BALANCE
     return value - cost
 
 
-def _average_daily_return(db, user):
-    lifetime_return = _lifetime_return(db, user)
-    days = max(1, (datetime.now() - user.created_at).days)
-    return lifetime_return / days
+def _portfolio_average_daily_return(db, portfolio):
+    average_daily_return = _portfolio_lifetime_return(db, portfolio)
+    days = (datetime.now() - portfolio.created_at).days
+    if days > 0:
+        average_daily_return /= days
+    return average_daily_return
 
 
 def _assets_under_management(db, user):
@@ -345,76 +346,213 @@ def _assets_under_management(db, user):
 
 @api_router.post("/leaderboard")
 @cache(lifetime_seconds=60)
-@handle_errors((InternalServerError,))
+@handle_errors(
+    (
+        InternalServerError,
+        RequestValueError,
+    )
+)
 async def api_leaderboard_post(
     request: LeaderboardRequest, db: Database
 ) -> LeaderboardResponse:
-    users = db.query(User).all()
-    sort_by = request.sort_by
-    LeaderboardSortBy = LeaderboardRequest.LeaderboardSortBy
-    if sort_by == LeaderboardSortBy.LIFETIME_RETURN:
-        key_fn = _lifetime_return
-    elif sort_by == LeaderboardSortBy.AVERAGE_DAILY_RETURN:
-        key_fn = _average_daily_return
-    elif sort_by == LeaderboardSortBy.ASSETS_UNDER_MANAGEMENT:
-        key_fn = _assets_under_management
-    else:
-        raise RequestValueError(f"unrecognized sort by: {sort_by}")
+    if request.sort_by not in request.columns:
+        raise RequestValueError("sort_by not in columns")
 
-    users = [(key_fn(db, user), user) for user in users]
-    users.sort(key=lambda x: x[0], reverse=True)
+    Column = LeaderboardRequest.Column
+    column_fns = {
+        Column.LIFETIME_RETURN: lambda user: _portfolio_lifetime_return(
+            db, user.portfolio
+        ),
+        Column.AVERAGE_DAILY_RETURN: lambda user: _portfolio_average_daily_return(
+            db, user.portfolio
+        ),
+        Column.ASSETS_UNDER_MANAGEMENT: lambda user: _assets_under_management(db, user),
+    }
+
     response = LeaderboardResponse(rows=[])
-    for key, user in users:
-        row = LeaderboardResponse.LeaderboardRow(
-            user_id=user.id, user_display_name=user.display_name
+    for user in db.query(User).all():
+        row = LeaderboardResponse.Row(
+            user_id=user.id,
+            user_display_name=user.display_name,
+            portfolio_id=user.portfolio.id,
+            columns={},
         )
-        setattr(row, request.sort_by.value, key)
+        for column in request.columns:
+            row.columns[column] = column_fns[column](user)
         response.rows.append(row)
 
+    response.rows.sort(key=lambda row: row.columns[request.sort_by], reverse=True)
     return response
 
 
-@api_router.post("/user-holdings")
+@api_router.post("/portfolio-holdings")
 @cache(lifetime_seconds=10)
 @handle_errors(
     (
         InternalServerError,
+        MissingOwnershipError,
+        MissingPortfolioError,
         MissingUserError,
+        RequestValueError,
     )
 )
-async def api_user_holdings(
-    request: UserHoldingsRequest, db: Database
-) -> UserHoldingsResponse:
-    response = UserHoldingsResponse(rows=[])
+async def api_portfolio_holdings_post(
+    request: PortfolioHoldingsRequest, db: Database
+) -> PortfolioHoldingsResponse:
+    if request.sort_by not in request.columns:
+        raise RequestValueError("sort_by not in columns")
 
-    user = db.get(User, request.user_id)
-    if user is None:
-        raise MissingUserError(request.user_id)
+    portfolio = db.get(Portfolio, request.portfolio_id)
+    if portfolio is None:
+        raise MissingPortfolioError(request.portfolio_id)
 
-    holdings = user.portfolio.holdings
-    if not holdings:
+    response = PortfolioHoldingsResponse(rows=[])
+    if not portfolio.holdings:
         return response
 
-    self_ownership = db.get(Ownership, (user.portfolio.id, user.id))
+    self_ownership = db.get(Ownership, (portfolio.id, portfolio.id))
     if self_ownership is None:
-        raise MissingOwnershipError(user.portfolio.id, user.id)
+        raise MissingOwnershipError(portfolio.id, portfolio.id)
 
-    price_by_symbol = get_prices(db, [holding.symbol for holding in holdings])
+    price_by_symbol = get_prices(db, [holding.symbol for holding in portfolio.holdings])
 
-    for holding in holdings:
-        symbol = holding.symbol
-        units = holding.units * self_ownership.percent
-        value = price_by_symbol[symbol] * units
-        cost = holding.cost
-        lifetime_return = value - cost
-        lifetime_return_percent = lifetime_return / cost
-        row = UserHoldingsResponse.UserHoldingsRow(
-            symbol=symbol,
-            units=units,
-            value=value,
-            lifetime_return=lifetime_return,
-            lifetime_return_percent=lifetime_return_percent,
-        )
+    Column = PortfolioHoldingsRequest.Column
+    column_fns = {
+        Column.UNITS: lambda h: h.units,
+        Column.PRICE: lambda h: price_by_symbol[h.symbol],
+        Column.VALUE: lambda h: (
+            h.units * price_by_symbol[h.symbol] * self_ownership.percent
+        ),
+        Column.LIFETIME_RETURN: lambda h: (
+            h.units * price_by_symbol[h.symbol] * self_ownership.percent - h.cost
+        ),
+        Column.AVERAGE_DAILY_RETURN: lambda h: (
+            (h.units * price_by_symbol[h.symbol] * self_ownership.percent - h.cost)
+            / max(1, (datetime.now() - holding.created_at).days)
+        ),
+    }
+
+    for holding in portfolio.holdings:
+        row = PortfolioHoldingsResponse.Row(symbol=holding.symbol, columns={})
+        for column in request.columns:
+            row.columns[column] = column_fns[column](holding)
         response.rows.append(row)
 
+    response.rows.sort(key=lambda row: row.columns[request.sort_by], reverse=True)
+    return response
+
+
+@api_router.post("/portfolio-investors")
+@cache(lifetime_seconds=60)
+@handle_errors(
+    (
+        InternalServerError,
+        MissingPortfolioError,
+        RequestValueError,
+    )
+)
+async def api_portfolio_investors_post(
+    request: PortfolioInvestorsRequest, db: Database
+) -> PortfolioInvestorsResponse:
+    if request.sort_by not in request.columns:
+        raise RequestValueError("sort_by not in columns")
+
+    portfolio = db.get(Portfolio, request.portfolio_id)
+    if portfolio is None:
+        raise MissingPortfolioError(request.portfolio_id)
+
+    response = PortfolioInvestorsResponse(rows=[])
+    ownership = [o for o in portfolio.ownership if o.owner_id != portfolio.id]
+    if not ownership:
+        return response
+
+    user_ids = [o.owner_id for o in ownership]
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+    display_name_by_id = {user.id: user.display_name for user in users}
+
+    price_by_symbol = get_prices(db, [holding.symbol for holding in portfolio.holdings])
+    portfolio_value = sum(
+        holding.units * price_by_symbol[holding.symbol]
+        for holding in portfolio.holdings
+    )
+
+    Column = PortfolioInvestorsRequest.Column
+    column_fns = {
+        Column.AMOUNT_INVESTED: lambda o: o.cost,
+        Column.VALUE: lambda o: portfolio_value * o.percent,
+        Column.LIFETIME_RETURN: lambda o: portfolio_value * o.percent - o.cost,
+        Column.AVERAGE_DAILY_RETURN: lambda o: (
+            (portfolio_value * o.percent - o.cost)
+            / max(1, (datetime.now() - o.created_at).days)
+        ),
+    }
+
+    for o in ownership:
+        row = PortfolioInvestorsResponse.Row(
+            user_id=o.owner_id,
+            user_display_name=display_name_by_id[o.owner_id],
+            columns={},
+        )
+        for column in request.columns:
+            row.columns[column] = column_fns[column](o)
+        response.rows.append(row)
+
+    response.rows.sort(key=lambda row: row.columns[request.sort_by], reverse=True)
+    return response
+
+
+@api_router.post("/user-investments")
+@cache(lifetime_seconds=60)
+@handle_errors((InternalServerError,))
+async def api_user_investments_post(
+    request: UserInvestmentsRequest, db: Database
+) -> UserInvestmentsResponse:
+
+    ownership = db.query(Ownership).filter_by(owner_id=request.user_id).all()
+
+    ownership_by_portfolio_id = {
+        o.portfolio_id: o for o in ownership if o.portfolio_id != request.user_id
+    }
+
+    response = UserInvestmentsResponse(rows=[])
+    if not ownership_by_portfolio_id:
+        return response
+
+    user_ids = list(ownership_by_portfolio_id)
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+
+    symbols = set(
+        [holding.symbol for user in users for holding in user.portfolio.holdings]
+    )
+    price_by_symbol = get_prices(db, list(symbols))
+
+    Column = UserInvestmentsRequest.Column
+
+    for user in users:
+        row = UserInvestmentsResponse.Row(
+            user_id=user.id,
+            user_display_name=user.display_name,
+            columns={},
+        )
+
+        portfolio_value = sum(
+            holding.units * price_by_symbol[holding.symbol]
+            for holding in user.portfolio.holdings
+        )
+
+        column_fns = {
+            Column.AMOUNT_INVESTED: lambda o: o.cost,
+            Column.VALUE: lambda o: portfolio_value * o.percent,
+            Column.LIFETIME_RETURN: lambda o: portfolio_value * o.percent - o.cost,
+            Column.AVERAGE_DAILY_RETURN: lambda o: (
+                (portfolio_value * o.percent - o.cost)
+                / max(1, (datetime.now() - o.created_at).days)
+            ),
+        }
+        for column in request.columns:
+            o = ownership_by_portfolio_id[user.portfolio.id]
+            row.columns[column] = column_fns[column](o)
+        response.rows.append(row)
+
+    response.rows.sort(key=lambda row: row.columns[request.sort_by], reverse=True)
     return response

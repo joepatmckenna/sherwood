@@ -6,29 +6,23 @@ import BaseElement from "./BaseElement.js";
 export default class Leaderboard extends BaseElement {
   constructor() {
     super();
-    this.sortBy = "lifetime_return"; // lifetime_return, average_daily_return, assets_under_management
-    this.topK = 10;
   }
 
   async render() {
     const leaderboard = this.loadTemplate(LEADERBOARD_TEMPLATE_NAME);
     const tbody = leaderboard.querySelector("tbody");
 
-    const selectElement = leaderboard.getElementById("sort-options");
-    selectElement.value = this.sortBy;
-
-    selectElement.addEventListener("change", async (event) => {
-      this.sortBy = event.target.value;
-      tbody.textContent = "";
-      await this.render();
-    });
-
     const response = await this.callApi("/leaderboard", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        sort_by: this.sortBy,
-        top_k: this.topK,
+        columns: [
+          "assets_under_management",
+          "average_daily_return",
+          "lifetime_return",
+        ],
+        sort_by: "lifetime_return",
+        top_k: 10,
       }),
     });
 
@@ -41,7 +35,9 @@ export default class Leaderboard extends BaseElement {
               ${row.user_display_name}
             </a>
           </td>              
-          <td>$${row[this.sortBy].toFixed(2)}</td>
+          <td>$${row.columns["assets_under_management"].toFixed(2)}</td>
+          <td>$${row.columns["average_daily_return"].toFixed(2)}</td>
+          <td>$${row.columns["lifetime_return"].toFixed(2)}</td>
         `;
         tbody.appendChild(tr);
       });

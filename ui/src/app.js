@@ -4,7 +4,9 @@ const BASE_ROUTE = "/sherwood";
 
 // import to register custom element
 import Leaderboard from "./components/Leaderboard.js";
-import UserHoldings from "./components/UserHoldings.js";
+import PortfolioHoldings from "./components/PortfolioHoldings.js";
+import PortfolioInvestors from "./components/PortfolioInvestors.js";
+import UserInvestments from "./components/UserInvestments.js";
 
 import Home from "./components/Home.js";
 import SignUp from "./components/SignUp.js";

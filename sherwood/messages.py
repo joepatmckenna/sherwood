@@ -109,47 +109,87 @@ class DivestResponse(BaseModel):
 
 
 class LeaderboardRequest(BaseModel):
-    class LeaderboardSortBy(Enum):
+    class Column(Enum):
         LIFETIME_RETURN = "lifetime_return"
         AVERAGE_DAILY_RETURN = "average_daily_return"
         ASSETS_UNDER_MANAGEMENT = "assets_under_management"
 
+    columns: list[Column]
+    sort_by: Column
     top_k: int
-    sort_by: LeaderboardSortBy
 
 
 class LeaderboardResponse(BaseModel):
-    class LeaderboardRow(BaseModel):
+    class Row(BaseModel):
         user_id: int
         user_display_name: str
-        lifetime_return: float | None = None
-        average_daily_return: float | None = None
-        assets_under_management: float | None = None
+        portfolio_id: int
+        columns: dict[str, Any]
 
-    rows: list[LeaderboardRow]
-
-
-class UserHoldingsRequest(BaseModel):
-    user_id: int
+    rows: list[Row]
 
 
-class UserHoldingsResponse(BaseModel):
-    class UserHoldingsRow(BaseModel):
-        symbol: str
-        units: float
-        value: float
-        lifetime_return: float
-        lifetime_return_percent: float
+class PortfolioHoldingsRequest(BaseModel):
+    class Column(Enum):
+        UNITS = "units"
+        PRICE = "price"
+        VALUE = "value"
+        AVERAGE_DAILY_RETURN = "average_daily_return"
+        LIFETIME_RETURN = "lifetime_return"
 
-    rows: list[UserHoldingsRow]
-
-
-class PortfolioRequest(BaseModel):
     portfolio_id: int
+    columns: list[Column]
+    sort_by: Column
 
 
-class PortfolioResponse(BaseModel):
-    portfolio: dict[str, Any]
+class PortfolioHoldingsResponse(BaseModel):
+    class Row(BaseModel):
+        symbol: str
+        columns: dict[str, Any]
+
+    rows: list[Row]
+
+
+class PortfolioInvestorsRequest(BaseModel):
+    class Column(Enum):
+        AMOUNT_INVESTED = "amount_invested"
+        VALUE = "value"
+        AVERAGE_DAILY_RETURN = "average_daily_return"
+        LIFETIME_RETURN = "lifetime_return"
+
+    portfolio_id: int
+    columns: list[Column]
+    sort_by: Column
+
+
+class PortfolioInvestorsResponse(BaseModel):
+    class Row(BaseModel):
+        user_id: int
+        user_display_name: str
+        columns: dict[str, Any]
+
+    rows: list[Row]
+
+
+class UserInvestmentsRequest(BaseModel):
+    class Column(Enum):
+        AMOUNT_INVESTED = "amount_invested"
+        VALUE = "value"
+        AVERAGE_DAILY_RETURN = "average_daily_return"
+        LIFETIME_RETURN = "lifetime_return"
+
+    user_id: int
+    columns: list[Column]
+    sort_by: Column
+
+
+class UserInvestmentsResponse(BaseModel):
+    class Row(BaseModel):
+        user_id: int
+        user_display_name: str
+        columns: dict[str, Any]
+
+    rows: list[Row]
 
 
 __all__ = [
@@ -167,8 +207,10 @@ __all__ = [
     "DivestResponse",
     "LeaderboardRequest",
     "LeaderboardResponse",
-    "UserHoldingsRequest",
-    "UserHoldingsResponse",
-    "PortfolioRequest",
-    "PortfolioResponse",
+    "PortfolioHoldingsRequest",
+    "PortfolioHoldingsResponse",
+    "PortfolioInvestorsRequest",
+    "PortfolioInvestorsResponse",
+    "UserInvestmentsRequest",
+    "UserInvestmentsResponse",
 ]
