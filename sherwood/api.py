@@ -1,117 +1,32 @@
 from datetime import datetime
 from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
-from functools import wraps
-import json
 import logging
-from pydantic import BaseModel
 from sherwood.auth import (
     validate_display_name,
     validate_password,
     AuthorizedUser,
     CookieSecurity,
+    ACCESS_TOKEN_LIFESPAN_HOURS,
     AUTHORIZATION_COOKIE_NAME,
 )
-from sqlalchemy import func
-from sherwood.auth import generate_access_token, password_context
 from sherwood.broker import (
     buy_portfolio_holding,
     sell_portfolio_holding,
     invest_in_portfolio,
     divest_from_portfolio,
-    STARTING_BALANCE,
 )
-from sherwood.db import maybe_commit, Database
+from sherwood.caching import Cache as cache
+from sherwood.db import Database
 from sherwood.errors import *
+from sherwood.error_handling import HandleErrors as handle_errors
 from sherwood.market_data import get_prices
 from sherwood.messages import *
-from sherwood.models import (
-    create_user,
-    has_expired,
-    to_dict,
-    upsert_blob,
-    Blob,
-    Ownership,
-    Portfolio,
-    User,
-)
-from sqlalchemy.exc import MultipleResultsFound
-from sqlalchemy.orm import Session
+from sherwood.models import to_dict, Ownership, Portfolio, User
+from sherwood.registrar import sign_up_user, sign_in_user
 
 api_router = APIRouter(prefix="/api")
 
-ACCESS_TOKEN_LIFESPAN_HOURS = 4
-
-
-class Cache:
-    """Decorator for caching request/response pairs in the db.
-
-    Example usage:
-
-      @api_router.post("/fake")
-      @cache(lifetime_seconds=10)
-      async def api_fake(request: FakeRequest, db: Database) -> FakeResponse:
-          return FakeResponse(...)
-
-      where:
-       - FakeRequest / FakeResponse are descendents of BaseModel
-       - db is a sqlalchemy.orm.Session
-    """
-
-    def __init__(self, lifetime_seconds: int):
-        self._lifetime_seconds = lifetime_seconds
-
-    def __call__(self, f):
-        @wraps(f)
-        async def wrapper(*args, **kwargs) -> BaseModel:
-            request = kwargs.get("request")
-            if request is None:
-                raise InternalServerError(f"missing request kwarg.")
-            request_type = type(request)
-            if not BaseModel in request_type.__mro__:
-                raise InternalServerError(f"BaseModel not in request mro: {request}.")
-            if not isinstance(db := kwargs.get("db"), Session):
-                raise InternalServerError(f"db is not a sqlalchemy.orm.Session: {db}.")
-
-            key = f"{request_type}({request.model_dump_json()})"
-
-            blob = db.get(Blob, key)
-            if blob is None or has_expired(blob, self._lifetime_seconds):
-                result = await f(*args, **kwargs)
-                value = result.model_dump_json()
-                blob = upsert_blob(db, key, value)
-
-            return_type = f.__annotations__.get("return")
-            if isinstance(return_type, type) and BaseModel in return_type.__mro__:
-                return return_type.model_validate_json(blob.value)
-
-            logging.info("cache not validating response type")
-            return json.loads(blob.value)
-
-        return wrapper
-
-
-class HandleErrors:
-    def __init__(self, expected_error_types: tuple[SherwoodError]):
-        self._expected_error_types = expected_error_types
-
-    def __call__(self, f):
-        @wraps(f)
-        async def wrapper(*args, **kwargs):
-            try:
-                return await f(*args, **kwargs)
-            except self._expected_error_types:
-                raise
-            except Exception as exc:
-                raise InternalServerError(
-                    f"Unexpected error (func={f}, args={args}, kwargs={kwargs}, error={repr(exc)})"
-                ) from exc
-
-        return wrapper
-
-
-cache = Cache
-handle_errors = HandleErrors
 
 ###################################################
 # user account routes
@@ -125,23 +40,7 @@ handle_errors = HandleErrors
     )
 )
 async def api_sign_up_post(request: SignUpRequest, db: Database) -> SignUpResponse:
-
-    if db.query(User).filter_by(email=request.email).first() is not None:
-        raise DuplicateUserError(email=request.email)
-    if (
-        db.query(User)
-        .filter(func.lower(User.display_name) == request.display_name.lower())
-        .first()
-        is not None
-    ):
-        raise DuplicateUserError(display_name=request.display_name)
-    create_user(
-        db=db,
-        email=request.email,
-        display_name=request.display_name,
-        password=request.password,
-        cash=STARTING_BALANCE,
-    )
+    sign_up_user(db, request.email, request.display_name, request.password)
     return SignUpResponse(redirect_url="/sherwood/sign-in")
 
 
@@ -157,18 +56,7 @@ async def api_sign_up_post(request: SignUpRequest, db: Database) -> SignUpRespon
 async def api_sign_in_post(
     request: SignInRequest, db: Database, secure: CookieSecurity
 ) -> SignInResponse:
-    try:
-        user = db.query(User).filter_by(email=request.email).one_or_none()
-    except MultipleResultsFound:
-        raise DuplicateUserError(email=request.email)
-    if user is None:
-        raise MissingUserError(email=request.email)
-    if not password_context.verify(request.password, user.password):
-        raise IncorrectPasswordError()
-    if password_context.needs_update(user.password):
-        user.password = password_context.hash(user.password)
-        maybe_commit(db, "Failed to update password hash.")
-    access_token = generate_access_token(user, ACCESS_TOKEN_LIFESPAN_HOURS)
+    access_token = sign_in_user(db, request.email, request.password)
     response = SignInResponse(redirect_url="/sherwood/profile")
     response = JSONResponse(content=response.model_dump())
     response.set_cookie(
@@ -291,31 +179,31 @@ async def api_divest_post(
 
 
 ###################################################
-# websocket
+# websockets
 
 
 @api_router.websocket("/validate-display-name")
-async def api_validate_display_name_websocket(ws: WebSocket):
-    await ws.accept()
+async def api_validate_display_name_websocket(web_socket: WebSocket):
+    await web_socket.accept()
     try:
         while True:
-            display_name = await ws.receive_text()
+            display_name = await web_socket.receive_text()
             reasons = validate_display_name(display_name)
-            await ws.send_json({"reasons": reasons})
+            await web_socket.send_json({"reasons": reasons})
     except WebSocketDisconnect:
-        logging.info("validate display_name websocket client disconnected")
+        logging.info("validate display_name client disconnected")
 
 
 @api_router.websocket("/validate-password")
-async def api_validate_password_websocket(ws: WebSocket):
-    await ws.accept()
+async def api_validate_password_websocket(web_socket: WebSocket):
+    await web_socket.accept()
     try:
         while True:
-            password = await ws.receive_text()
+            password = await web_socket.receive_text()
             reasons = validate_password(password)
-            await ws.send_json({"reasons": reasons})
+            await web_socket.send_json({"reasons": reasons})
     except WebSocketDisconnect:
-        logging.info("validate password websocket client disconnected")
+        logging.info("validate password client disconnected")
 
 
 ###################################################

@@ -19,7 +19,7 @@ from sqlalchemy.event import listens_for
 from typing import Annotated
 from uuid import uuid4
 
-
+ACCESS_TOKEN_LIFESPAN_HOURS = 4
 AUTHORIZATION_COOKIE_NAME = "x_sherwood_authorization"
 
 JWT_SECRET_KEY_ENV_VAR_NAME = "JWT_SECRET_KEY"

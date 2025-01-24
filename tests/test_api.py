@@ -1,4 +1,4 @@
-from sherwood.broker import STARTING_BALANCE
+from sherwood.models import STARTING_BALANCE
 
 
 def test_sign_up_success(client, valid_email, valid_display_name, valid_password):

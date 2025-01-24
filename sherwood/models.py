@@ -16,6 +16,9 @@ from sqlalchemy.orm.attributes import flag_modified
 from typing import Any
 
 
+STARTING_BALANCE = 10_000
+
+
 class BaseModel(DeclarativeBase, MappedAsDataclass):
     __abstract__ = True
 
@@ -254,7 +257,11 @@ class Blob(BaseModel):
 
 
 def create_user(
-    db: Session, email: str, display_name: str, password: str, cash: float = 0
+    db: Session,
+    email: str,
+    display_name: str,
+    password: str,
+    cash: float = STARTING_BALANCE,
 ) -> User:
     user = User(email=email, display_name=display_name, password=password)
     user.portfolio = Portfolio(cash=cash)

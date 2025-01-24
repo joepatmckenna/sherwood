@@ -1,17 +1,8 @@
 from sherwood import errors
 from sherwood.db import maybe_commit
-from sherwood.errors import InternalServerError
 from sherwood.market_data import get_price, get_prices
-from sherwood.models import (
-    Holding,
-    Ownership,
-    Portfolio,
-    User,
-)
+from sherwood.models import Holding, Ownership, Portfolio
 from sqlalchemy.orm import Session
-
-
-STARTING_BALANCE = 10_000
 
 
 def _lock_portfolios(db: Session, portfolio_ids: list[int]) -> dict[int, Portfolio]:
