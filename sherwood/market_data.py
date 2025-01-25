@@ -7,6 +7,8 @@ import yfinance
 
 _PRICE_DELAY_SECONDS = 300
 
+DOLLAR_SYMBOL = "USD"
+
 
 def _fetch_prices(symbols) -> dict[str, float]:
     try:
@@ -20,15 +22,25 @@ def _fetch_prices(symbols) -> dict[str, float]:
         ) from exc
 
 
-def get_prices(db: Session, symbols: list[str]) -> dict[str, float]:
+def get_prices(
+    db: Session, symbols: list[str], delay_seconds: float = _PRICE_DELAY_SECONDS
+) -> dict[str, float]:
     symbols_by_status = {"current": set(), "expired": set(), "missing": set(symbols)}
     price_by_symbol = {}
+
+    if DOLLAR_SYMBOL in symbols_by_status["missing"]:
+        symbols_by_status["missing"].remove(DOLLAR_SYMBOL)
+        price_by_symbol[DOLLAR_SYMBOL] = 1
+        symbols.remove(DOLLAR_SYMBOL)
+
+    if not symbols:
+        return price_by_symbol
 
     quotes_to_update = []
 
     for quote in db.query(Quote).filter(Quote.symbol.in_(symbols)).all():
         symbols_by_status["missing"].remove(quote.symbol)
-        if has_expired(quote, _PRICE_DELAY_SECONDS):
+        if has_expired(quote, delay_seconds):
             symbols_by_status["expired"].add(quote.symbol)
             quotes_to_update.append(quote)
         else:
@@ -48,5 +60,7 @@ def get_prices(db: Session, symbols: list[str]) -> dict[str, float]:
     return price_by_symbol
 
 
-def get_price(db: Session, symbol: str) -> float:
-    return get_prices(db, [symbol])[symbol]
+def get_price(
+    db: Session, symbol: str, delay_seconds: float = _PRICE_DELAY_SECONDS
+) -> float:
+    return get_prices(db, [symbol], delay_seconds)[symbol]

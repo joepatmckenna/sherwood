@@ -9,6 +9,8 @@ from sherwood.models import create_user, User
 from sqlalchemy import func
 from sqlalchemy.exc import MultipleResultsFound
 
+STARTING_BALANCE = 10_000
+
 
 def sign_up_user(db, email, display_name, password):
     if db.query(User).filter_by(email=email).first() is not None:
@@ -20,7 +22,13 @@ def sign_up_user(db, email, display_name, password):
         is not None
     ):
         raise DuplicateUserError(display_name=display_name)
-    create_user(db=db, email=email, display_name=display_name, password=password)
+    return create_user(
+        db=db,
+        email=email,
+        display_name=display_name,
+        password=password,
+        starting_balance=STARTING_BALANCE,
+    )
 
 
 def sign_in_user(db, email, password):

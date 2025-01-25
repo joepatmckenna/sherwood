@@ -87,6 +87,15 @@ class MissingPortfolioError(SherwoodError):
         )
 
 
+class MissingHoldingError(SherwoodError):
+    def __init__(self, portfolio_id: int, symbol: str, headers=None) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Holding {symbol} missing from portfolio {portfolio_id}.",
+            headers=headers,
+        )
+
+
 class MissingOwnershipError(SherwoodError):
     def __init__(self, portfolio_id: int, owner_id: int, headers=None) -> None:
         super().__init__(
@@ -123,6 +132,15 @@ class DuplicatePortfolioError(SherwoodError):
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Multiple portfolios with ID {portfolio_id}.",
+            headers=headers,
+        )
+
+
+class DuplicateQuoteError(SherwoodError):
+    def __init__(self, symbol: str, headers=None) -> None:
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Multiple quotes with symbol {symbol}.",
             headers=headers,
         )
 

@@ -2,8 +2,10 @@ from collections.abc import Iterable
 from dataclasses import fields
 from datetime import datetime
 from sherwood.db import maybe_commit
+from sherwood.errors import DuplicateQuoteError
 from six import string_types
 from sqlalchemy import func, ForeignKey, Index
+from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -16,23 +18,20 @@ from sqlalchemy.orm.attributes import flag_modified
 from typing import Any
 
 
-STARTING_BALANCE = 10_000
-
-
 class BaseModel(DeclarativeBase, MappedAsDataclass):
     __abstract__ = True
 
-    created_at: Mapped[datetime] = mapped_column(
+    created: Mapped[datetime] = mapped_column(
         init=False,
-        repr=True,
+        repr=False,
         default_factory=datetime.now,
         nullable=False,
         compare=False,
     )
 
-    last_updated_at: Mapped[datetime] = mapped_column(
+    last_modified: Mapped[datetime] = mapped_column(
         init=False,
-        repr=True,
+        repr=False,
         default_factory=datetime.now,
         compare=False,
         nullable=False,
@@ -104,14 +103,7 @@ class Portfolio(BaseModel):
 
     id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        init=False,
         primary_key=True,
-        compare=True,
-        repr=True,
-    )
-
-    cash: Mapped[float] = mapped_column(
-        default=0,
         compare=True,
         repr=True,
     )
@@ -261,12 +253,33 @@ def create_user(
     email: str,
     display_name: str,
     password: str,
-    cash: float = STARTING_BALANCE,
+    starting_balance: float = 0,
 ) -> User:
     user = User(email=email, display_name=display_name, password=password)
-    user.portfolio = Portfolio(cash=cash)
     db.add(user)
     maybe_commit(db, "Failed to create user.")
+    portfolio_id = user.id
+    user.portfolio = Portfolio(
+        id=portfolio_id,
+        holdings=[
+            Holding(
+                portfolio_id=portfolio_id,
+                symbol="USD",
+                cost=starting_balance,
+                units=starting_balance,
+            ),
+        ],
+        ownership=[
+            Ownership(
+                portfolio_id=portfolio_id,
+                owner_id=user.id,
+                cost=starting_balance,
+                percent=1,
+            )
+        ],
+    )
+    maybe_commit(db, "Failed to create portfolio for new user.")
+    db.refresh(user)
     return user
 
 
@@ -285,7 +298,10 @@ def update_quote(db: Session, quote: Quote, price: float) -> Quote:
 
 
 def upsert_quote(db: Session, symbol: str, price: float) -> Quote:
-    quote = db.get(Quote, symbol)
+    try:
+        quote = db.query(Quote).filter_by(symbol=symbol).with_for_update().one_or_none()
+    except MultipleResultsFound:
+        raise DuplicateQuoteError(symbol=symbol)
     if quote is None:
         return create_quote(db, symbol, price)
     else:
@@ -307,7 +323,7 @@ def update_blob(db: Session, blob: Blob, value: str) -> Blob:
 
 
 def upsert_blob(db: Session, key: str, value: str) -> Blob:
-    blob = db.get(Blob, key)
+    blob = db.query(Blob).filter_by(key=key).with_for_update().one_or_none()
     if blob is None:
         return create_blob(db, key, value)
     else:
@@ -327,4 +343,4 @@ def to_dict(obj: Any) -> dict[str, Any]:
 
 
 def has_expired(model: BaseModel, seconds: int):
-    return (datetime.now() - model.last_updated_at).total_seconds() > seconds
+    return (datetime.now() - model.last_modified).total_seconds() > seconds

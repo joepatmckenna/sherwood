@@ -4,8 +4,10 @@ import time
 
 from sherwood.models import (
     create_quote,
+    create_user,
     has_expired,
-    update_quote,
+    to_dict,
+    upsert_quote,
     Holding,
     Portfolio,
     User,
@@ -38,7 +40,7 @@ def test_deleting_user_deletes_their_portfolio(
     db, valid_email, valid_display_name, valid_password
 ):
     user = User(valid_email, valid_display_name, valid_password)
-    user.portfolio = Portfolio()
+    user.portfolio = Portfolio(id=user.id)
     db.add(user)
     db.commit()
     assert db.get(Portfolio, 1) is not None
@@ -49,7 +51,7 @@ def test_deleting_user_deletes_their_portfolio(
 
 def test_add_holdings_to_portfolio(db, valid_email, valid_display_name, valid_password):
     user = User(valid_email, valid_display_name, valid_password)
-    user.portfolio = Portfolio()
+    user.portfolio = Portfolio(id=user.id)
     holding_1 = Holding(portfolio_id=user.portfolio.id, symbol="AAA", units=1, cost=100)
     holding_2 = Holding(portfolio_id=user.portfolio.id, symbol="BBB", units=2, cost=200)
     user.portfolio.holdings.extend([holding_1, holding_2])
@@ -58,12 +60,31 @@ def test_add_holdings_to_portfolio(db, valid_email, valid_display_name, valid_pa
     assert db.get(Portfolio, 1).holdings == [holding_1, holding_2]
 
 
-def test_last_updated_at_changes_on_quote_update(db):
-    quote = create_quote(db, symbol="AAA", price=1)
-    t = quote.last_updated_at
+def test_last_modified_changes_on_quote_update(db):
+    symbol = "AAA"
+    quote = create_quote(db, symbol=symbol, price=1)
+    t = quote.last_modified
     time.sleep(0.1)
-    update_quote(db, quote, 2)
-    assert t < quote.last_updated_at
+    upsert_quote(db, symbol, 2)
+    assert t < quote.last_modified
+
+
+def test_create_user_success(db, valid_email, valid_display_name, valid_password):
+    expected = create_user(
+        db, valid_email, valid_display_name, valid_password, starting_balance=100
+    )
+    user = db.get(User, 1)
+    assert expected == user
+
+
+def test_to_dict_success(db, valid_email, valid_display_name, valid_password):
+    user = create_user(
+        db, valid_email, valid_display_name, valid_password, starting_balance=100
+    )
+    assert isinstance(to_dict(user), dict)
+    assert isinstance(to_dict(user.portfolio), dict)
+    assert isinstance(to_dict(user.portfolio.holdings[0]), dict)
+    assert isinstance(to_dict(user.portfolio.ownership[0]), dict)
 
 
 def test_has_expired(db):
