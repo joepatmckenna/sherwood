@@ -137,6 +137,29 @@ def test_invest_in_portfolio_success(
 
 
 def test_divest_from_portfolio(db, valid_emails, valid_display_names, valid_password):
+    expected = [
+        User(email="user0@web.com", display_name="user0", password=valid_password),
+        User(email="user1@web.com", display_name="user1", password=valid_password),
+    ]
+    expected[0].id = 1
+    expected[0].portfolio = Portfolio(
+        id=1,
+        holdings=[
+            Holding(portfolio_id=1, symbol="AAA", cost=500.0, units=550.0),
+            Holding(portfolio_id=1, symbol="USD", cost=500.0, units=550.0),
+        ],
+        ownership=[
+            Ownership(portfolio_id=1, owner_id=1, cost=1000.0, percent=1000 / 1100),
+            Ownership(portfolio_id=1, owner_id=2, cost=100.0, percent=100 / 1100),
+        ],
+    )
+    expected[1].id = 2
+    expected[1].portfolio = Portfolio(
+        id=2,
+        holdings=[Holding(portfolio_id=2, symbol="USD", cost=900.0, units=900.0)],
+        ownership=[Ownership(portfolio_id=2, owner_id=2, cost=900.0, percent=1.0)],
+    )
+
     users = [
         create_user(
             db,
@@ -153,14 +176,8 @@ def test_divest_from_portfolio(db, valid_emails, valid_display_names, valid_pass
             starting_balance=1000,
         ),
     ]
-    buy_portfolio_holding(db, users[0].portfolio.id, "AAA", 100)
-    invest_in_portfolio(db, users[0].portfolio.id, users[1].portfolio.id, 100)
-    divest_from_portfolio(db, users[0].portfolio.id, users[1].portfolio.id, 75)
+    buy_portfolio_holding(db, users[0].portfolio.id, "AAA", 500)
+    invest_in_portfolio(db, users[0].portfolio.id, users[1].portfolio.id, 400)
+    divest_from_portfolio(db, users[0].portfolio.id, users[1].portfolio.id, 300)
 
-    import json
-    from sherwood.models import to_dict
-
-    print(json.dumps(to_dict(db.get(User, 1)), indent=1))
-    print(json.dumps(to_dict(db.get(User, 2)), indent=1))
-
-    # assert users == expected
+    assert users == expected

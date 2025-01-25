@@ -260,6 +260,7 @@ def divest_from_portfolio(
         * investee_portfolio_investor_ownership.cost
     )
     investee_portfolio_investor_ownership.cost -= cost
+    investor_portfolio_self_ownership.cost += cost
     investor_dollar_holding.cost += cost
 
     investee_portfolio_investor_ownership.percent -= (
