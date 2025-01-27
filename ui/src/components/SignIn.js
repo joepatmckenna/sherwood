@@ -8,6 +8,21 @@ export default class SignIn extends BaseElement {
     super();
   }
 
+  loadTemplate() {
+    const template = document.createElement("template");
+    template.innerHTML = `
+    <h1>sign in</h1>
+    <form id="sign-in-form">
+      <label for="email">email:</label><br />
+      <input type="email" id="email" name="email" required /><br /><br />
+      <label for="password">password:</label><br />
+      <input type="password" id="password" name="password" required /><br /><br />
+      <button type="submit">sign in</button>
+    </form>
+    <p class="error" id="error-message"></p>`;
+    return template.content.cloneNode(true);
+  }
+
   setupForm(signIn) {
     const form = signIn.querySelector("form");
     const errorMessage = signIn.getElementById("error-message");

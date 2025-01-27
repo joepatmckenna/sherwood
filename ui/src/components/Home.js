@@ -1,5 +1,4 @@
 export const HOME_TAG_NAME = "sherwood-home";
-export const HOME_TEMPLATE_NAME = "sherwood-home-template";
 
 import BaseElement from "./BaseElement.js";
 
@@ -8,8 +7,16 @@ export default class Home extends BaseElement {
     super();
   }
 
+  loadTemplate() {
+    const template = document.createElement("template");
+    template.innerHTML = `
+    <sherwood-leaderboard> </sherwood-leaderboard>
+    `;
+    return template.content.cloneNode(true);
+  }
+
   connectedCallback() {
-    const home = this.loadTemplate(HOME_TEMPLATE_NAME);
+    const home = this.loadTemplate();
     this.shadowRoot.replaceChildren(home);
   }
 }

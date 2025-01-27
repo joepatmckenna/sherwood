@@ -1,3 +1,4 @@
+from pytest import approx
 from sherwood.broker import (
     buy_portfolio_holding,
     sell_portfolio_holding,
@@ -180,4 +181,16 @@ def test_divest_from_portfolio(db, valid_emails, valid_display_names, valid_pass
     invest_in_portfolio(db, users[0].portfolio.id, users[1].portfolio.id, 400)
     divest_from_portfolio(db, users[0].portfolio.id, users[1].portfolio.id, 300)
 
-    assert users == expected
+    for i in [0, 1]:
+        for user_holding, expected_holding in zip(
+            users[i].portfolio.holdings, expected[i].portfolio.holdings
+        ):
+            assert user_holding.symbol == expected_holding.symbol
+            assert user_holding.cost == approx(expected_holding.cost)
+            assert user_holding.units == approx(expected_holding.units)
+        for user_ownership, expected_ownership in zip(
+            users[i].portfolio.ownership, expected[i].portfolio.ownership
+        ):
+            assert user_ownership.owner_id == expected_ownership.owner_id
+            assert user_ownership.cost == approx(expected_ownership.cost)
+            assert user_ownership.percent == approx(expected_ownership.percent)

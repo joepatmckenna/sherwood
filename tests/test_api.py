@@ -1,4 +1,4 @@
-from sherwood.models import STARTING_BALANCE
+from sherwood.registrar import STARTING_BALANCE
 
 
 def test_sign_up_success(client, valid_email, valid_display_name, valid_password):
@@ -186,15 +186,16 @@ def test_buy_portfolio_holding_success(
     get_user_response = client.get("/api/user")
     assert get_user_response.status_code == 200
     user = get_user_response.json()
-    assert user["portfolio"]["cash"] == STARTING_BALANCE - 50
-    assert user["portfolio"]["holdings"][0]["portfolio_id"] == 1
-    assert user["portfolio"]["holdings"][0]["symbol"] == "AAA"
-    assert user["portfolio"]["holdings"][0]["cost"] == 50
-    assert user["portfolio"]["holdings"][0]["units"] == 50
-    assert user["portfolio"]["ownership"][0]["portfolio_id"] == 1
-    assert user["portfolio"]["ownership"][0]["owner_id"] == 1
-    assert user["portfolio"]["ownership"][0]["cost"] == 50
-    assert user["portfolio"]["ownership"][0]["percent"] == 1
+    assert user["portfolio"] == {
+        "id": 1,
+        "holdings": [
+            {"portfolio_id": 1, "symbol": "AAA", "cost": 50.0, "units": 50.0},
+            {"portfolio_id": 1, "symbol": "USD", "cost": 9950.0, "units": 9950.0},
+        ],
+        "ownership": [
+            {"portfolio_id": 1, "owner_id": 1, "cost": 10000.0, "percent": 1.0}
+        ],
+    }
 
 
 def test_buy_portfolio_holding_insufficient_cash(
@@ -242,15 +243,16 @@ def test_sell_portfolio_holding_success(
     get_user_response = client.get("/api/user")
     assert get_user_response.status_code == 200
     user = get_user_response.json()
-    assert user["portfolio"]["cash"] == STARTING_BALANCE - 25
-    assert user["portfolio"]["holdings"][0]["portfolio_id"] == 1
-    assert user["portfolio"]["holdings"][0]["symbol"] == "AAA"
-    assert user["portfolio"]["holdings"][0]["cost"] == 25
-    assert user["portfolio"]["holdings"][0]["units"] == 25
-    assert user["portfolio"]["ownership"][0]["portfolio_id"] == 1
-    assert user["portfolio"]["ownership"][0]["owner_id"] == 1
-    assert user["portfolio"]["ownership"][0]["cost"] == 25
-    assert user["portfolio"]["ownership"][0]["percent"] == 1
+    assert user["portfolio"] == {
+        "id": 1,
+        "holdings": [
+            {"portfolio_id": 1, "symbol": "AAA", "cost": 25.0, "units": 25.0},
+            {"portfolio_id": 1, "symbol": "USD", "cost": 9975.0, "units": 9975.0},
+        ],
+        "ownership": [
+            {"portfolio_id": 1, "owner_id": 1, "cost": 10000.0, "percent": 1.0}
+        ],
+    }
 
 
 def test_sell_portfolio_holding_insufficient_holdings(
@@ -375,76 +377,6 @@ def test_invest_in_portfolio_insufficient_cash(
         json={"investee_portfolio_id": 1, "dollars": STARTING_BALANCE + 1},
     )
     assert invest_response.status_code == 400
-
-
-def test_invest_in_portfolio_insufficient_investee_holdings(
-    client, valid_emails, valid_display_names, valid_password
-):
-    sign_up_requests = [
-        {
-            "email": valid_emails[0],
-            "display_name": valid_display_names[0],
-            "password": valid_password,
-        },
-        {
-            "email": valid_emails[1],
-            "display_name": valid_display_names[1],
-            "password": valid_password,
-        },
-    ]
-    sign_in_requests = [
-        {"email": valid_emails[0], "password": valid_password},
-        {"email": valid_emails[1], "password": valid_password},
-    ]
-    sign_up_response = client.post("/api/sign-up", json=sign_up_requests[0])
-    assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/api/sign-in", json=sign_in_requests[0])
-    assert sign_in_response.status_code == 200
-    buy_response = client.post("/api/buy", json={"symbol": "AAA", "dollars": 0.009})
-    assert buy_response.status_code == 200
-
-    sign_up_response = client.post("/api/sign-up", json=sign_up_requests[1])
-    assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/api/sign-in", json=sign_in_requests[1])
-    assert sign_in_response.status_code == 200
-    invest_response = client.post(
-        "/api/invest", json={"investee_portfolio_id": 1, "dollars": 1}
-    )
-    assert invest_response.status_code == 400
-
-
-def test_invest_in_portfolio_missing_investee_ownership(
-    client, valid_emails, valid_display_names, valid_password
-):
-    sign_up_requests = [
-        {
-            "email": valid_emails[0],
-            "display_name": valid_display_names[0],
-            "password": valid_password,
-        },
-        {
-            "email": valid_emails[1],
-            "display_name": valid_display_names[1],
-            "password": valid_password,
-        },
-    ]
-    sign_in_requests = [
-        {"email": valid_emails[0], "password": valid_password},
-        {"email": valid_emails[1], "password": valid_password},
-    ]
-    sign_up_response = client.post("/api/sign-up", json=sign_up_requests[0])
-    assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/api/sign-in", json=sign_in_requests[0])
-    assert sign_in_response.status_code == 200
-
-    sign_up_response = client.post("/api/sign-up", json=sign_up_requests[1])
-    assert sign_up_response.status_code == 200
-    sign_in_response = client.post("/api/sign-in", json=sign_in_requests[1])
-    assert sign_in_response.status_code == 200
-    invest_response = client.post(
-        "/api/invest", json={"investee_portfolio_id": 1, "dollars": 1}
-    )
-    assert invest_response.status_code == 500
 
 
 def test_divest_from_portfolio_success(

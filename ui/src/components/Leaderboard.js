@@ -1,5 +1,4 @@
 export const LEADERBOARD_TAG_NAME = "sherwood-leaderboard";
-export const LEADERBOARD_TEMPLATE_NAME = "sherwood-leaderboard-template";
 
 import BaseElement from "./BaseElement.js";
 
@@ -8,8 +7,29 @@ export default class Leaderboard extends BaseElement {
     super();
   }
 
+  loadTemplate() {
+    const template = document.createElement("template");
+    template.innerHTML = `
+    <div>
+      <h2>leaderboard</h2>
+      <table border="1">
+        <thead>
+          <tr>
+            <th>user</th>
+            <th>assets under management</th>
+            <th>average daily return</th>
+            <th>lifetime return</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>`;
+    return template.content.cloneNode(true);
+  }
+
   async render() {
-    const leaderboard = this.loadTemplate(LEADERBOARD_TEMPLATE_NAME);
+    const leaderboard = this.loadTemplate();
     const tbody = leaderboard.querySelector("tbody");
 
     const response = await this.callApi("/leaderboard", {

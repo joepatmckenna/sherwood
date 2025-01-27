@@ -5,11 +5,6 @@ export default class BaseElement extends HTMLElement {
     this.handleInternalLinks();
   }
 
-  loadTemplate(templateName) {
-    const template = document.getElementById(templateName);
-    return template.content.cloneNode(true);
-  }
-
   async handleInternalLinks() {
     this.shadowRoot.addEventListener("click", async (event) => {
       const target = event.target.closest("a");

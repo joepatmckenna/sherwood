@@ -1,6 +1,4 @@
 export const PORTFOLIO_HOLDINGS_TAG_NAME = "sherwood-portfolio-holdings";
-export const PORTFOLIO_HOLDINGS_TEMPLATE_NAME =
-  "sherwood-portfolio-holdings-template";
 
 import BaseElement from "./BaseElement.js";
 
@@ -21,12 +19,32 @@ export default class PortfolioHoldings extends BaseElement {
     }
   }
 
-  async render() {
-    const portfolioHoldings = this.loadTemplate(
-      PORTFOLIO_HOLDINGS_TEMPLATE_NAME
-    );
-    const tbody = portfolioHoldings.querySelector("tbody");
+  loadTemplate() {
+    const template = document.createElement("template");
+    template.innerHTML = `<div>
+        <span id="cash"></span>
+        <table border="1">
+          <thead>
+            <tr>
+              <th>symbol</th>
+              <th>units</th>
+              <th>price</th>
+              <th>value</th>
+              <th>average daily return</th>
+              <th>lifetime return</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>`;
+    return template.content.cloneNode(true);
+  }
 
+  async render() {
+    const portfolioHoldings = this.loadTemplate();
+    const cashElement = portfolioHoldings.querySelector("#cash");
+    const tbody = portfolioHoldings.querySelector("tbody");
     const columns = [
       "units",
       "price",
@@ -45,7 +63,7 @@ export default class PortfolioHoldings extends BaseElement {
       }),
     });
     if (!response?.error) {
-      if (response.rows.length === 0) {
+      if (response.rows.length === 1) {
         const tr = document.createElement("tr");
         tr.innerHTML = `<td colspan="${
           columns.length + 1
@@ -53,8 +71,11 @@ export default class PortfolioHoldings extends BaseElement {
         tbody.appendChild(tr);
       }
       response.rows.forEach((row) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
+        if (row.symbol === "USD") {
+          cashElement.innerText = `cash: $${row.columns["units"].toFixed(2)}`;
+        } else {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
           <td>${row.symbol}</td>
           <td>${row.columns["units"].toFixed(1)}</td>
           <td>$${row.columns["price"].toFixed(2)}</td>
@@ -62,7 +83,8 @@ export default class PortfolioHoldings extends BaseElement {
           <td>$${row.columns["average_daily_return"].toFixed(2)}</td>
           <td>$${row.columns["lifetime_return"].toFixed(2)}</td>
         `;
-        tbody.appendChild(tr);
+          tbody.appendChild(tr);
+        }
       });
     }
     this.shadowRoot.replaceChildren(portfolioHoldings);

@@ -1,11 +1,29 @@
 export const SIGN_UP_TAG_NAME = "sherwood-sign-up";
-export const SIGN_UP_TEMPLATE_NAME = "sherwood-sign-up-template";
 
 import BaseElement from "./BaseElement.js";
 
 export default class SignUp extends BaseElement {
   constructor({}) {
     super();
+  }
+
+  loadTemplate() {
+    const template = document.createElement("template");
+    template.innerHTML = `
+    <h1>sign up</h1>
+    <form id="sign-up-form">
+      <label for="email">email:</label><br />
+      <input type="email" id="email" name="email" required /><br /><br />
+      <label for="display-name">display name:</label><br />
+      <input type="text" id="display-name" name="display_name" required /><br /><br />
+      <label for="password">password:</label><br />
+      <input type="password" id="password" name="password" required /><br /><br />
+      <button type="submit">sign up</button>
+    </form>
+    <ul id="display-name-requirements"></ul>
+    <ul id="password-requirements"></ul>
+    <p class="error" id="error-message"></p>`;
+    return template.content.cloneNode(true);
   }
 
   setupForm(signUp) {
@@ -105,7 +123,7 @@ export default class SignUp extends BaseElement {
   }
 
   async connectedCallback() {
-    const signUp = this.loadTemplate(SIGN_UP_TEMPLATE_NAME);
+    const signUp = this.loadTemplate();
     this.setupForm(signUp);
     this.setupDisplayNameValidator(signUp);
     this.setupPasswordValidator(signUp);

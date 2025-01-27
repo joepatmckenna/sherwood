@@ -1,12 +1,6 @@
 export const HEADER_TAG_NAME = "sherwood-header";
-export const HEADER_TEMPLATE_NAME = "sherwood-header-template";
 
 import BaseElement from "./BaseElement.js";
-
-const SIGNED_IN_LINKS = `
-<a href="/sherwood/profile">profile</a>
-<a href="/sherwood/sign-out">sign out</a>
-`;
 
 const SIGNED_OUT_LINKS = `
 <a href="/sherwood/sign-up">sign up</a>
@@ -18,23 +12,52 @@ export default class Header extends BaseElement {
     super();
   }
 
+  signedInLinks(user_id) {
+    return `
+    <a href="/sherwood/user/${user_id}">profile</a>
+    <a href="/sherwood/sign-out">sign out</a>
+    `;
+  }
+
+  loadTemplate() {
+    const template = document.createElement("template");
+    template.innerHTML = `
+    <style>
+      nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      nav div {
+        display: flex;
+        gap: 8px;
+      }
+    </style>
+
+    <nav>
+      <div class="links">
+        <a href="/sherwood/" data-link>home</a>
+      </div>
+      <div class="links" id="right-links"> </div>
+    </nav>`;
+    return template.content.cloneNode(true);
+  }
+
   async connectedCallback() {
-    const template = document.getElementById(HEADER_TEMPLATE_NAME);
-    const header = template.content.cloneNode(true);
-
-    const rightLinks = header.getElementById("right-links");
-
+    const header = this.loadTemplate();
+    const rightLinks = header.querySelector("#right-links");
     const user = await this.callApi("/user");
-    rightLinks.innerHTML = user?.error ? SIGNED_OUT_LINKS : SIGNED_IN_LINKS;
-
+    if (user?.error) {
+      rightLinks.innerHTML = SIGNED_OUT_LINKS;
+    } else {
+      rightLinks.innerHTML = this.signedInLinks(user.id);
+    }
     document.body.addEventListener("sherwood-sign-in", () => {
-      rightLinks.innerHTML = SIGNED_IN_LINKS;
+      rightLinks.innerHTML = this.signedInLinks(user.id);
     });
-
     document.body.addEventListener("sherwood-sign-out", () => {
       rightLinks.innerHTML = SIGNED_OUT_LINKS;
     });
-
     this.shadowRoot.appendChild(header);
   }
 }

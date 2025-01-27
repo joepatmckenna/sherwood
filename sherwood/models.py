@@ -23,7 +23,7 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
 
     created: Mapped[datetime] = mapped_column(
         init=False,
-        repr=False,
+        repr=True,
         default_factory=datetime.now,
         nullable=False,
         compare=False,
@@ -31,7 +31,7 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
 
     last_modified: Mapped[datetime] = mapped_column(
         init=False,
-        repr=False,
+        repr=True,
         default_factory=datetime.now,
         compare=False,
         nullable=False,

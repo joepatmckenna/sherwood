@@ -39,7 +39,7 @@ def _lock_portfolios(db: Session, portfolio_ids: list[int]) -> dict[int, Portfol
 
 
 def _convert_dollars_to_units(db, symbol: str, dollars: float) -> float:
-    return dollars / get_price(db, symbol)
+    return dollars / get_price(db, symbol=symbol, delay_seconds=0)
 
 
 def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float):
@@ -133,10 +133,11 @@ def invest_in_portfolio(
 
     price_by_symbol = get_prices(
         db,
-        [
+        symbols=[
             holding.symbol
             for holding in investee_portfolio.holdings + investor_portfolio.holdings
         ],
+        delay_seconds=0,
     )
 
     investee_portfolio_value = sum(
@@ -226,10 +227,11 @@ def divest_from_portfolio(
 
     price_by_symbol = get_prices(
         db,
-        [
+        symbols=[
             holding.symbol
             for holding in investee_portfolio.holdings + investor_portfolio.holdings
         ],
+        delay_seconds=0,
     )
     investee_portfolio_value = sum(
         holding.units * price_by_symbol[holding.symbol]

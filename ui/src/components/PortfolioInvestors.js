@@ -1,6 +1,4 @@
 export const PORTFOLIO_INVESTORS_TAG_NAME = "sherwood-portfolio-investors";
-export const PORTFOLIO_INVESTORS_TEMPLATE_NAME =
-  "sherwood-portfolio-investors-template";
 
 import BaseElement from "./BaseElement.js";
 
@@ -14,6 +12,27 @@ export default class PortfolioInvestors extends BaseElement {
     this.portfolioId = null;
   }
 
+  loadTemplate() {
+    const template = document.createElement("template");
+    template.innerHTML = `
+    <div>
+      <table border="1">
+        <thead>
+          <tr>
+            <th>user</th>
+            <th>amount invested</th>
+            <th>value</th>
+            <th>average daily return</th>
+            <th>lifetime return</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>`;
+    return template.content.cloneNode(true);
+  }
+
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "portfolio-id" && oldValue !== newValue) {
       this.portfolioId = newValue;
@@ -22,9 +41,7 @@ export default class PortfolioInvestors extends BaseElement {
   }
 
   async render() {
-    const portfolioInvestors = this.loadTemplate(
-      PORTFOLIO_INVESTORS_TEMPLATE_NAME
-    );
+    const portfolioInvestors = this.loadTemplate();
     const tbody = portfolioInvestors.querySelector("tbody");
 
     const columns = [

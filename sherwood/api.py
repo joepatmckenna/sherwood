@@ -56,8 +56,12 @@ async def api_sign_up_post(request: SignUpRequest, db: Database) -> SignUpRespon
 async def api_sign_in_post(
     request: SignInRequest, db: Database, secure: CookieSecurity
 ) -> SignInResponse:
+    from sherwood.auth import _decode_access_token
+
     access_token = sign_in_user(db, request.email, request.password)
-    response = SignInResponse(redirect_url="/sherwood/profile")
+    payload = _decode_access_token(access_token)
+    user_id = payload["sub"]
+    response = SignInResponse(redirect_url=f"/sherwood/user/{user_id}")
     response = JSONResponse(content=response.model_dump())
     response.set_cookie(
         key=AUTHORIZATION_COOKIE_NAME,
@@ -212,24 +216,21 @@ async def api_validate_password_websocket(web_socket: WebSocket):
 
 def _portfolio_lifetime_return(db, portfolio):
     price_by_symbol = get_prices(db, [holding.symbol for holding in portfolio.holdings])
-    cost = value = portfolio.cash
-    if portfolio.holdings:
-        self_ownership = db.get(Ownership, (portfolio.id, portfolio.id))
-        if self_ownership is None:
-            raise MissingOwnershipError(portfolio.id, portfolio.id)
-        cost += sum(
-            holding.cost for holding in portfolio.holdings
-        )  # should add up to STARTING_BALANCE
-        value += self_ownership.percent * sum(
-            holding.units * price_by_symbol[holding.symbol]
-            for holding in portfolio.holdings
-        )
+    self_ownership = db.get(Ownership, (portfolio.id, portfolio.id))
+    if self_ownership is None:
+        raise MissingOwnershipError(portfolio.id, portfolio.id)
+    # should add up to STARTING_BALANCE-cash invested in other portfolios
+    cost = sum(holding.cost for holding in portfolio.holdings)
+    value = self_ownership.percent * sum(
+        holding.units * price_by_symbol[holding.symbol]
+        for holding in portfolio.holdings
+    )
     return value - cost
 
 
 def _portfolio_average_daily_return(db, portfolio):
     average_daily_return = _portfolio_lifetime_return(db, portfolio)
-    days = (datetime.now() - portfolio.created_at).days
+    days = (datetime.now() - portfolio.created).days
     if days > 0:
         average_daily_return /= days
     return average_daily_return
@@ -239,7 +240,7 @@ def _assets_under_management(db, user):
     price_by_symbol = get_prices(
         db, [holding.symbol for holding in user.portfolio.holdings]
     )
-    return user.portfolio.cash + sum(
+    return sum(
         holding.units * price_by_symbol[holding.symbol]
         for holding in user.portfolio.holdings
     )
@@ -287,7 +288,6 @@ async def api_leaderboard_post(
 
 
 @api_router.post("/portfolio-holdings")
-@cache(lifetime_seconds=300)
 @handle_errors(
     (
         InternalServerError,
@@ -329,7 +329,7 @@ async def api_portfolio_holdings_post(
         ),
         Column.AVERAGE_DAILY_RETURN: lambda h: (
             (h.units * price_by_symbol[h.symbol] * self_ownership.percent - h.cost)
-            / max(1, (datetime.now() - holding.created_at).days)
+            / max(1, (datetime.now() - holding.created).days)
         ),
     }
 
@@ -344,7 +344,6 @@ async def api_portfolio_holdings_post(
 
 
 @api_router.post("/portfolio-investors")
-@cache(lifetime_seconds=300)
 @handle_errors(
     (
         InternalServerError,
@@ -384,7 +383,7 @@ async def api_portfolio_investors_post(
         Column.LIFETIME_RETURN: lambda o: portfolio_value * o.percent - o.cost,
         Column.AVERAGE_DAILY_RETURN: lambda o: (
             (portfolio_value * o.percent - o.cost)
-            / max(1, (datetime.now() - o.created_at).days)
+            / max(1, (datetime.now() - o.created).days)
         ),
     }
 
@@ -403,7 +402,6 @@ async def api_portfolio_investors_post(
 
 
 @api_router.post("/user-investments")
-@cache(lifetime_seconds=60)
 @handle_errors((InternalServerError,))
 async def api_user_investments_post(
     request: UserInvestmentsRequest, db: Database
@@ -447,7 +445,7 @@ async def api_user_investments_post(
             Column.LIFETIME_RETURN: lambda o: portfolio_value * o.percent - o.cost,
             Column.AVERAGE_DAILY_RETURN: lambda o: (
                 (portfolio_value * o.percent - o.cost)
-                / max(1, (datetime.now() - o.created_at).days)
+                / max(1, (datetime.now() - o.created).days)
             ),
         }
         for column in request.columns:

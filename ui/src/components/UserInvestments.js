@@ -1,6 +1,4 @@
 export const USER_INVESTMENTS_TAG_NAME = "sherwood-user-investments";
-export const USER_INVESTMENTS_TEMPLATE_NAME =
-  "sherwood-user-investments-template";
 
 import BaseElement from "./BaseElement.js";
 
@@ -14,6 +12,27 @@ export default class UserInvestments extends BaseElement {
     this.userId = null;
   }
 
+  loadTemplate() {
+    const template = document.createElement("template");
+    template.innerHTML = `
+    <div>
+      <table border="1">
+        <thead>
+          <tr>
+            <th>user</th>
+            <th>amount invested</th>
+            <th>value</th>
+            <th>average daily return</th>
+            <th>lifetime return</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>`;
+    return template.content.cloneNode(true);
+  }
+
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "user-id" && oldValue !== newValue) {
       this.userId = newValue;
@@ -22,7 +41,7 @@ export default class UserInvestments extends BaseElement {
   }
 
   async render() {
-    const userInvestments = this.loadTemplate(USER_INVESTMENTS_TEMPLATE_NAME);
+    const userInvestments = this.loadTemplate();
     const tbody = userInvestments.querySelector("tbody");
 
     const columns = [
