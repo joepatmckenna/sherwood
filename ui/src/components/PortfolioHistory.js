@@ -3,13 +3,13 @@ export const PORTFOLIO_HISTORY_TAG_NAME = "sherwood-portfolio-history";
 import BaseElement from "./BaseElement.js";
 
 export default class PortfolioHistory extends BaseElement {
-  static get observedAttributes() {
-    return ["portfolio-id"];
-  }
-
   constructor() {
     super();
     this.portfolioId = null;
+  }
+
+  static get observedAttributes() {
+    return ["portfolio-id"];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {

@@ -319,7 +319,7 @@ async def api_portfolio_holdings_post(
 
     Column = PortfolioHoldingsRequest.Column
     column_fns = {
-        Column.UNITS: lambda h: h.units,
+        Column.UNITS: lambda h: h.units * self_ownership.percent,
         Column.PRICE: lambda h: price_by_symbol[h.symbol],
         Column.VALUE: lambda h: (
             h.units * price_by_symbol[h.symbol] * self_ownership.percent

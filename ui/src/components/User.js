@@ -65,8 +65,7 @@ export default class User extends BaseElement {
 
     user.getElementById("holdings").innerHTML = `
       <h2>fund managed by ${displayName || "this user"}</h2>
-      <div id="holdings-controls">
-      </div>
+      <div id="buttons"> </div>
       <div>
         <sherwood-portfolio-holdings portfolio-id="${this.portfolioId}">
         </sherwood-portfolio-holdings>
@@ -96,15 +95,22 @@ export default class User extends BaseElement {
 
     const u = await this.callApi("/user");
     if (!u?.error) {
+      const buttons = user.querySelector("#buttons");
       if (`${u.id}` === `${this.userId}`) {
-        user.querySelector("#holdings-controls").innerHTML = `
+        buttons.innerHTML = `
         <sherwood-buy-button> </sherwood-buy-button>
         <sherwood-sell-button> </sherwood-sell-button>
+        <br/> <br/>
         `;
       } else {
-        user.querySelector("#holdings-controls").innerHTML = `
-        <sherwood-invest-button> </sherwood-invest-button>
-        <sherwood-divest-button> </sherwood-divest-button>
+        buttons.innerHTML = `
+        <sherwood-invest-button
+          investee-portfolio-id=${this.portfolioId}
+        > </sherwood-invest-button>
+        <sherwood-divest-button
+          investee-portfolio-id=${this.portfolioId}
+        > </sherwood-divest-button>
+        <br/> <br/>
         `;
       }
     }

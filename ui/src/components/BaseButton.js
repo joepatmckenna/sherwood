@@ -73,12 +73,13 @@ export default class BaseButton extends BaseElement {
       const formData = new FormData(form);
       const json = Object.fromEntries(formData.entries());
 
-      const response = this.callApi(route, {
+      const response = await this.callApi(route, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(json),
       });
 
+      console.log(response);
       if (!response?.error) {
         overlay.classList.remove("active");
         form.reset();

@@ -7,6 +7,15 @@ export default class DivestButton extends BaseButton {
     super();
   }
 
+  static get observedAttributes() {
+    return ["investee-portfolio-id"];
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (name === "investee-portfolio-id" && oldValue !== newValue) {
+      this.investeePortfolioId = newValue;
+    }
+  }
   loadTemplate() {
     const template = document.createElement("template");
     template.innerHTML = `
@@ -18,7 +27,7 @@ export default class DivestButton extends BaseButton {
       <h2>divest</h2>
       <form id="divest-form">
         <label>portfolio id:</label><br />
-        <input type="number" step="1" min="1" name="investee_portfolio_id" required /><br /><br />
+        <input type="number" id="investee-portfolio-id-input" name="investee_portfolio_id" required /><br /><br />
         <label>dollars:</label><br />
         <input type="number" name="dollars" required /><br /><br />
         <button type="submit">submit</button><br />
@@ -31,6 +40,11 @@ export default class DivestButton extends BaseButton {
 
   async connectedCallback() {
     const divestButton = this.loadTemplate();
+    if (this.investeePortfolioId != null) {
+      const input = divestButton.querySelector("#investee-portfolio-id-input");
+      input.value = this.investeePortfolioId;
+      input.disabled = true;
+    }
     this.setupModal(
       divestButton,
       "divest-open-button",

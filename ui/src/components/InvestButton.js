@@ -5,6 +5,17 @@ import BaseButton from "./BaseButton.js";
 export default class InvestButton extends BaseButton {
   constructor() {
     super();
+    this.investeePortfolioId = null;
+  }
+
+  static get observedAttributes() {
+    return ["investee-portfolio-id"];
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (name === "investee-portfolio-id" && oldValue !== newValue) {
+      this.investeePortfolioId = newValue;
+    }
   }
 
   loadTemplate() {
@@ -18,7 +29,7 @@ export default class InvestButton extends BaseButton {
         <h2>invest</h2>
         <form id="invest-form">
           <label>portfolio id:</label><br />
-          <input type="number" step="1" min="1" name="investee_portfolio_id" required /><br /><br />
+          <input type="number" id="investee-portfolio-id-input" name="investee_portfolio_id" required /><br /><br />
           <label>dollars:</label><br />
           <input type="number" name="dollars" required /><br /><br />
           <button type="submit">submit</button><br />
@@ -31,6 +42,11 @@ export default class InvestButton extends BaseButton {
 
   async connectedCallback() {
     const investButton = this.loadTemplate();
+    if (this.investeePortfolioId != null) {
+      const input = investButton.querySelector("#investee-portfolio-id-input");
+      input.value = this.investeePortfolioId;
+      input.disabled = true;
+    }
     this.setupModal(
       investButton,
       "invest-open-button",
