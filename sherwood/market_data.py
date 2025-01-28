@@ -14,7 +14,9 @@ def _fetch_prices(symbols) -> dict[str, float]:
     try:
         tickers = yfinance.Tickers(symbols)
         return {
-            symbol: tickers.tickers[symbol].info["currentPrice"] for symbol in symbols
+            symbol: tickers.tickers[symbol].info.get("currentPrice")
+            or tickers.tickers[symbol].info["navPrice"]
+            for symbol in symbols
         }
     except Exception as exc:
         raise MarketDataProviderError(
