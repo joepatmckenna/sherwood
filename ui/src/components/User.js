@@ -37,8 +37,8 @@ export default class User extends BaseElement {
     template.innerHTML = `
     <h1 id="display-name"></h1>
     <div>
-      <span id="member-since"></span>
-      <span id="email-verified"></span>
+      <span id="member-since"></span><br/>
+      <span id="email-verified"></span><br/>
     </div>
     <div id="holdings"> </div>
     <div id="investors"> </div>
@@ -67,7 +67,6 @@ export default class User extends BaseElement {
       <h2>fund managed by ${displayName || "this user"}</h2>
       <div id="holdings-controls">
       </div>
-      <br/>
       <div>
         <sherwood-portfolio-holdings portfolio-id="${this.portfolioId}">
         </sherwood-portfolio-holdings>
