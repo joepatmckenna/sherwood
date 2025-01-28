@@ -37,12 +37,13 @@ export default class User extends BaseElement {
     template.innerHTML = `
     <h1 id="display-name"></h1>
     <div>
-      <span id="member-since"></span><br />
+      <span id="member-since"></span>
       <span id="email-verified"></span>
     </div>
     <div id="holdings"> </div>
     <div id="investors"> </div>
     <div id="investments"> </div>
+    <div id="history"> </div>
     `;
     return template.content.cloneNode(true);
   }
@@ -66,10 +67,12 @@ export default class User extends BaseElement {
       <h2>fund managed by ${displayName || "this user"}</h2>
       <div id="holdings-controls">
       </div>
+      <br/>
       <div>
         <sherwood-portfolio-holdings portfolio-id="${this.portfolioId}">
         </sherwood-portfolio-holdings>
-      </div>`;
+      </div>
+      `;
 
     user.getElementById("investors").innerHTML = `
       <h2>investors in this fund</h2>
@@ -84,19 +87,25 @@ export default class User extends BaseElement {
         </sherwood-user-investments>
       </div>`;
 
+    user.getElementById("history").innerHTML = `
+      <h2>history</h3>
+      <div>
+        <sherwood-portfolio-history portfolio-id="${this.portfolioId}">
+        </sherwood-portfolio-history>
+      </div>
+    `;
+
     const u = await this.callApi("/user");
     if (!u?.error) {
       if (`${u.id}` === `${this.userId}`) {
         user.querySelector("#holdings-controls").innerHTML = `
         <sherwood-buy-button> </sherwood-buy-button>
         <sherwood-sell-button> </sherwood-sell-button>
-        <br/><br/>
         `;
       } else {
         user.querySelector("#holdings-controls").innerHTML = `
         <sherwood-invest-button> </sherwood-invest-button>
         <sherwood-divest-button> </sherwood-divest-button>
-        <br/><br/>
         `;
       }
     }

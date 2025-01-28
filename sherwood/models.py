@@ -1,10 +1,12 @@
 from collections.abc import Iterable
 from dataclasses import fields
 from datetime import datetime
+from enum import Enum
 from sherwood.db import maybe_commit
-from sherwood.errors import DuplicateQuoteError
+from sherwood.errors import DuplicateQuoteError, InternalServerError
 from six import string_types
 from sqlalchemy import func, ForeignKey, Index
+from sqlalchemy.event import listens_for
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -126,6 +128,15 @@ class Portfolio(BaseModel):
         repr=True,
     )
 
+    history: Mapped[list["Transaction"]] = relationship(
+        "Transaction",
+        back_populates="portfolio",
+        cascade="all, delete-orphan",
+        default_factory=list,
+        compare=True,
+        repr=True,
+    )
+
     user: Mapped["User"] = relationship(
         "User",
         uselist=False,
@@ -133,6 +144,74 @@ class Portfolio(BaseModel):
         init=False,
         repr=False,
         compare=False,
+    )
+
+
+class TransactionType(Enum):
+    BUY = "buy"
+    SELL = "sell"
+    INVEST = "invest"
+    DIVEST = "divest"
+
+
+class Transaction(BaseModel):
+    __tablename__ = "transactions"
+
+    id: Mapped[int] = mapped_column(
+        init=False,
+        repr=True,
+        primary_key=True,
+        autoincrement=True,
+        compare=True,
+    )
+
+    portfolio_id: Mapped[int] = mapped_column(
+        ForeignKey("portfolios.id", ondelete="CASCADE"),
+        nullable=False,
+        compare=True,
+        repr=True,
+    )
+
+    type: Mapped[TransactionType] = mapped_column(
+        nullable=False,
+        repr=True,
+        compare=True,
+    )
+
+    # symbol or display name
+    asset: Mapped[str] = mapped_column(
+        nullable=False,
+        repr=True,
+        compare=True,
+    )
+
+    dollars: Mapped[float] = mapped_column(
+        nullable=False,
+        repr=True,
+        compare=True,
+    )
+
+    price: Mapped[float] = mapped_column(
+        nullable=True,  # invest,divest -> None
+        repr=True,
+        compare=True,
+        default=None,
+    )
+
+    portfolio: Mapped["Portfolio"] = relationship(
+        "Portfolio",
+        back_populates="history",
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+
+@listens_for(Transaction, "before_update")
+@listens_for(Transaction, "before_delete")
+def prevent_update_delete(mapper, connection, target):
+    raise InternalServerError(
+        f"Updates and deletions not allowed on {target.__tablename__}."
     )
 
 

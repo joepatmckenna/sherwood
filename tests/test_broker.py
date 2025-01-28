@@ -5,7 +5,15 @@ from sherwood.broker import (
     invest_in_portfolio,
     divest_from_portfolio,
 )
-from sherwood.models import create_user, User, Portfolio, Holding, Ownership
+from sherwood.models import (
+    create_user,
+    Holding,
+    Ownership,
+    Portfolio,
+    Transaction,
+    TransactionType,
+    User,
+)
 
 
 def test_buy_portfolio_holding(db, valid_email, valid_display_name, valid_password):
@@ -24,11 +32,26 @@ def test_buy_portfolio_holding(db, valid_email, valid_display_name, valid_passwo
         ],
         ownership=[Ownership(portfolio_id=1, owner_id=1, cost=1000.0, percent=1.0)],
     )
+    txn1 = Transaction(
+        portfolio_id=1, type=TransactionType.BUY, symbol="AAA", units=50.0, price=1.0
+    )
+    txn1.id = 1
+    txn2 = Transaction(
+        portfolio_id=1, type=TransactionType.BUY, symbol="BBB", units=100.0, price=2.0
+    )
+    txn2.id = 2
+    txn3 = Transaction(
+        portfolio_id=1, type=TransactionType.BUY, symbol="AAA", units=50.0, price=1.0
+    )
+    txn3.id = 3
+    expected.portfolio.history = [txn1, txn2, txn3]
+
     expected.portfolio.id = 1
     user = create_user(db, valid_email, valid_display_name, valid_password, 1000)
     buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
     buy_portfolio_holding(db, user.portfolio.id, "BBB", 200)
     buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
+
     assert expected == db.get(User, 1)
 
 
@@ -49,6 +72,15 @@ def test_sell_portfolio_holding(db, valid_email, valid_display_name, valid_passw
         ],
     )
     expected.portfolio.id = 1
+    txn1 = Transaction(
+        portfolio_id=1, type=TransactionType.BUY, symbol="AAA", units=100.0, price=1.0
+    )
+    txn1.id = 1
+    txn2 = Transaction(
+        portfolio_id=1, type=TransactionType.BUY, symbol="BBB", units=100.0, price=2.0
+    )
+    txn2.id = 2
+    expected.portfolio.history = [txn1, txn2]
 
     user = create_user(
         db, valid_email, valid_display_name, valid_password, starting_balance=1000
@@ -77,6 +109,15 @@ def test_buy_and_sell_cancel(db, valid_email, valid_display_name, valid_password
         ],
     )
     expected.portfolio.id = 1
+    txn = Transaction(
+        portfolio_id=1,
+        type=TransactionType.BUY,
+        symbol="BBB",
+        units=100.0,
+        price=2.0,
+    )
+    txn.id = 1
+    expected.portfolio.history.append(txn)
 
     user = create_user(
         db, valid_email, valid_display_name, valid_password, starting_balance=1000
@@ -108,6 +149,16 @@ def test_invest_in_portfolio_success(
             Ownership(portfolio_id=1, owner_id=2, cost=10.0, percent=10 / 1010),
         ],
     )
+    txn = Transaction(
+        portfolio_id=1,
+        type=TransactionType.BUY,
+        symbol="AAA",
+        units=90.0,
+        price=1.0,
+    )
+    txn.id = 1
+    expected[0].portfolio.history.append(txn)
+
     expected[1].id = 2
     expected[1].portfolio = Portfolio(
         id=2,

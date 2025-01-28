@@ -9,7 +9,7 @@ from sherwood.errors import (
 )
 from sherwood.db import maybe_commit
 from sherwood.market_data import get_price, get_prices, DOLLAR_SYMBOL
-from sherwood.models import Holding, Ownership, Portfolio
+from sherwood.models import Holding, Ownership, Portfolio, Transaction, TransactionType
 from sqlalchemy.orm import Session
 
 
@@ -61,10 +61,18 @@ def buy_portfolio_holding(db: Session, portfolio_id, symbol: str, dollars: float
         holding = portfolio.holdings[-1]
     dollar_holding.cost -= dollars
     holding.cost += dollars
-    dollar_holding.units -= dollars / self_ownership.percent
-    holding.units += _convert_dollars_to_units(
-        db, symbol, dollars / self_ownership.percent
+    group_dollars = dollars / self_ownership.percent
+    dollar_holding.units -= group_dollars
+    price = get_price(db, symbol=symbol, delay_seconds=0)
+    holding.units += group_dollars / price
+    txn = Transaction(
+        portfolio_id=portfolio_id,
+        type=TransactionType.BUY,
+        asset=symbol,
+        dollars=dollars,
+        price=price,
     )
+    db.add(txn)
     maybe_commit(db, "Failed to buy holding.")
 
 
@@ -80,7 +88,8 @@ def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars:
     self_ownership = db.get(Ownership, (portfolio_id, portfolio_id))
     if self_ownership is None:
         raise MissingOwnershipError(portfolio_id, portfolio_id)
-    units = _convert_dollars_to_units(db, symbol, dollars)
+    price = get_price(db, symbol=symbol, delay_seconds=0)
+    units = dollars / price
     if units > holding.units * self_ownership.percent:
         raise InsufficientHoldingsError(
             symbol, needed=units / self_ownership.percent, actual=holding.units
@@ -89,6 +98,14 @@ def sell_portfolio_holding(db: Session, portfolio_id: int, symbol: str, dollars:
     dollar_holding.cost += dollars
     holding.units -= units / self_ownership.percent
     dollar_holding.units += dollars / self_ownership.percent
+    txn = Transaction(
+        portfolio_id=portfolio_id,
+        type=TransactionType.SELL,
+        asset=symbol,
+        dollars=dollars,
+        price=price,
+    )
+    db.add(txn)
     maybe_commit(db, "Failed to sell holding.")
 
 
@@ -191,6 +208,13 @@ def invest_in_portfolio(
     for ownership in investor_portfolio.ownership:
         ownership.percent /= 1 - investor_portfolio_value_percent_decrease
 
+    txn = Transaction(
+        portfolio_id=investor_portfolio_id,
+        type=TransactionType.INVEST,
+        asset=investee_portfolio.user.display_name,
+        dollars=dollars,
+    )
+    db.add(txn)
     maybe_commit(db, "Failed to invest in portfolio.")
 
 
@@ -277,4 +301,11 @@ def divest_from_portfolio(
     for ownership in investor_portfolio.ownership:
         ownership.percent /= 1 + investor_portfolio_value_percent_increase
 
+    txn = Transaction(
+        portfolio_id=investor_portfolio_id,
+        type=TransactionType.DIVEST,
+        asset=investee_portfolio.user.display_name,
+        dollars=dollars,
+    )
+    db.add(txn)
     maybe_commit(db, "Failed to divest from portfolio.")

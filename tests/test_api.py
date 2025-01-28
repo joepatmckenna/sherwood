@@ -186,16 +186,16 @@ def test_buy_portfolio_holding_success(
     get_user_response = client.get("/api/user")
     assert get_user_response.status_code == 200
     user = get_user_response.json()
-    assert user["portfolio"] == {
-        "id": 1,
-        "holdings": [
-            {"portfolio_id": 1, "symbol": "AAA", "cost": 50.0, "units": 50.0},
-            {"portfolio_id": 1, "symbol": "USD", "cost": 9950.0, "units": 9950.0},
-        ],
-        "ownership": [
-            {"portfolio_id": 1, "owner_id": 1, "cost": 10000.0, "percent": 1.0}
-        ],
-    }
+    assert user["portfolio"]["holdings"][0]["symbol"] == "AAA"
+    assert user["portfolio"]["holdings"][0]["cost"] == 50.0
+    assert user["portfolio"]["holdings"][0]["units"] == 50.0
+    assert user["portfolio"]["holdings"][1]["symbol"] == "USD"
+    assert user["portfolio"]["holdings"][1]["cost"] == 9950.0
+    assert user["portfolio"]["holdings"][1]["units"] == 9950.0
+    assert user["portfolio"]["ownership"][0]["portfolio_id"] == 1
+    assert user["portfolio"]["ownership"][0]["owner_id"] == 1
+    assert user["portfolio"]["ownership"][0]["cost"] == 10000.0
+    assert user["portfolio"]["ownership"][0]["percent"] == 1.0
 
 
 def test_buy_portfolio_holding_insufficient_cash(
@@ -243,16 +243,16 @@ def test_sell_portfolio_holding_success(
     get_user_response = client.get("/api/user")
     assert get_user_response.status_code == 200
     user = get_user_response.json()
-    assert user["portfolio"] == {
-        "id": 1,
-        "holdings": [
-            {"portfolio_id": 1, "symbol": "AAA", "cost": 25.0, "units": 25.0},
-            {"portfolio_id": 1, "symbol": "USD", "cost": 9975.0, "units": 9975.0},
-        ],
-        "ownership": [
-            {"portfolio_id": 1, "owner_id": 1, "cost": 10000.0, "percent": 1.0}
-        ],
-    }
+    assert user["portfolio"]["holdings"][0]["symbol"] == "AAA"
+    assert user["portfolio"]["holdings"][0]["cost"] == 25.0
+    assert user["portfolio"]["holdings"][0]["units"] == 25.0
+    assert user["portfolio"]["holdings"][1]["symbol"] == "USD"
+    assert user["portfolio"]["holdings"][1]["cost"] == 9975.0
+    assert user["portfolio"]["holdings"][1]["units"] == 9975.0
+    assert user["portfolio"]["ownership"][0]["portfolio_id"] == 1
+    assert user["portfolio"]["ownership"][0]["owner_id"] == 1
+    assert user["portfolio"]["ownership"][0]["cost"] == 10000.0
+    assert user["portfolio"]["ownership"][0]["percent"] == 1.0
 
 
 def test_sell_portfolio_holding_insufficient_holdings(

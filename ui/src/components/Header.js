@@ -36,7 +36,7 @@ export default class Header extends BaseElement {
 
     <nav>
       <div class="links">
-        <a href="/sherwood/" data-link>home</a>
+        <a href="/sherwood/" data-link>leaderboard</a>
       </div>
       <div class="links" id="right-links"> </div>
     </nav>`;

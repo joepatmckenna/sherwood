@@ -1,11 +1,13 @@
+from datetime import datetime
 from enum import Enum
-from pydantic import field_validator, model_validator, BaseModel, EmailStr
+from pydantic import field_validator, BaseModel, EmailStr
 from sherwood.errors import (
     InvalidDisplayNameError,
     InvalidPasswordError,
     RequestValueError,
 )
 from sherwood.auth import validate_display_name, validate_password
+from sherwood.models import TransactionType
 from typing import Any
 
 
@@ -150,6 +152,25 @@ class PortfolioHoldingsResponse(BaseModel):
     rows: list[Row]
 
 
+class PortfolioHistoryRequest(BaseModel):
+    class Column(Enum):
+        DOLLARS = "dollars"
+        PRICE = "price"
+
+    portfolio_id: int
+    columns: list[Column]
+
+
+class PortfolioHistoryResponse(BaseModel):
+    class Row(BaseModel):
+        created: datetime
+        type: TransactionType
+        asset: str
+        columns: dict[str, Any]
+
+    rows: list[Row]
+
+
 class PortfolioInvestorsRequest(BaseModel):
     class Column(Enum):
         AMOUNT_INVESTED = "amount_invested"
@@ -209,6 +230,8 @@ __all__ = [
     "LeaderboardResponse",
     "PortfolioHoldingsRequest",
     "PortfolioHoldingsResponse",
+    "PortfolioHistoryRequest",
+    "PortfolioHistoryResponse",
     "PortfolioInvestorsRequest",
     "PortfolioInvestorsResponse",
     "UserInvestmentsRequest",

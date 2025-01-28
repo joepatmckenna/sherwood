@@ -21,23 +21,23 @@ export default class PortfolioHoldings extends BaseElement {
 
   loadTemplate() {
     const template = document.createElement("template");
-    template.innerHTML = `<div>
-        <span id="cash"></span>
-        <table border="1">
-          <thead>
-            <tr>
-              <th>symbol</th>
-              <th>units</th>
-              <th>price</th>
-              <th>value</th>
-              <th>average daily return</th>
-              <th>lifetime return</th>
-            </tr>
-          </thead>
-          <tbody>
-          </tbody>
-        </table>
-      </div>`;
+    template.innerHTML = `
+    <div>
+      <span id="cash"></span><br/><br/>
+      <table border="1">
+        <thead>
+          <tr>
+            <th>symbol</th>
+            <th>units</th>
+            <th>price</th>
+            <th>value</th>
+            <th>average daily return</th>
+            <th>lifetime return</th>
+          </tr>
+        </thead>
+        <tbody> </tbody>
+      </table>
+    </div>`;
     return template.content.cloneNode(true);
   }
 

@@ -401,6 +401,42 @@ async def api_portfolio_investors_post(
     return response
 
 
+@api_router.post("/portfolio-history")
+@handle_errors(
+    (
+        InternalServerError,
+        MissingPortfolioError,
+    )
+)
+async def api_portfolio_history_post(
+    request: PortfolioHistoryRequest, db: Database
+) -> PortfolioHistoryResponse:
+    portfolio = db.get(Portfolio, request.portfolio_id)
+    if portfolio is None:
+        raise MissingPortfolioError(request.portfolio_id)
+
+    response = PortfolioHistoryResponse(rows=[])
+
+    Column = PortfolioHistoryRequest.Column
+    column_fns = {
+        Column.PRICE: lambda txn: txn.price,
+        Column.DOLLARS: lambda txn: txn.dollars,
+    }
+
+    for txn in portfolio.history:
+        row = PortfolioHistoryResponse.Row(
+            created=txn.created,
+            type=txn.type.value,
+            asset=txn.asset,
+            columns={},
+        )
+        for column in request.columns:
+            row.columns[column] = column_fns[column](txn)
+        response.rows.append(row)
+
+    return response
+
+
 @api_router.post("/user-investments")
 @handle_errors((InternalServerError,))
 async def api_user_investments_post(
