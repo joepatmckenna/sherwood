@@ -70,9 +70,13 @@ export default class BaseButton extends BaseElement {
       event.preventDefault();
       errorMessage.textContent = "";
 
+      const disabledInputs = form.querySelectorAll(":disabled");
+      disabledInputs.forEach((input) => (input.disabled = false));
       const formData = new FormData(form);
       const json = Object.fromEntries(formData.entries());
+      disabledInputs.forEach((input) => (input.disabled = true));
 
+      console.log(json);
       const response = await this.callApi(route, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,6 +87,7 @@ export default class BaseButton extends BaseElement {
       if (!response?.error) {
         overlay.classList.remove("active");
         form.reset();
+        window.location.reload();
       } else {
         errorMessage.textContent =
           response?.error?.detail || "An unexpected error occurred.";
