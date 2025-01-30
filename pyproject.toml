@@ -8,6 +8,7 @@ version = "0.0.0"
 description = "sherwood"
 license = { file = "LICENSE" }
 dependencies = [
+    "alpaca-py",
     "argon2_cffi",
     "bcrypt",
     "fastapi",
@@ -21,6 +22,7 @@ dependencies = [
     "pytest-mock",
     "python-dotenv",
     "python-jose",
+    "requests_mock",
     "sqlalchemy",
     "uvicorn[standard]",
     "yfinance",

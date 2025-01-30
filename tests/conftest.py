@@ -1,3 +1,4 @@
+from alpaca.data.historical import StockHistoricalDataClient
 from calendar import timegm
 from contextlib import asynccontextmanager
 import datetime
@@ -6,6 +7,7 @@ from fastapi.testclient import TestClient
 import jose.jwt
 import os
 import pytest
+import requests_mock
 from sherwood.auth import (
     get_cookie_security,
     _JWT_ALGORITHM,
@@ -18,14 +20,12 @@ from sherwood import market_data
 from sherwood.models import BaseModel
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
+from typing import Iterator
 
 
 load_dotenv(".env", override=True)
 engine = create_engine(
-    URL.create(
-        drivername="sqlite",
-        database=":memory:",
-    ),
+    URL.create(drivername="sqlite", database=":memory:"),
     connect_args={"check_same_thread": False},
 )
 Session.configure(bind=engine)
@@ -64,6 +64,17 @@ def mock_get_price(mocker):
             symbol: {"AAA": 1, "BBB": 2}[symbol] for symbol in symbols
         },
     )
+
+
+@pytest.fixture
+def reqmock() -> Iterator[requests_mock.Mocker]:
+    with requests_mock.Mocker() as m:
+        yield m
+
+
+@pytest.fixture
+def stock_client():
+    return StockHistoricalDataClient("alpaca-api-key", "alpaca-secret-key")
 
 
 @pytest.fixture

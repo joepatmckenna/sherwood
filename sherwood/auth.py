@@ -51,8 +51,7 @@ class ReasonDisplayNameInvalid(Enum):
     TOO_LONG = (
         f"display name must not be longer than {_MAX_DISPLAY_NAME_LENGTH} characters."
     )
-    CONTAINS_SPECIAL = "display name must only use letters (a-z or A-Z), numbers (0-9), underscores (_), hyphens (-), or periods (.)."
-    STARTS_WITH_SPECIAL = "display name must begin with a letter (a-z or A-Z)."
+    CONTAINS_SPECIAL = "display name must only use letters (a-z or A-Z), numbers (0-9), or underscores (_)."
 
 
 def validate_display_name(display_name: str) -> list[str]:
@@ -61,10 +60,8 @@ def validate_display_name(display_name: str) -> list[str]:
         reasons.append(ReasonDisplayNameInvalid.TOO_SHORT.value)
     if len(display_name) > _MAX_DISPLAY_NAME_LENGTH:
         reasons.append(ReasonDisplayNameInvalid.TOO_LONG.value)
-    if not re.match(r"^[a-zA-Z0-9._\-]+$", display_name):
+    if not re.match(r"^[a-zA-Z0-9_]+$", display_name):
         reasons.append(ReasonDisplayNameInvalid.CONTAINS_SPECIAL.value)
-    if not re.match(r"^[a-zA-Z]", display_name):
-        reasons.append(ReasonDisplayNameInvalid.STARTS_WITH_SPECIAL.value)
     return reasons
 
 

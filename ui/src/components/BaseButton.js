@@ -76,14 +76,12 @@ export default class BaseButton extends BaseElement {
       const json = Object.fromEntries(formData.entries());
       disabledInputs.forEach((input) => (input.disabled = true));
 
-      console.log(json);
       const response = await this.callApi(route, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(json),
       });
 
-      console.log(response);
       if (!response?.error) {
         overlay.classList.remove("active");
         form.reset();

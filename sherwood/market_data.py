@@ -1,7 +1,7 @@
-from sqlalchemy.orm import Session
 from sherwood.db import maybe_commit
 from sherwood.errors import MarketDataProviderError
 from sherwood.models import has_expired, Quote
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 import yfinance
 

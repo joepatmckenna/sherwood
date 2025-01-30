@@ -1,17 +1,16 @@
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 import gunicorn.app.base
 import logging
 import os
-from sherwood import errors
 from sherwood.api import api_router
 from sherwood.db import Session, POSTGRESQL_DATABASE_PASSWORD_ENV_VAR_NAME
 from sherwood.errors import SherwoodError
-from sherwood.models import BaseModel as Base
-from sherwood.ui import ui_router
+from sherwood.models import BaseModel
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
@@ -28,11 +27,15 @@ async def error_handler(request: Request, exc: SherwoodError) -> JSONResponse:
 
 def create_app(*args, **kwargs):
     app = FastAPI(*args, **kwargs)
-    # app.mount("/static", StaticFiles(directory="ui/static"), name="static")
-    app.mount("/ui", StaticFiles(directory="ui"), name="ui")
     app.include_router(api_router)
-    app.include_router(ui_router)
-    for error in errors.SherwoodError.__subclasses__():
+    app.mount("/ui", StaticFiles(directory="ui"), name="ui")
+    templates = Jinja2Templates(directory="ui")
+
+    @app.get("{path:path}", response_class=HTMLResponse)
+    async def home(request: Request, path: str):
+        return templates.TemplateResponse(request=request, name="index.html")
+
+    for error in SherwoodError.__subclasses__():
         app.add_exception_handler(error, error_handler)
     return app
 
@@ -77,7 +80,7 @@ class App(gunicorn.app.base.BaseApplication):
 
         @asynccontextmanager
         async def lifespan(_):
-            Base.metadata.create_all(engine)
+            BaseModel.metadata.create_all(engine)
             yield
             engine.dispose()
 
