@@ -239,6 +239,7 @@ def test_sell_portfolio_holding_success(
     buy_response = client.post("/api/buy", json={"symbol": "AAA", "dollars": 50})
     assert buy_response.status_code == 200
     sell_response = client.post("/api/sell", json={"symbol": "AAA", "dollars": 25})
+    print(sell_response.json())
     assert sell_response.status_code == 200
     get_user_response = client.get("/api/user")
     assert get_user_response.status_code == 200

@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import gunicorn.app.base
 import logging
@@ -79,7 +79,10 @@ class App(gunicorn.app.base.BaseApplication):
             database="sherwood",
             query={"sslmode": "require"},
         )
-        engine = create_engine(postgresql_database_url)
+        engine = create_engine(
+            postgresql_database_url,
+            connect_args={"options": "-c timezone=utc"},
+        )
         Session.configure(bind=engine)
 
         @asynccontextmanager

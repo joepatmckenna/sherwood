@@ -22,3 +22,12 @@ sudo rsync -a --delete ./ui/ /var/www/html/sherwood/
 fswatch -o ./ui | while read; do
     sudo rsync -a --delete ./ui/ /var/www/html/sherwood/
 done
+
+
+
+
+
+
+
+
+psql "postgresql://sherwood:PASSWORD@sql.joemckenna.xyz:5432/sherwood?sslmode=require"

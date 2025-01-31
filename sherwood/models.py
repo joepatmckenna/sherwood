@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import fields
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from sherwood.db import maybe_commit
 from sherwood.errors import DuplicateQuoteError, InternalServerError
@@ -19,6 +19,8 @@ from sqlalchemy.orm import (
 from sqlalchemy.orm.attributes import flag_modified
 from typing import Any
 
+now = lambda: datetime.now(timezone.utc)
+
 
 class BaseModel(DeclarativeBase, MappedAsDataclass):
     __abstract__ = True
@@ -26,7 +28,7 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
     created: Mapped[datetime] = mapped_column(
         init=False,
         repr=True,
-        default_factory=datetime.now,
+        default_factory=now,
         nullable=False,
         compare=False,
     )
@@ -34,10 +36,10 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
     last_modified: Mapped[datetime] = mapped_column(
         init=False,
         repr=True,
-        default_factory=datetime.now,
+        default_factory=now,
         compare=False,
         nullable=False,
-        onupdate=datetime.now,
+        onupdate=now,
     )
 
 
@@ -327,6 +329,18 @@ class Blob(BaseModel):
     )
 
 
+class Fake(BaseModel):
+    __tablename__ = "thisisatest"
+
+    id: Mapped[int] = mapped_column(
+        init=False,
+        repr=True,
+        primary_key=True,
+        autoincrement=True,
+        compare=True,
+    )
+
+
 def create_user(
     db: Session,
     email: str,
@@ -422,4 +436,9 @@ def to_dict(obj: Any) -> dict[str, Any]:
 
 
 def has_expired(model: BaseModel, seconds: int):
-    return (datetime.now() - model.last_modified).total_seconds() > seconds
+    last_modified = model.last_modified
+    # this in mainly for unit tests because sqlite supports
+    # in-memory databases but not timezone-aware types
+    if last_modified.tzinfo is None:
+        last_modified = last_modified.replace(tzinfo=timezone.utc)
+    return (now() - last_modified).total_seconds() > seconds

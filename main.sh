@@ -2,7 +2,7 @@
 
 
 : <<'USAGE'
-(cp .env from local machine to /root/.env)
+(scp .env from local machine to /root/.env)
 SHERWOOD_REPO='https://github.com/joepatmckenna/sherwood.git'
 SHERWOOD_DIR='/root/sherwood'
 if [[ -d "${SHERWOOD_DIR}" ]]; then
@@ -16,13 +16,14 @@ USAGE
 
 SHERWOOD_DIR='/root/sherwood'
 
-source "/root/.env"
-# POSTGRESQL_DATABASE_PASSWORD=...
-
 if [ ! -f "/root/.env" ]; then
   echo "Error: missing .env"
   exit 1
 fi
+
+source "/root/.env"
+# POSTGRESQL_DATABASE_PASSWORD=...
+
 
 check_postgresql_service() {
   if systemctl is-active --quiet postgresql; then
@@ -75,7 +76,7 @@ setup_postgresql() {
   # run_psql "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${database};"
   # run_psql "ALTER SCHEMA public OWNER TO ${database};"
   run_psql "ALTER DATABASE sherwood OWNER TO sherwood;"
-
+  # run_psql "ALTER DATABASE sherwood SET TIME ZONE 'UTC';"
   sudo sed -i "/^listen_addresses =/d" "${pg_conf}"
   echo "listen_addresses = '*'" | sudo tee -a "${pg_conf}"
 

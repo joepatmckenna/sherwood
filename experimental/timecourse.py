@@ -61,33 +61,28 @@ if __name__ == "__main__":
 
     BaseModel.metadata.create_all(engine)
 
+    _is_buy_or_sell = lambda txn: txn.type in {
+        TransactionType.BUY,
+        TransactionType.SELL,
+    }
+
     with Database() as db:
         user = db.get(User, 3)
-        symbols = set(
-            txn.asset
-            for txn in user.portfolio.history
-            if txn.type in {TransactionType.BUY, TransactionType.SELL}
-        )
 
-    if DOLLAR_SYMBOL in symbols:
-        symbols.remove(DOLLAR_SYMBOL)
+        transactions = list(filter(_is_buy_or_sell, user.portfolio.history))
 
-    symbols = list(symbols)
+        symbols = set(txn.asset for txn in transactions)
+        if DOLLAR_SYMBOL in symbols:
+            symbols.remove(DOLLAR_SYMBOL)
+        symbols = list(symbols)
 
-    transactions = list(
-        filter(
-            lambda txn: txn.type in {TransactionType.BUY, TransactionType.SELL},
-            user.portfolio.history,
-        )
-    )
+        start = user.portfolio.created
+        end = datetime.now()
 
     stock_historical_data_client = StockHistoricalDataClient(
         api_key=os.environ.get(ALPACA_API_KEY_ENV_VAR_NAME),
         secret_key=os.environ.get(ALPACA_SECRET_KEY_ENV_VAR_NAME),
     )
-
-    start = user.portfolio.created
-    end = datetime.now()
 
     request = StockBarsRequest(
         symbol_or_symbols=symbols,
