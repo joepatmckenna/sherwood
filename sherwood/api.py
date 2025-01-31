@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 import logging
@@ -22,7 +22,7 @@ from sherwood.errors import *
 from sherwood.error_handling import HandleErrors as handle_errors
 from sherwood.market_data import get_prices
 from sherwood.messages import *
-from sherwood.models import to_dict, Ownership, Portfolio, User
+from sherwood.models import now, to_dict, Ownership, Portfolio, User
 from sherwood.registrar import sign_up_user, sign_in_user
 
 api_router = APIRouter(prefix="/api")
@@ -230,7 +230,10 @@ def _portfolio_lifetime_return(db, portfolio):
 
 def _portfolio_average_daily_return(db, portfolio):
     average_daily_return = _portfolio_lifetime_return(db, portfolio)
-    days = (datetime.now() - portfolio.created).days
+    created = portfolio.created
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    days = (now() - created).days
     if days > 0:
         average_daily_return /= days
     return average_daily_return
@@ -318,6 +321,15 @@ async def api_portfolio_holdings_post(
     price_by_symbol = get_prices(db, [holding.symbol for holding in portfolio.holdings])
 
     Column = PortfolioHoldingsRequest.Column
+
+    def _average_daily_return(h):
+        created = h.created
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        return (
+            h.units * price_by_symbol[h.symbol] * self_ownership.percent - h.cost
+        ) / max(1, (now() - created).days)
+
     column_fns = {
         Column.UNITS: lambda h: h.units * self_ownership.percent,
         Column.PRICE: lambda h: price_by_symbol[h.symbol],
@@ -327,10 +339,7 @@ async def api_portfolio_holdings_post(
         Column.LIFETIME_RETURN: lambda h: (
             h.units * price_by_symbol[h.symbol] * self_ownership.percent - h.cost
         ),
-        Column.AVERAGE_DAILY_RETURN: lambda h: (
-            (h.units * price_by_symbol[h.symbol] * self_ownership.percent - h.cost)
-            / max(1, (datetime.now() - holding.created).days)
-        ),
+        Column.AVERAGE_DAILY_RETURN: _average_daily_return,
     }
 
     for holding in portfolio.holdings:
@@ -377,14 +386,18 @@ async def api_portfolio_investors_post(
     )
 
     Column = PortfolioInvestorsRequest.Column
+
+    def _average_daily_return(o):
+        created = o.created
+        if created.tzinfo is None:
+            created.replace(tzinfo=timezone.utc)
+        return (portfolio_value * o.percent - o.cost) / max(1, (now() - created).days)
+
     column_fns = {
         Column.AMOUNT_INVESTED: lambda o: o.cost,
         Column.VALUE: lambda o: portfolio_value * o.percent,
         Column.LIFETIME_RETURN: lambda o: portfolio_value * o.percent - o.cost,
-        Column.AVERAGE_DAILY_RETURN: lambda o: (
-            (portfolio_value * o.percent - o.cost)
-            / max(1, (datetime.now() - o.created).days)
-        ),
+        Column.AVERAGE_DAILY_RETURN: _average_daily_return,
     }
 
     for o in ownership:
@@ -475,14 +488,19 @@ async def api_user_investments_post(
             for holding in user.portfolio.holdings
         )
 
+        def _average_daily_return(o):
+            created = o.created
+            if created.tzinfo is None:
+                created.replace(tzinfo=timezone.utc)
+            return (portfolio_value * o.percent - o.cost) / max(
+                1, (now() - created).days
+            )
+
         column_fns = {
             Column.AMOUNT_INVESTED: lambda o: o.cost,
             Column.VALUE: lambda o: portfolio_value * o.percent,
             Column.LIFETIME_RETURN: lambda o: portfolio_value * o.percent - o.cost,
-            Column.AVERAGE_DAILY_RETURN: lambda o: (
-                (portfolio_value * o.percent - o.cost)
-                / max(1, (datetime.now() - o.created).days)
-            ),
+            Column.AVERAGE_DAILY_RETURN: _average_daily_return,
         }
         for column in request.columns:
             o = ownership_by_portfolio_id[user.portfolio.id]
