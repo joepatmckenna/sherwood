@@ -32,21 +32,21 @@ def test_buy_portfolio_holding(db, valid_email, valid_display_name, valid_passwo
         ],
         ownership=[Ownership(portfolio_id=1, owner_id=1, cost=1000.0, percent=1.0)],
     )
+    expected.portfolio.id = 1
     txn1 = Transaction(
-        portfolio_id=1, type=TransactionType.BUY, symbol="AAA", units=50.0, price=1.0
+        portfolio_id=1, type=TransactionType.BUY, asset="AAA", dollars=50.0, price=1.0
     )
     txn1.id = 1
     txn2 = Transaction(
-        portfolio_id=1, type=TransactionType.BUY, symbol="BBB", units=100.0, price=2.0
+        portfolio_id=1, type=TransactionType.BUY, asset="BBB", dollars=200.0, price=2.0
     )
     txn2.id = 2
     txn3 = Transaction(
-        portfolio_id=1, type=TransactionType.BUY, symbol="AAA", units=50.0, price=1.0
+        portfolio_id=1, type=TransactionType.BUY, asset="AAA", dollars=50.0, price=1.0
     )
     txn3.id = 3
     expected.portfolio.history = [txn1, txn2, txn3]
 
-    expected.portfolio.id = 1
     user = create_user(db, valid_email, valid_display_name, valid_password, 1000)
     buy_portfolio_holding(db, user.portfolio.id, "AAA", 50)
     buy_portfolio_holding(db, user.portfolio.id, "BBB", 200)
@@ -73,14 +73,23 @@ def test_sell_portfolio_holding(db, valid_email, valid_display_name, valid_passw
     )
     expected.portfolio.id = 1
     txn1 = Transaction(
-        portfolio_id=1, type=TransactionType.BUY, symbol="AAA", units=100.0, price=1.0
+        portfolio_id=1, type=TransactionType.BUY, asset="AAA", dollars=100.0, price=1.0
     )
     txn1.id = 1
     txn2 = Transaction(
-        portfolio_id=1, type=TransactionType.BUY, symbol="BBB", units=100.0, price=2.0
+        portfolio_id=1, type=TransactionType.BUY, asset="BBB", dollars=200.0, price=2.0
     )
     txn2.id = 2
-    expected.portfolio.history = [txn1, txn2]
+    txn3 = Transaction(
+        portfolio_id=1, type=TransactionType.SELL, asset="AAA", dollars=50.0, price=1.0
+    )
+    txn3.id = 3
+    txn4 = Transaction(
+        portfolio_id=1, type=TransactionType.SELL, asset="BBB", dollars=100.0, price=2.0
+    )
+    txn4.id = 4
+
+    expected.portfolio.history = [txn1, txn2, txn3, txn4]
 
     user = create_user(
         db, valid_email, valid_display_name, valid_password, starting_balance=1000
@@ -109,15 +118,15 @@ def test_buy_and_sell_cancel(db, valid_email, valid_display_name, valid_password
         ],
     )
     expected.portfolio.id = 1
-    txn = Transaction(
-        portfolio_id=1,
-        type=TransactionType.BUY,
-        symbol="BBB",
-        units=100.0,
-        price=2.0,
+    txn1 = Transaction(
+        portfolio_id=1, type=TransactionType.BUY, asset="BBB", dollars=200.0, price=2.0
     )
-    txn.id = 1
-    expected.portfolio.history.append(txn)
+    txn1.id = 1
+    txn2 = Transaction(
+        portfolio_id=1, type=TransactionType.SELL, asset="BBB", dollars=200.0, price=2.0
+    )
+    txn2.id = 2
+    expected.portfolio.history = [txn1, txn2]
 
     user = create_user(
         db, valid_email, valid_display_name, valid_password, starting_balance=1000
@@ -125,9 +134,6 @@ def test_buy_and_sell_cancel(db, valid_email, valid_display_name, valid_password
     buy_portfolio_holding(db, user.portfolio.id, "BBB", 200)
     sell_portfolio_holding(db, user.portfolio.id, "BBB", 200)
     assert user == expected
-
-
-# python -m pytest tests/test_broker.py::test_invest_in_portfolio_success --capture=no
 
 
 def test_invest_in_portfolio_success(
@@ -150,11 +156,7 @@ def test_invest_in_portfolio_success(
         ],
     )
     txn = Transaction(
-        portfolio_id=1,
-        type=TransactionType.BUY,
-        symbol="AAA",
-        units=90.0,
-        price=1.0,
+        portfolio_id=1, type=TransactionType.BUY, asset="AAA", dollars=90.0, price=1.0
     )
     txn.id = 1
     expected[0].portfolio.history.append(txn)
@@ -162,9 +164,18 @@ def test_invest_in_portfolio_success(
     expected[1].id = 2
     expected[1].portfolio = Portfolio(
         id=2,
-        holdings=[Holding(portfolio_id=2, symbol="USD", cost=990, units=990)],
-        ownership=[Ownership(portfolio_id=2, owner_id=2, cost=990, percent=1.0)],
+        holdings=[Holding(portfolio_id=2, symbol="USD", cost=990.0, units=990.0)],
+        ownership=[Ownership(portfolio_id=2, owner_id=2, cost=990.0, percent=1.0)],
     )
+    txn = Transaction(
+        portfolio_id=2,
+        type=TransactionType.INVEST,
+        asset=valid_display_names[0],
+        dollars=10.0,
+        price=None,
+    )
+    txn.id = 2
+    expected[1].portfolio.history.append(txn)
 
     users = [
         create_user(
