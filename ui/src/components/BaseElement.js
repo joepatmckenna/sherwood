@@ -58,7 +58,7 @@ export default class BaseElement extends HTMLElement {
         return data;
       }
     } catch (error) {
-      return { error: error.message || "An unexpected error occurred." };
+      return { error: error?.message || "An unexpected error occurred." };
     }
   }
 }

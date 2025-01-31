@@ -1,9 +1,9 @@
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 import gunicorn.app.base
 import logging
 import os
@@ -27,13 +27,17 @@ async def error_handler(request: Request, exc: SherwoodError) -> JSONResponse:
 
 def create_app(*args, **kwargs):
     app = FastAPI(*args, **kwargs)
+
+    @api_router.get("/docs", include_in_schema=False)
+    async def api_docs_get():
+        return get_swagger_ui_html(openapi_url="/sherwood/openapi.json", title="api")
+
     app.include_router(api_router)
     app.mount("/ui", StaticFiles(directory="ui"), name="ui")
-    templates = Jinja2Templates(directory="ui")
 
-    @app.get("{path:path}", response_class=HTMLResponse)
-    async def home(request: Request, path: str):
-        return templates.TemplateResponse(request=request, name="index.html")
+    @app.get("{path:path}")
+    async def ui_get(path: str):
+        return FileResponse("ui/index.html")
 
     for error in SherwoodError.__subclasses__():
         app.add_exception_handler(error, error_handler)

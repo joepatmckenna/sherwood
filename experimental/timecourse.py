@@ -108,17 +108,18 @@ if __name__ == "__main__":
     for timestamp in timestamps:
         prices.update(bars.df.xs(timestamp, level="timestamp")["open"].to_dict())
 
-        if i_txn < len(transactions):
-            if transactions[i_txn].created < timestamp.replace(tzinfo=None):
-                txn = transactions[i_txn]
-                i_txn += 1
-                if txn.type == TransactionType.BUY:
-                    units[DOLLAR_SYMBOL] -= txn.dollars
-                    units.setdefault(txn.asset, 0)
-                    units[txn.asset] += txn.dollars / txn.price
-                elif txn.type == TransactionType.SELL:
-                    units[txn.asset] -= txn.dollars / txn.price
-                    units[DOLLAR_SYMBOL] += txn.dollars
+        if i_txn < len(transactions) and transactions[
+            i_txn
+        ].created < timestamp.replace(tzinfo=None):
+            txn = transactions[i_txn]
+            i_txn += 1
+            if txn.type == TransactionType.BUY:
+                units[DOLLAR_SYMBOL] -= txn.dollars
+                units.setdefault(txn.asset, 0)
+                units[txn.asset] += txn.dollars / txn.price
+            elif txn.type == TransactionType.SELL:
+                units[txn.asset] -= txn.dollars / txn.price
+                units[DOLLAR_SYMBOL] += txn.dollars
 
         if any(s not in prices for s, n in units.items() if n > 0):
             print("missing prices", timestamp, units, prices)
@@ -133,7 +134,10 @@ if __name__ == "__main__":
 
     fig = plt.figure()
     ax = plt.gca()
-    ax.plot([x["timestamp"] for x in timecourse], [x["value"] for x in timecourse])
+    t = [x["timestamp"] for x in timecourse]
+    y = [x["value"] for x in timecourse]
+    ax.plot(t, y)
+    ax.scatter(t, y)
     plt.show()
     plt.close()
 
