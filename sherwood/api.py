@@ -249,8 +249,10 @@ def _assets_under_management(db, user):
     )
 
 
+# @cache(lifetime_seconds=300)
+
+
 @api_router.post("/leaderboard")
-@cache(lifetime_seconds=300)
 @handle_errors(
     (
         InternalServerError,
