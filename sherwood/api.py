@@ -324,30 +324,37 @@ async def api_portfolio_holdings_post(
 
     Column = PortfolioHoldingsRequest.Column
 
+    def _units(h):
+        return h.units * self_ownership.percent
+
+    def _value(h):
+        return _units(h) * price_by_symbol[h.symbol]
+
+    def _lifetime_return(h):
+        return _value(h) - h.cost
+
     def _average_daily_return(h):
         created = h.created
         if created.tzinfo is None:
             created = created.replace(tzinfo=timezone.utc)
-        return (
-            h.units * price_by_symbol[h.symbol] * self_ownership.percent - h.cost
-        ) / max(1, (now() - created).days)
+        days = (now() - created).days
+        if days > 0:
+            return _lifetime_return(h) / days
+        return _lifetime_return(h)
 
     column_fns = {
-        Column.UNITS: lambda h: h.units * self_ownership.percent,
+        Column.UNITS: _units,
         Column.PRICE: lambda h: price_by_symbol[h.symbol],
-        Column.VALUE: lambda h: (
-            h.units * price_by_symbol[h.symbol] * self_ownership.percent
-        ),
-        Column.LIFETIME_RETURN: lambda h: (
-            h.units * price_by_symbol[h.symbol] * self_ownership.percent - h.cost
-        ),
+        Column.VALUE: _value,
+        Column.LIFETIME_RETURN: _lifetime_return,
         Column.AVERAGE_DAILY_RETURN: _average_daily_return,
     }
 
     for holding in portfolio.holdings:
         row = PortfolioHoldingsResponse.Row(symbol=holding.symbol, columns={})
         for column in request.columns:
-            row.columns[column] = column_fns[column](holding)
+            column_fn = column_fns[column]
+            row.columns[column] = column_fn(holding)
         response.rows.append(row)
 
     response.rows.sort(key=lambda row: row.columns[request.sort_by], reverse=True)
