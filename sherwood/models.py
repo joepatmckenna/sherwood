@@ -5,7 +5,7 @@ from enum import Enum
 from sherwood.db import maybe_commit
 from sherwood.errors import DuplicateQuoteError, InternalServerError
 from six import string_types
-from sqlalchemy import func, ForeignKey, Index
+from sqlalchemy import func, DateTime, ForeignKey, Index
 from sqlalchemy.event import listens_for
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import (
@@ -26,6 +26,7 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
     __abstract__ = True
 
     created: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         init=False,
         repr=True,
         default_factory=now,
@@ -34,6 +35,7 @@ class BaseModel(DeclarativeBase, MappedAsDataclass):
     )
 
     last_modified: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         init=False,
         repr=True,
         default_factory=now,
