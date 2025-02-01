@@ -307,22 +307,17 @@ async def api_portfolio_holdings_post(
 ) -> PortfolioHoldingsResponse:
     if request.sort_by not in request.columns:
         raise RequestValueError("sort_by not in columns")
-
     portfolio = db.get(Portfolio, request.portfolio_id)
     if portfolio is None:
         raise MissingPortfolioError(request.portfolio_id)
-
     response = PortfolioHoldingsResponse(rows=[])
     if not portfolio.holdings:
         return response
-
     self_ownership = db.get(Ownership, (portfolio.id, portfolio.id))
     if self_ownership is None:
         raise MissingOwnershipError(portfolio.id, portfolio.id)
 
     price_by_symbol = get_prices(db, [holding.symbol for holding in portfolio.holdings])
-
-    Column = PortfolioHoldingsRequest.Column
 
     def _units(h):
         return h.units * self_ownership.percent
@@ -342,6 +337,7 @@ async def api_portfolio_holdings_post(
             return _lifetime_return(h) / days
         return _lifetime_return(h)
 
+    Column = PortfolioHoldingsRequest.Column
     column_fns = {
         Column.UNITS: _units,
         Column.PRICE: lambda h: price_by_symbol[h.symbol],
@@ -355,6 +351,8 @@ async def api_portfolio_holdings_post(
         for column in request.columns:
             column_fn = column_fns[column]
             row.columns[column] = column_fn(holding)
+            if portfolio.id == 3 and holding.symbol == "HOOD":
+                print(32 * "!", column, row)
         response.rows.append(row)
 
     response.rows.sort(key=lambda row: row.columns[request.sort_by], reverse=True)

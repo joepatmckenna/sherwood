@@ -31,3 +31,16 @@ done
 
 
 psql "postgresql://sherwood:PASSWORD@sql.joemckenna.xyz:5432/sherwood?sslmode=require"
+
+
+
+
+
+# x = 1000 / 47.74 * 51.95
+
+
+# units 18.905326706035098
+# price 51.95
+# value 982.1317223785234
+# average_daily_return -5.956092540492212
+# lifetime_return -17.868277621476636

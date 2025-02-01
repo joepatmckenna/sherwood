@@ -331,18 +331,6 @@ class Blob(BaseModel):
     )
 
 
-class Fake(BaseModel):
-    __tablename__ = "thisisatest"
-
-    id: Mapped[int] = mapped_column(
-        init=False,
-        repr=True,
-        primary_key=True,
-        autoincrement=True,
-        compare=True,
-    )
-
-
 def create_user(
     db: Session,
     email: str,
